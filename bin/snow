@@ -6,4 +6,6 @@ if [ ! -d $script_directory/../node_modules/ ]; then
     exit 1
 fi
 
+echo "Please note, the CLI has a long warm-up phase because of ts-node. This is currently investigated."
+
 node -r $0/../../node_modules/ts-node/register $0/../../main.ts $@

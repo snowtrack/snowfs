@@ -14,6 +14,8 @@ IF EXIST "%dp0%\node.exe" (
   SET PATHEXT=%PATHEXT:;.JS;=;%
 )
 
+echo Please note, the CLI has a long warm-up phase because of ts-node. This is currently investigated.
+
 "%_prog%" -r "%dp0%..\node_modules\ts-node\register\index.js" "%dp0%..\main.ts" %*
 ENDLOCAL
 EXIT /b %errorlevel%
