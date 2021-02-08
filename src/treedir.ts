@@ -1,0 +1,260 @@
+import * as fse from 'fs-extra';
+import * as crypto from 'crypto';
+
+import { join, sep, relative } from 'path';
+import { Repository } from './repository';
+import { getPartHash, HashBlock, MB20 } from './common';
+
+export const enum FILEMODE {
+  UNREADABLE = 0,
+  TREE = 16384,
+  BLOB = 33188,
+  EXECUTABLE = 33261,
+  LINK = 40960,
+  COMMIT = 57344,
+}
+
+export class TreeFile {
+  constructor(
+    public hash: string,
+    public parent: TreeDir,
+    public path: string,
+    public ctime: number,
+    public mtime: number,
+    public size: number,
+  ) {
+    path = path.replace(/\\/g, '/');
+  }
+
+  isDirectory() {
+    return false;
+  }
+
+  isFile() {
+    return true;
+  }
+
+  toString() {
+    if (!this.parent && this.path) {
+      throw new Error('parent has no path');
+    } else if (this.parent && !this.path) {
+      // only the root path with no parent has no path
+      throw new Error('item must have path');
+    }
+
+    const hash: string = this.hash.toString();
+    const { ctime } = this;
+    const { mtime } = this;
+    const { size } = this;
+    const path: string = this.path.replace(/\\/g, '/');
+    const output: any = {
+      hash, ctime, mtime, size, path,
+    };
+    return JSON.stringify(output);
+  }
+
+  async isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean}> {
+    const filepath = join(repo.workdir(), this.path);
+    return fse.stat(filepath).then(async (value: fse.Stats) => {
+      // first we check for for modification time and file size
+      if (this.size !== value.size) {
+        return { file: this, modified: true };
+      }
+      if (this.mtime < value.mtime.getTime()) {
+        // we hash compare every file that is smaller than 20 MB
+        // Every file that is bigger than 20MB should better differ
+        // in size to reflect a correct modification, otherwise
+        // we simply present it as modified because it will be determined
+        // when the user commits where we have more time for this
+        if (this.size < MB20) {
+          return getPartHash(filepath).then((hashBlock: HashBlock) => ({ file: this, modified: this.hash !== hashBlock.hash }));
+        }
+
+        return { file: this, modified: true };
+      }
+
+      return { file: this, modified: false };
+    });
+  }
+}
+
+export class TreeDir {
+  static ROOT = undefined;
+
+  hash: string;
+
+  children: (TreeEntry)[] = [];
+
+  constructor(public path: string | undefined, public parent: TreeDir = null) {
+    path = path?.replace(/\\/g, '/');
+  }
+
+  isDirectory() {
+    return true;
+  }
+
+  isFile() {
+    return false;
+  }
+
+  toString(includeChildren?: boolean) {
+    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
+    return `{"hash": "${this.hash.toString()}", "path": "${this.path?.replace(/\\/g, '/') ?? ''}", "children": [${children.join(',')}]}`;
+  }
+
+  getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
+    const visit = (obj: TreeEntry[] | TreeEntry, map: Map<string, TreeEntry>) => {
+      if (Array.isArray(obj)) {
+        return obj.forEach((c: any) => visit(c, map));
+      } if (obj instanceof TreeDir) {
+        if (opt.includeDirs) {
+          map.set(obj.path, obj);
+        }
+        return (obj as TreeDir).children.forEach((c: any) => visit(c, map));
+      }
+      map.set(obj.path, obj);
+    };
+
+    const map: Map<string, TreeEntry> = new Map();
+
+    if (opt.entireHierarchy) {
+      visit(this.children, map);
+    } else {
+      this.children.forEach((o: TreeDir | TreeFile) => {
+        if (o instanceof TreeFile || opt.entireHierarchy) {
+          map.set(o.path, o);
+        }
+      });
+    }
+    return map;
+  }
+
+  find(relativePath: string): TreeEntry | null {
+    let tree: TreeEntry | null = null;
+    // TODO: (Seb) return faster if found
+    TreeDir.walk(this, (entry: TreeDir | TreeFile) => {
+      if (entry.path === relativePath) {
+        tree = entry;
+      }
+    });
+    return tree;
+  }
+
+  remove(relativePath: string): TreeEntry | null {
+    function privateDelete(
+      tree: TreeDir,
+      cb: (entry: TreeEntry, index: number, length: number) => boolean,
+    ) {
+      let i = 0;
+
+      for (const entry of tree.children) {
+        if (cb(entry, i, tree.children.length)) {
+          tree.children.splice(i, 1);
+          return;
+        }
+        if (entry.isDirectory()) {
+          privateDelete(entry as TreeDir, cb);
+        }
+        i++;
+      }
+    }
+
+    const tree: TreeEntry| null = null;
+    // TODO: (Seb) return faster if found
+    privateDelete(this, (entry: TreeEntry): boolean => {
+      if (entry.path === relativePath) {
+        return true;
+      }
+    });
+    return tree;
+  }
+
+  static walk(
+    tree: TreeDir,
+    cb: (entry: TreeDir | TreeFile, index: number, length: number) => void,
+  ) {
+    let i = 0;
+    for (const entry of tree.children) {
+      cb(entry, i, tree.children.length);
+      if (entry.isDirectory()) {
+        TreeDir.walk(entry as TreeDir, cb);
+      }
+      i++;
+    }
+  }
+}
+// This function has the same basic functioanlity as io.osWalk(..) but works with Tree
+export async function constructTree(
+  dirPath: string,
+  hashMap: Map<string, string>,
+  tree?: TreeDir,
+  root?: string,
+): Promise<TreeDir> {
+  if (dirPath.endsWith(sep)) {
+    // if directory ends with a seperator, we cut it of to ensure
+    // we don't return a path like /foo/directory//file.jpg
+    dirPath = dirPath.substr(0, dirPath.length - 1);
+  }
+
+  if (!root) {
+    root = dirPath;
+  }
+
+  if (!tree) {
+    tree = new TreeDir(undefined);
+  }
+
+  return new Promise<string[]>((resolve, reject) => {
+    fse.readdir(dirPath, (error, entries: string[]) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(entries);
+    });
+  })
+    .then((entries: string[]) => {
+      const promises: Promise<any>[] = [];
+
+      for (const entry of entries) {
+        if (entry === '.snow' || entry === '.git') {
+          continue;
+        }
+
+        const absPath = `${dirPath}${sep}${entry}`;
+        promises.push(
+          fse.stat(absPath).then(async (stat: fse.Stats) => {
+            if (stat.isDirectory()) {
+              const subtree: TreeDir = new TreeDir(
+                relative(root, absPath),
+                tree,
+              );
+              tree.children.push(subtree);
+              return constructTree(absPath, hashMap, subtree, root);
+            }
+            const hash: string | null = hashMap?.get(relative(root, absPath).replace(/\\/g, '/'));
+            if (hash) {
+              const path: string = relative(root, absPath);
+              const entry: TreeFile = new TreeFile(hash, tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
+              tree.children.push(entry);
+            } else {
+              // console.warn(`No hash for ${absPath}`);
+            }
+          }),
+        );
+      }
+
+      return Promise.all(promises);
+    })
+    .then(() => {
+      // update all parents id hash with their children ids
+      const hash = crypto.createHash('sha256');
+      for (const r of tree.children) {
+        hash.update(r.hash.toString());
+      }
+      tree.hash = hash.digest('hex');
+      return tree;
+    });
+}
+
+export declare type TreeEntry = TreeDir | TreeFile;
