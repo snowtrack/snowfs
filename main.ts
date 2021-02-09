@@ -17,7 +17,7 @@ const program = require('commander');
 const chalk = require('chalk');
 
 program
-  .version('0.0.1')
+  .version('0.8.51')
   .description('SnowFS - a fast, scalable version control file storage for graphic files.');
 
 program
