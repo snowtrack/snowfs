@@ -115,7 +115,7 @@ main();
 
 The CLI of `SnowFS` offers some basic functionality and is subject to enhancements.
 
-:exclamation:  Please note, due to `ts-node` the CLI has currently a very long warm-up phase. This will be fixed soon.
+:exclamation: Please check the [SnowFS release](https://github.com/Snowtrack/SnowFS/releases) page for pre-release versions of the CLI.
 
 ```
 $ snow init foo
