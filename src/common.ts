@@ -190,6 +190,37 @@ export async function putToTrash(path: string, execPath?: string): Promise<void>
     throw error;
   }
 
+  let trashPath: string;
+  switch (process.platform) {
+    case 'darwin': {
+      if (fse.pathExistsSync(execPath)) {
+        trashPath = execPath;
+      } else if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'trash'))) {
+        trashPath = join(dirname(process.execPath), 'resources', 'trash');
+      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'trash'))) {
+        trashPath = join(__dirname, '..', 'resources', 'trash');
+      } else {
+        throw new Error('unable to locate trash executable');
+      }
+      break;
+    }
+    case 'win32': {
+      if (fse.pathExistsSync(execPath)) {
+        trashPath = execPath;
+      } else if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'recycle-bin.exe'))) {
+        trashPath = join(dirname(process.execPath), 'resources', 'recycle-bin.exe');
+      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'recycle-bin.exe'))) {
+        trashPath = join(__dirname, '..', 'resources', 'recycle-bin.exe');
+      } else {
+        throw new Error('unable to locate trash executable');
+      }
+      break;
+    }
+    default: {
+      throw new Error('Unknown operating system');
+    }
+  }
+
   let proc: any;
   switch (process.platform) {
     case 'darwin': {
@@ -197,11 +228,11 @@ export async function putToTrash(path: string, execPath?: string): Promise<void>
       if (isOlderThanMountainLion) {
         throw new Error('macOS 10.12 or later required');
       }
-      proc = spawn(execPath ?? join(dirname(__filename), '..', 'resources', 'trash'), [path]);
+      proc = spawn(trashPath, [path]);
       break;
     }
     case 'win32': {
-      proc = spawn(execPath ?? join(dirname(__filename), '..', 'resources', 'recycle-bin.exe'), [path]);
+      proc = spawn(trashPath, [path]);
       break;
     }
     default: {
