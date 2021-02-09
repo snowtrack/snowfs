@@ -155,7 +155,7 @@ These resources are not handled by `SnowFS` maintainers and might be out of date
 
 ## Build Instructions
 
-To build `SnowFS` you need a current version of [node.js](https://nodejs.org/en/), To build with node:
+To build `SnowFS` use a version `>=12.10.0` of [node.js](https://nodejs.org/en/). To build with node run:
 
 ```bash
 $ git clone https://github.com/Snowtrack/snowfs.git
