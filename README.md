@@ -144,7 +144,7 @@ Excluded from the license are images, artworks, and logos. Please file a request
 
 ## Community
 
-- [Discord](https://discord.gg/9sWkRubj)
+- [Discord](https://discord.gg/RDKPuH8dkA)
 - [Support](https://github.com/Snowtrack/snowfs/labels/question)
 - [Email](mailto:support@snowtrack.io)
 

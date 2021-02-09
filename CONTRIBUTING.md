@@ -12,7 +12,7 @@ If you are a software developer👷, an artist 🧑‍🎨, someone who is worki
 
 Feel free to contact us directly at [support@snowtrack.io](mailto:support@snowtrack.io). If chat is more your speed, you can send us a message on Discord.
 
-* [Join the Discord Chat](https://discord.gg/9sWkRubj)
+* [Join the Discord Chat](https://discord.gg/RDKPuH8dkA)
     * Even though Discord is a chat service, it might take a few hours to respond &mdash; please be patient!
     * Use the `#snowfs` channel for questions about `SnowFS`
     * Use the `#snowtrack` channel for general questions or discussions about Snowtrack
@@ -64,7 +64,7 @@ Please follow these steps to have your contribution considered by the maintainer
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by the [Snowtrack Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [service@snowtrack.io](mailto:service@snowtrack.io).
+This project and everyone participating in it is governed by the [Snowtrack Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [support@snowtrack.io](mailto:support@snowtrack.io).
 
 
 ### Documentation Styleguide
