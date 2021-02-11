@@ -2,7 +2,9 @@
 
 import * as fse from 'fs-extra';
 import { difference, intersection } from 'lodash';
-import { isAbsolute, join, relative } from 'path';
+import {
+  isAbsolute, join, dirname, relative,
+} from 'path';
 
 import { Commit } from './commit';
 import { properNormalize, putToTrash } from './common';
@@ -191,6 +193,20 @@ export class StatusEntry {
   isDirectory(): boolean {
     return this.isdir;
   }
+}
+
+async function getSnowFSRepo(path: string): Promise<string | null> {
+  const snowInit: string = join(path, '.snow');
+  return fse.pathExists(snowInit).then((exists: boolean) => {
+    if (exists) {
+      return path;
+    }
+
+    if (dirname(path) === path) {
+      return null;
+    }
+    return getSnowFSRepo(dirname(path));
+  });
 }
 
 /**
@@ -702,10 +718,16 @@ export class Repository {
     const repo = new Repository();
     const odb: Odb = new Odb(repo);
 
+    let commondirInside: string;
     let commondir: string;
-
-    const commondirInside = join(workdir, '.snow');
-    return fse.stat(commondirInside)
+    return getSnowFSRepo(workdir).then((snowFSRepoPath: string | null) => {
+      if (!snowFSRepoPath) {
+        throw new Error('not a SnowFS repository (or any of the parent directories): .snow');
+      }
+      workdir = snowFSRepoPath;
+      commondirInside = join(workdir, '.snow');
+      return fse.stat(commondirInside);
+    })
       .then(async (stat: fse.Stats) => {
         if (stat.isFile()) {
           return fse.readFile(commondirInside).then((buf: Buffer) => buf.toString());
