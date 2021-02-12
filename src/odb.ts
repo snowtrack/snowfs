@@ -14,7 +14,7 @@ import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
 
 const defaultConfig: any = {
-  version: 1,
+  version: 2,
   filemode: false,
   symlinks: true,
 };
@@ -208,15 +208,10 @@ export class Odb {
     });
   }
 
-  getObjectPath(file: TreeFile): string {
-    const objects: string = join(this.repo.options.commondir, 'objects');
-    return join(objects, file.hash.toString());
-  }
-
   async writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, hash: string}> {
     const tmpFilename: string = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     const objects: string = join(this.repo.options.commondir, 'objects');
-    const tmpDir: string = join(objects, 'tmp');
+    const tmpDir: string = join(this.repo.options.commondir, 'tmp');
     const tmpPath: string = join(tmpDir, tmpFilename.toString());
 
     let dstFile: string;
@@ -227,11 +222,11 @@ export class Odb {
     // In that order we prevent race conditions of file changes between the hash
     // computation and the file that ends up in the odb.
 
-    return fse.ensureDir(tmpDir).then(() => ioContext.copyFile(filepath, tmpPath)).then(() => calculateFileHash(filepath))
+    return fse.ensureDir(tmpDir, {}).then(() => ioContext.copyFile(filepath, tmpPath)).then(() => calculateFileHash(filepath))
       .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
         filehash = res.filehash;
         hashBlocks = res.hashBlocks;
-        dstFile = join(objects, filehash.toString());
+        dstFile = join(objects, filehash.substr(0, 2), filehash.substr(2, 2), filehash.toString());
         return fse.pathExists(dstFile);
       })
       .then((exists: boolean) => {
@@ -257,7 +252,7 @@ export class Odb {
   }
 
   async readObject(hash: string, dst: string, ioContext: IoContext): Promise<void> {
-    const objectFile: string = join(this.repo.options.commondir, 'objects', hash.toString());
+    const objectFile: string = join(this.repo.options.commondir, 'objects', hash.substr(0, 2), hash.substr(2, 2), hash.toString());
 
     return fse.pathExists(objectFile).then((exists: boolean) => {
       if (!exists) {
