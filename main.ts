@@ -12,79 +12,88 @@ import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET,
 } from './src/repository';
+import { TreeDir, TreeFile } from './src/treedir';
 
 const program = require('commander');
 const chalk = require('chalk');
 
 program
-  .version('0.8.51')
+  .version('0.9.1')
   .description('SnowFS - a fast, scalable version control file storage for graphic files.');
 
 program
   .command('init [path] [commondir]')
+  .option('--debug', 'add more debug information on errors')
   .description('initialize a SnowFS repository')
-  .action(async (path: string, commondir?: string) => {
+  .action(async (path: string, commondir?: string, opts?: any) => {
     const repoPath: string = path ?? '.';
     try {
       await Repository.initExt(repoPath, { commondir });
     } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
     }
     console.log(`Initialized empty SnowFS repository at ${resolve(repoPath)}`);
   });
 
 program
   .command('rm [path]')
+  .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
-  .action(async (path: string) => {
-    let repo: Repository;
+  .action(async (path: string, opts?: any) => {
     try {
-      repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(process.cwd());
+
+      const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
+      fse.unlinkSync(filepathAbs);
+
+      const index: Index = repo.getIndex();
+      index.deleteFiles([path]);
+      await index.writeFiles();
     } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
     }
-
-    const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
-    fse.unlinkSync(filepathAbs);
-
-    const index: Index = repo.getIndex();
-    index.deleteFiles([path]);
-    await index.writeFiles();
   });
 
 program
   .command('add <path>')
+  .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
-  .action(async (path: string) => {
-    let repo: Repository;
+  .action(async (path: string, opts?: any) => {
     try {
-      repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(process.cwd());
+      const files: string[] = [];
+      const stats: fse.Stats = fse.statSync(path);
+      if (stats.isDirectory()) {
+        const dirItems: DirItem[] = await osWalk(path, OSWALK.FILES);
+        for (const dirItem of dirItems) files.push(resolve(dirItem.path));
+      } else files.push(resolve(path));
+
+      if (files.length === 0) return;
+
+      const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+
+      const index: Index = repo.getIndex();
+      index.addFiles(intersection(files, statusFiles.map((v: StatusEntry) => resolve(v.path))));
+      await index.writeFiles();
     } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
     }
-
-    const files: string[] = [];
-    const stats: fse.Stats = fse.statSync(path);
-    if (stats.isDirectory()) {
-      const dirItems: DirItem[] = await osWalk(path, OSWALK.FILES);
-      for (const dirItem of dirItems) files.push(resolve(dirItem.path));
-    } else files.push(resolve(path));
-
-    if (files.length === 0) return;
-
-    const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
-
-    const index: Index = repo.getIndex();
-    index.addFiles(intersection(files, statusFiles.map((v: StatusEntry) => resolve(v.path))));
-    await index.writeFiles();
   });
-
-function commaSeparatedList(value, dummyPrevious) {
-  return value.split(',');
-}
 
 const checkoutDesc = `checkout a commit, or create a branch
 
@@ -110,7 +119,7 @@ program
   .option('-b, --branch <args...>')
   .option('-d, --detach', 'detach the branch')
   .option('-n, --no-reset', "don't modify the worktree")
-  .option('-d, --debug', 'add more debug information on errors')
+  .option('--debug', 'add more debug information on errors')
   .option('--no-color')
   .description(checkoutDesc)
   .action(async (target: string | undefined, opts: any) => {
@@ -148,147 +157,211 @@ program
 program
   .command('status')
   .option('--no-color')
+  .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
+  .option('--debug', 'add more debug information on errors')
   .description('show the working tree status')
   .action(async (opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
 
-    let repo: Repository;
     try {
-      repo = await Repository.open(process.cwd());
-    } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
-    }
+      const repo = await Repository.open(process.cwd());
 
-    const files: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_IGNORED | FILTER.INCLUDE_UNTRACKED);
-    const newFiles: StatusEntry[] = [];
-    const modifiedFiles: StatusEntry[] = [];
-    const deletedFiles: StatusEntry[] = [];
-    for (const file of files) {
-      if (file.isNew()) {
-        newFiles.push(file);
-      } else if (file.isModified()) {
-        modifiedFiles.push(file);
-      } else if (file.isDeleted()) {
-        deletedFiles.push(file);
-      }
-    }
-
-    const index = repo.getIndex();
-
-    console.log(`On branch ${repo.getHead().getName()}`);
-    console.log('Changes not staged for commit:');
-    console.log('use "snow add <file>..." to update what will be committed');
-    // console.log(`use "snow restore <file>..." to discard changes in working directory`);
-    for (const modifiedFile of modifiedFiles) {
-      console.log(modifiedFile.path);
-    }
-    process.stdout.write('\n');
-    if (deletedFiles.length > 0) {
-      console.log('Deleted files:');
-      for (const deleteFile of deletedFiles) {
-        console.log(deleteFile.path);
-      }
-    } else {
-      console.log('no deleted changes added to commit (use "snow rm")');
-    }
-    process.stdout.write('\n');
-    if (newFiles.length > 0) {
-      console.log('New files:');
-      for (const newFile of newFiles) {
-        if (index.adds.has(relative(repo.workdir(), newFile.path))) {
-          process.stdout.write(chalk.red('+ '));
+      const files: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_IGNORED | FILTER.INCLUDE_UNTRACKED);
+      const newFiles: StatusEntry[] = [];
+      const modifiedFiles: StatusEntry[] = [];
+      const deletedFiles: StatusEntry[] = [];
+      for (const file of files) {
+        if (file.isNew()) {
+          newFiles.push(file);
+        } else if (file.isModified()) {
+          modifiedFiles.push(file);
+        } else if (file.isDeleted()) {
+          deletedFiles.push(file);
         }
-        console.log(newFile.path);
       }
-    } else {
-      console.log('no changes added to commit (use "snow add"');
+
+      const index = repo.getIndex();
+
+      if (opts.output === 'json' || opts.output === 'json-pretty') {
+        const o = { new_files: newFiles, modified_files: modifiedFiles, deleted_files: deletedFiles };
+
+        process.stdout.write(JSON.stringify(o, (key, value) => {
+          if (value instanceof StatusEntry) {
+            return {
+              path: value.path, isdir: value.isdir,
+            };
+          }
+          return value;
+        }, opts.output === 'json-pretty' ? '   ' : ''));
+      } else {
+        console.log(`On branch ${repo.getHead().getName()}`);
+        console.log('Changes not staged for commit:');
+        console.log('use "snow add <file>..." to update what will be committed');
+        // console.log(`use "snow restore <file>..." to discard changes in working directory`);
+        for (const modifiedFile of modifiedFiles) {
+          console.log(modifiedFile.path);
+        }
+        process.stdout.write('\n');
+        if (deletedFiles.length > 0) {
+          console.log('Deleted files:');
+          for (const deleteFile of deletedFiles) {
+            console.log(deleteFile.path);
+          }
+        } else {
+          console.log('no deleted changes added to commit (use "snow rm")');
+        }
+        process.stdout.write('\n');
+        if (newFiles.length > 0) {
+          console.log('New files:');
+          for (const newFile of newFiles) {
+            if (index.adds.has(relative(repo.workdir(), newFile.path))) {
+              process.stdout.write(chalk.red('+ '));
+            }
+            console.log(newFile.path);
+          }
+        } else {
+          console.log('no changes added to commit (use "snow add"');
+        }
+      }
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
     }
   });
 
 program
   .command('commit')
   .option('-m, --message [message]', 'input file')
+  .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
+  .option('--debug', 'add more debug information on errors')
   .description('complete the commit')
-  .action(async (opts) => {
-    let repo: Repository;
+  .action(async (opts: any) => {
     try {
-      repo = await Repository.open(process.cwd());
-    } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
-    }
+      const repo = await Repository.open(process.cwd());
+      const index: Index = repo.getIndex();
 
-    const index: Index = repo.getIndex();
-    const newCommit: Commit = await repo.createCommit(index, opts.message);
-    console.log(`[${repo.getHead().getName()} (root-commit) ${newCommit.hash.substr(0, 6)}]`);
+      const newCommit: Commit = await repo.createCommit(index, opts.message, opts);
+
+      console.log(`[${repo.getHead().getName()} (root-commit) ${newCommit.hash.substr(0, 6)}]`);
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
+    }
   });
 
 program
   .command('log')
   .option('--no-color')
+  .option('-v, --verbose', 'verbose')
+  .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
+  .option('--debug', 'add more debug information on errors')
   .description('print the log to the console')
   .action(async (opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
 
-    let repo: Repository;
     try {
-      repo = await Repository.open(process.cwd());
-    } catch (error) {
-      console.log(`fatal: ${error.message}`);
-      process.exit(-1);
-    }
+      const repo = await Repository.open(process.cwd());
 
-    const commits: Commit[] = repo.getAllCommits();
-    commits.sort((a: Commit, b: Commit) => {
-      const aDate = a.date.getTime();
-      const bDate = b.date.getTime();
-      if (aDate > bDate) {
-        return 1;
-      } if (aDate < bDate) {
-        return -1;
-      }
-      return 0;
-    });
+      const commits: Commit[] = repo.getAllCommits();
+      commits.sort((a: Commit, b: Commit) => {
+        const aDate = a.date.getTime();
+        const bDate = b.date.getTime();
+        if (aDate > bDate) {
+          return 1;
+        } if (aDate < bDate) {
+          return -1;
+        }
+        return 0;
+      });
 
-    const refs: Reference[] = repo.getAllReferences();
-    const headHash: string = repo.getHead().hash;
-    const headName: string = repo.getHead().getName();
+      const refs: Reference[] = repo.getAllReferences();
+      const headHash: string = repo.getHead().hash;
+      const headName: string = repo.getHead().getName();
 
-    for (const commit of commits.reverse()) {
-      process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
+      if (opts.output === 'json' || opts.output === 'json-pretty') {
+        const o = { commits: commits.reverse(), refs, head: headName };
 
-      const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
-      if (repo.getHead().isDetached() && commit.hash === headHash) {
-        branchRefs.unshift(repo.getHead());
-      }
-
-      if (branchRefs.length > 0) {
-        process.stdout.write('  (');
-
-        process.stdout.write(`${branchRefs.map((ref) => {
-          if (ref.hash === commit.hash) {
-            if (ref.getName() === headName) {
-              if (headName === 'HEAD') {
-                return chalk.blue.bold(ref.getName());
-              }
-              return chalk.blue.bold(`HEAD -> ${ref.getName()}`);
-            }
-            return chalk.rgb(255, 165, 0)(ref.getName());
+        process.stdout.write(JSON.stringify(o, (key, value) => {
+          if (value instanceof Commit) {
+            return {
+              hash: value.hash, message: value.message, date: value.date.getTime() / 1000.0, root: opts.verbose ? value.root : undefined,
+            };
+          } if (value instanceof TreeDir) {
+            return { path: value.path, hash: value.hash, children: value.children };
+          } if (value instanceof TreeFile) {
+            return {
+              path: value.path,
+              hash: value.hash,
+              ctime: value.ctime / 1000.0,
+              mtime: value.mtime / 1000.0,
+              size: value.size,
+            };
+          } if (value instanceof Reference) {
+            return { name: value.getName(), hash: value.hash };
           }
-          return null;
-        }).filter((x) => !!x).join(', ')}`);
+          return value;
+        }, opts.output === 'json-pretty' ? '   ' : ''));
+      } else {
+        for (const commit of commits.reverse()) {
+          process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 
-        process.stdout.write(')');
+          const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
+          if (repo.getHead().isDetached() && commit.hash === headHash) {
+            branchRefs.unshift(repo.getHead());
+          }
+
+          if (branchRefs.length > 0) {
+            process.stdout.write('  (');
+
+            process.stdout.write(`${branchRefs.map((ref) => {
+              if (ref.hash === commit.hash) {
+                if (ref.getName() === headName) {
+                  if (headName === 'HEAD') {
+                    return chalk.blue.bold(ref.getName());
+                  }
+                  return chalk.blue.bold(`HEAD -> ${ref.getName()}`);
+                }
+                return chalk.rgb(255, 165, 0)(ref.getName());
+              }
+              return null;
+            }).filter((x) => !!x).join(', ')}`);
+
+            process.stdout.write(')');
+          }
+          process.stdout.write('\n');
+
+          process.stdout.write(`Date: ${commit.date}\n`);
+          process.stdout.write(`\n  ${commit.message}\n\n`);
+          if (opts.verbose) {
+            const files = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+            for (const file of Array.from(files)) {
+              process.stdout.write(`      ${file[0]}\n`);
+            }
+            if (files.size > 0) {
+              process.stdout.write('\n');
+            }
+          }
+        }
       }
-      process.stdout.write('\n');
-
-      console.log(`Date: ${commit.date}`);
-      console.log(`\n  ${commit.message}\n`);
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
     }
   });
 
