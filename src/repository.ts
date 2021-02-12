@@ -660,12 +660,12 @@ export class Repository {
    * @param data Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns     New commit object.
    */
-  async createCommit(index: Index, message: string, data?: {}): Promise<Commit> {
+  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, data?: {}): Promise<Commit> {
     let tree: TreeDir;
     let commit: Commit;
-    if (!index.filesWritten) {
+    if (index.adds.size === 0 && index.deletes.size === 0 && (!opts || !opts.allowEmpty)) {
       // did you forget to call index.writeFiles(..)?
-      throw new Error('Index files not written to disk yet');
+      throw new Error('nothing to commit (create/copy files and use "git add" to track)');
     }
 
     const hashMap: Map<string, string> = index.getHashedIndexMap();
@@ -716,8 +716,8 @@ export class Repository {
    */
   static async open(workdir: string): Promise<Repository> {
     const repo = new Repository();
-    const odb: Odb = new Odb(repo);
 
+    let odb: Odb;
     let commondirInside: string;
     let commondir: string;
     return getSnowFSRepo(workdir).then((snowFSRepoPath: string | null) => {
@@ -745,11 +745,17 @@ export class Repository {
       })
       .then((stat: fse.Stats) => {
         if (!stat.isDirectory()) throw new Error('commondir must be a directory');
-        // TODO: (Seb) Restore compress thingy
+
+        // TODO: (Seb) Restore compress option
         repo.options = new RepositoryInitOptions(commondir);
-        repo.repoOdb = odb;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
+
+        return Odb.open(repo);
+      })
+      .then((odbResult: Odb) => {
+        odb = odbResult;
+        repo.repoOdb = odbResult;
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
@@ -836,7 +842,7 @@ export class Repository {
         // although empty, call writeFiles to satisfy createCommit which checks that writeFiles got called
         return repo.repoIndex.writeFiles();
       })
-      .then(() => repo.createCommit(repo.getIndex(), 'Created Project'))
+      .then(() => repo.createCommit(repo.getIndex(), 'Created Project', { allowEmpty: true }))
       .then((commit: Commit) => repo);
   }
 }

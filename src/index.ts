@@ -31,15 +31,10 @@ export class Index {
     this.odb = odb;
   }
 
-  /**
-   * A temporary variable, which holds the value if the list of files have been written to disk or not.
-   */
-  filesWritten: boolean = false;
-
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  hashMap: Map<string, string> = new Map();
+  processed: Map<string, string> = new Map();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
@@ -56,10 +51,9 @@ export class Index {
    * or can be useful to discard any added or deleted files from the index object.
    */
   async reset() {
-    this.filesWritten = false;
     this.adds = new Set();
     this.deletes = new Set();
-    this.hashMap.clear();
+    this.processed.clear();
 
     const indexPath: string = join(this.repo.commondir(), 'INDEX');
     return fse.pathExists(indexPath).then((exists: boolean) => {
@@ -72,10 +66,9 @@ export class Index {
    */
   private async save() {
     const data: string = JSON.stringify({
-      filesWritten: this.filesWritten,
       adds: this.adds,
       deletes: this.deletes,
-      hashMap: this.hashMap,
+      hashMap: this.processed,
     }, (key, value) => {
       if (value instanceof Map) {
         return Array.from(value.entries());
@@ -98,10 +91,9 @@ export class Index {
         return fse.readFile(indexPath).then((buf: Buffer) => {
           const content: string = buf.toString();
           const json: any = JSON.parse(content);
-          this.filesWritten = json.filesWritten;
           this.adds = new Set(json.adds);
           this.deletes = new Set(json.deletes);
-          this.hashMap = new Map(json.hashMap);
+          this.processed = new Map(json.hashMap);
         });
       }
     });
@@ -115,7 +107,11 @@ export class Index {
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
-      this.adds.add(relPath);
+      // if the file has already been processed from a previous 'index add .',
+      // we don't need to do it again
+      if (!this.processed.has(relPath)) {
+        this.adds.add(relPath);
+      }
     }
   }
 
@@ -127,10 +123,9 @@ export class Index {
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
-
-      // TODO: (Seb) if filepath is absolute throw exception
-      // Currently checked in writeFiles but prefer to catch this early on
-      this.deletes.add(relPath);
+      if (!this.processed.has(relPath)) {
+        this.deletes.add(relPath);
+      }
     }
 
     // TODO: Remove filepaths also from 'adds', in case 'deleteFiles' was called after 'addFiles'
@@ -140,17 +135,13 @@ export class Index {
    * Hashes of files. Filled after [[Index.writeFiles]] has been called.
    */
   getHashedIndexMap(): Map<string, string> {
-    return this.hashMap;
+    return this.processed;
   }
 
   /**
    * Write files to object database. Needed before a commit can be made.
    */
   async writeFiles(): Promise<void> {
-    if (this.filesWritten) {
-      throw new Error('files were already written to disk');
-    }
-
     const ioContext = new IoContext();
 
     return ioContext.init()
@@ -195,8 +186,7 @@ export class Index {
           hashMap.set(r.file.replace(/\\/g, '/'), r.hash);
         }
 
-        this.hashMap = hashMap;
-        this.filesWritten = true;
+        this.processed = hashMap;
         return this.save();
       });
   }
