@@ -1,6 +1,6 @@
 {
   "name": "snowfs",
-  "version": "0.8.5",
+  "version": "0.9.1",
   "description": "Asynchronous version tracker library for binary files",
   "main": "main.js",
   "scripts": {
