@@ -36,7 +36,13 @@ export class Odb {
 
   static async open(repo: Repository): Promise<Odb> {
     const odb: Odb = new Odb(repo);
-    return odb;
+    return fse.readFile(join(repo.commondir(), 'config')).then((buf: Buffer) => {
+      odb.config = JSON.parse(buf.toString());
+      if (odb.config.version === 1) {
+        throw new Error(`repository version ${odb.config.version} is not supported`);
+      }
+      return odb;
+    });
   }
 
   static async create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
