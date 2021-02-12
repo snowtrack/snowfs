@@ -123,17 +123,17 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(fse.pathExistsSync(join(repo.commondir(), 'versions')), 'repo must have a version directory');
       /* and a few more
           .snowtrack
-          .snowtrack/config
-          .snowtrack/HEAD
-          .snowtrack/hooks
-          .snowtrack/objects
-          .snowtrack/objects/8e1760c0354228ce59e0c7b4356a933778823f40d8de89f56046cfa44e4667c1
-          .snowtrack/objects/tmp
-          .snowtrack/refs
-          .snowtrack/refs/Main
-          .snowtrack/versions
-          .snowtrack/versions/20c3bc6257fd094295c8c86abb921c20985843a7af4b5bee8f9ab978a8bb70ab
-          .snowtrack/versions/e598bbca7aa9d50f174e977cbc707292a7324082b45a9d078f45e892f670c9db
+          .snow/config
+          .snow/HEAD
+          .snow/hooks
+          .snow/objects
+          .snow/objects/8e1760c0354228ce59e0c7b4356a933778823f40d8de89f56046cfa44e4667c1
+          .snow/objects/tmp
+          .snow/refs
+          .snow/refs/Main
+          .snow/versions
+          .snow/versions/20c3bc6257fd094295c8c86abb921c20985843a7af4b5bee8f9ab978a8bb70ab
+          .snow/versions/e598bbca7aa9d50f174e977cbc707292a7324082b45a9d078f45e892f670c9db
         */
 
       // Reference checks
@@ -177,19 +177,19 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(fse.pathExistsSync(join(repo.commondir(), 'refs', 'Main')), 'Main reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'versions')), 'repo must have a version directory');
       /*
-          .snowtrack/hooks
+          .snow/hooks
           .snowtrack
-          .snowtrack/config
-          .snowtrack/HEAD
-          .snowtrack/objects
-          .snowtrack/objects/c89df5c29949cb021e75efb768dcd5413f57da0bf69a644824b86c066b964ca5
-          .snowtrack/objects/tmp
-          .snowtrack/refs
-          .snowtrack/refs/Main
-          .snowtrack/versions
-          .snowtrack/versions/3b884181f8919e113e69f82e0d3e0f0d610b5087e5bc1e202f380d83029694ee
-          .snowtrack/versions/812da2a9e3116f6134d84d1743b655f1452ef8b2bcd42f6b747b555b8c059dc5
-          .snowtrack/versions/c5f79ed5edfd5dcb27d4bfd61d115f4b242f8b647393c4dd441dec7c48673d53
+          .snow/config
+          .snow/HEAD
+          .snow/objects
+          .snow/objects/c89df5c29949cb021e75efb768dcd5413f57da0bf69a644824b86c066b964ca5
+          .snow/objects/tmp
+          .snow/refs
+          .snow/refs/Main
+          .snow/versions
+          .snow/versions/3b884181f8919e113e69f82e0d3e0f0d610b5087e5bc1e202f380d83029694ee
+          .snow/versions/812da2a9e3116f6134d84d1743b655f1452ef8b2bcd42f6b747b555b8c059dc5
+          .snow/versions/c5f79ed5edfd5dcb27d4bfd61d115f4b242f8b647393c4dd441dec7c48673d53
         */
     })
     .then(() => // cleanup unit-test

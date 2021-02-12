@@ -62,7 +62,7 @@ export class Index {
   }
 
   /**
-   * Store the index object to disk. Saved to {workdir}/.snowtrack/INDEX.
+   * Store the index object to disk. Saved to {workdir}/.snow/INDEX.
    */
   private async save() {
     const data: string = JSON.stringify({
@@ -81,7 +81,7 @@ export class Index {
   }
 
   /**
-   * Load a saved index object from `{workdir}/.snowtrack/INDEX`.
+   * Load a saved index object from `{workdir}/.snow/INDEX`.
    * If the index wasn't saved before, the function does not fail.
    */
   async load() {

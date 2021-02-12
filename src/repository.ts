@@ -700,11 +700,11 @@ export class Repository {
       })
       .then(() => {
         this.head.hash = commit.hash;
-        // update .snowtrack/HEAD
+        // update .snow/HEAD
         return this.repoOdb.writeHeadReference(this.head);
       })
       .then(() =>
-      // update .snowtrack/refs/XYZ
+      // update .snow/refs/XYZ
         this.repoOdb.writeReference(this.head))
       .then(() => commit);
   }
