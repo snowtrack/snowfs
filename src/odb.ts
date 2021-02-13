@@ -166,9 +166,14 @@ export class Odb {
       return;
     }
 
+    if (!ref.hash) {
+      throw new Error(`hash value of ref is ${ref.hash}`);
+    }
+
     const stream = fse.createWriteStream(join(refsDir, ref.getName()), { flags: 'w' });
+
     stream.write('{');
-    stream.write(`"hash": "${ref.hash.toString()}"`);
+    stream.write(`"hash": "${ref.hash}"`);
     if (ref.start) {
       stream.write(`, "start": "${ref.start.toString()}"`);
     }
