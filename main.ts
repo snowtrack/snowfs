@@ -95,6 +95,29 @@ program
     }
   });
 
+program
+  .command('branch [branch-name] [start-point]')
+  .option('--debug', 'add more debug information on errors')
+  .option('--no-color')
+  .description('create a new branch')
+  .action(async (branchName: string | undefined, startPoint: string, opts: any) => {
+    if (opts.noColor) {
+      chalk.level = 0;
+    }
+
+    try {
+      const repo = await Repository.open(process.cwd());
+      await repo.createNewReference(branchName, startPoint, startPoint);
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        console.log(`fatal: ${error.message}`);
+        process.exit(-1);
+      }
+    }
+  });
+
 const checkoutDesc = `checkout a commit, or create a branch
 
 ${chalk.bold('Examples')}
@@ -116,7 +139,7 @@ ${chalk.bold('Examples')}
 
 program
   .command('checkout [target]')
-  .option('-b, --branch <args...>')
+  .option('-b, --branch <branch-name>')
   .option('-d, --detach', 'detach the branch')
   .option('-n, --no-reset', "don't modify the worktree")
   .option('--debug', 'add more debug information on errors')
@@ -127,13 +150,11 @@ program
       chalk.level = 0;
     }
 
-    let repo: Repository;
     try {
-      repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(process.cwd());
 
-      if (opts.branch) { // snow checkout -b ref-name [hash]
-        const startPoint: string = opts.branch.length >= 1 ? opts.branch[1] : repo.getHead().hash;
-        await repo.createReference(opts.branch[0], startPoint);
+      if (opts.branch) { // snow checkout -b branch-name
+        await repo.createNewReference(opts.branch[0], repo.getHead().hash, repo.getHead().hash);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
         if (opts.reset) {
