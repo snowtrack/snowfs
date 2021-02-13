@@ -8,4 +8,4 @@ fi
 
 echo "[Compiling...]: WARNING: This is an executable for debugging purposes and not intended for production use!"
 
-/usr/local/bin/node -r $0/../../node_modules/ts-node/register $0/../../main.ts $@
+/usr/local/bin/node -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
