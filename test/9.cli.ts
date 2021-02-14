@@ -23,7 +23,17 @@ async function exec(command: string, args?: string[], opts?: {cwd?: string}): Pr
 }
 
 test('run-cli-test', async (t) => {
-  const snow = join(__dirname, '..', './bin/snow');
+  let snow;
+  switch (process.platform) {
+    case 'darwin':
+      snow = join(__dirname, '..', './bin/snow');
+      break;
+    case 'win32':
+      snow = join(__dirname, '..', './bin/snow.bat');
+      break;
+    default:
+      throw new Error('Unsupported Operating System');
+  }
   const playground = join(os.tmpdir(), 'xyz');
 
   if (fse.pathExistsSync(playground)) {
