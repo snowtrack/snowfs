@@ -8,6 +8,8 @@
 
 SnowFS is a lightweight multi-platform support library with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
 
+**Disclaimer:** This project is in alpha state and actively developed. Do not use this yet in a production environment or without backups.
+
 ![terminal][terminal_preview]
 
 ## Feature highlights
