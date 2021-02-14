@@ -421,6 +421,33 @@ export class Repository {
   }
 
   /**
+   * Set the HEAD state to a specific reference. This can be useful right after a
+   * commit got checked out and multiple references point to this commit.
+   * The reference name must be valid, otherwise an exception is thrown.
+   * @param name    Name of the reference.
+   */
+  setHead(name: string) {
+    if (!this.references.find((v: Reference) => v.getName() === name)) {
+      throw new Error(`unknown reference name ${name}`);
+    }
+    this.head.setName(name);
+  }
+
+  /**
+   * Set the HEAD state to a specific reference. This can be useful right after a
+   * reference got checked out but the HEAD state needs to be detached.
+   * The commit hash must be valid, otherwise an exception is thrown.
+   * @param hash      Hash of the commit
+   */
+  setHeadDetached(hash: string) {
+    if (!this.commitMap.get(hash)) {
+      throw new Error('unknown commit hash');
+    }
+    this.head.hash = hash;
+    this.head.setName('HEAD');
+  }
+
+  /**
    * Restore to a commit by a given reference, commit or commit hash.
    *
    * @param target    Reference, commit or commit hash.

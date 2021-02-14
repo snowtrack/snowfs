@@ -158,6 +158,11 @@ export class Odb {
     });
   }
 
+  getObjectPath(file: TreeFile): string {
+    const objects: string = join(this.repo.options.commondir, 'objects');
+    return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString());
+  }
+
   async writeReference(ref: Reference): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
 
