@@ -107,7 +107,7 @@ async function repoTest(t, commondirInside: boolean) {
       if (commondirInside) {
         t.is(dirItems.length, 15, 'expect 15 items');
       } else {
-        t.is(dirItems.length, 2, 'expect 2 items (foo + .snowtrack)');
+        t.is(dirItems.length, 2, 'expect 2 items (foo + .snow)');
       }
 
       t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
@@ -118,7 +118,7 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(fse.pathExistsSync(join(repo.commondir(), 'refs', 'Main')), 'Main reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'versions')), 'repo must have a version directory');
       /* and a few more
-          .snowtrack
+          .snow
           .snow/config
           .snow/HEAD
           .snow/hooks
@@ -174,7 +174,7 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(fse.pathExistsSync(join(repo.commondir(), 'versions')), 'repo must have a version directory');
       /*
           .snow/hooks
-          .snowtrack
+          .snow
           .snow/config
           .snow/HEAD
           .snow/objects

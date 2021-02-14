@@ -243,7 +243,7 @@ export class Repository {
   repoCommonDir: string;
 
   /**
-   * Path to the repositories commondir, also known as the `.snowtrack` directory.
+   * Path to the repositories commondir, also known as the `.snow` directory.
    * The commondir might be located outside [[Repository.repoWorkDir]].
   */
   commondir(): string {
