@@ -1,0 +1,34 @@
+name: Node Continuous Integration
+
+on:
+  push:
+    branches:
+      - '*' # matches every branch
+
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          lfs: true
+          node-version: 12
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+      - run: npm install
+
+      - name: Run Tests
+        run: npm run ava
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
