@@ -35,10 +35,6 @@ async function rmDirRecursive(dir: string): Promise<void> {
   });
 }
 
-function getRandomInt(max: number) {
-  return Math.floor(Math.random() * Math.floor(max));
-}
-
 function createRandomString(length: number) {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
