@@ -6,9 +6,9 @@
   "scripts": {
     "tsc": "tsc",
     "snowfs": "node -r ts-node/register main.ts",
-    "benchmarks": "node --require ts-node/register benchmarks/snowfs-vs-git.ts",
+    "benchmarks": "NODE_ENV=benchmark node --require ts-node/register benchmarks/snowfs-vs-git.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ava": "node_modules/.bin/ava --timeout 90s --verbose --serial --fail-fast --color true",
+    "ava": "node_modules/.bin/nyc --reporter=html --reporter=text node_modules/.bin/ava --timeout 90s --verbose --serial --fail-fast --color true",
     "docs": "node_modules/.bin/typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default"
   },
   "ava": {
@@ -26,7 +26,9 @@
       "test/1.sys.test.ts",
       "test/2.repo.init.ts",
       "test/3.repo.open.ts",
-      "test/4.repo.commit.ts"
+      "test/4.repo.commit.ts",
+      "test/9.cli.ts",
+      "test/10.benchmark.ts"
     ]
   },
   "keywords": [],
@@ -59,6 +61,7 @@
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.22.1",
     "kleur": "^4.1.4",
+    "nyc": "^15.1.0",
     "pkg": "^4.4.9",
     "typedoc": "^0.20.20",
     "typedoc-neo-theme": "^1.1.0",

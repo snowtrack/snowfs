@@ -166,6 +166,8 @@ $ npm install
 $ npm run ava
 ```
 
+After `npm run ava` you will find a coverage report in `./coverage/index.html`.
+
 ### Running benchmarks
 
 We have also implemented a comparison benchmark between `SnowFS` vs. `git`.
