@@ -4,10 +4,11 @@ import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
-import { Repository } from '../src/repository';
+import { Repository, RESET } from '../src/repository';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 const { green, red } = require('kleur');
+const chalk = require('chalk');
 
 const BENCHMARK_FILE_SIZE = 4000000;
 
@@ -73,7 +74,10 @@ async function createFile(dst: string, size: number, progress: boolean = true) {
       const t1 = new Date().getTime() - t0;
       if (t1 > 5000) {
         const percent = (curSize++ / size * 10000.0).toFixed(2);
-        process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(t1 / 10000)}`);
+
+        if (process.env.NODE_ENV === 'benchmark') {
+          process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(t1 / 10000)}`);
+        }
         tLast = t1;
       }
     }
@@ -81,7 +85,9 @@ async function createFile(dst: string, size: number, progress: boolean = true) {
 
   return new Promise<void>((resolve, reject) => {
     stream.on('finish', () => {
-      process.stdout.write(`\r${delimiter} [100%] ${'.'.repeat(10)}`);
+      if (process.env.NODE_ENV === 'benchmark') {
+        process.stdout.write(`\r${delimiter} [100%] ${'.'.repeat(10)}`);
+      }
       process.stdout.write('\n');
       resolve();
     });
@@ -92,49 +98,86 @@ async function createFile(dst: string, size: number, progress: boolean = true) {
   });
 }
 
-async function gitAdd(repoPath: string): Promise<number> {
-  const gitPath = join(repoPath, 'git-benchmark');
-  fse.rmdirSync(gitPath, { recursive: true });
+async function gitAddTexture(repoPath: string): Promise<number> {
+  fse.rmdirSync(repoPath, { recursive: true });
 
-  console.log(`Create Git(+LFS) Repository at: ${gitPath}`);
-  await exec('git', ['init', basename(gitPath)], { cwd: dirname(gitPath) });
-  await exec('git', ['lfs', 'install'], { cwd: gitPath });
-  await exec('git', ['lfs', 'track', '*.psd'], { cwd: gitPath });
+  console.log(`Create Git(+LFS) Repository at: ${repoPath}`);
+  await exec('git', ['init', basename(repoPath)], { cwd: dirname(repoPath) });
+  await exec('git', ['lfs', 'install'], { cwd: repoPath });
+  await exec('git', ['lfs', 'track', '*.psd'], { cwd: repoPath });
 
-  const fooFile = join(gitPath, 'texture.psd');
+  const fooFile = join(repoPath, 'texture.psd');
   await createFile(fooFile, BENCHMARK_FILE_SIZE);
 
-  console.log('Checking in Git-LFS ...');
+  console.log('Checking in Git-LFS...');
 
   const t0 = new Date().getTime();
-  await exec('git', ['add', fooFile], { cwd: gitPath });
-  await exec('git', ['commit', '-m', 'My first commit'], { cwd: gitPath });
-  const t1: number = new Date().getTime() - t0;
-  console.log(`Checking in took ${t1} milliseconds`);
-  return t1;
+  await exec('git', ['add', fooFile], { cwd: repoPath });
+  await exec('git', ['commit', '-m', 'My first commit'], { cwd: repoPath });
+  return new Date().getTime() - t0;
 }
 
-async function snowFsAdd(repoPath: string): Promise<number> {
-  const gitPath = join(repoPath, 'snowfs-benchmark');
-  fse.rmdirSync(gitPath, { recursive: true });
+async function gitRmTexture(repoPath: string): Promise<number> {
+  console.log('Remove texture.psd...');
 
-  console.log(`Create SnowFS Repository at: ${gitPath}`);
-  const repo = await Repository.initExt(gitPath);
+  const t0 = new Date().getTime();
+  await exec('git', ['rm', 'texture.psd'], { cwd: repoPath });
+  await exec('git', ['commit', '-m', 'Remove texture'], { cwd: repoPath });
+  return new Date().getTime() - t0;
+}
+
+async function gitRestoreTexture(repoPath: string): Promise<number> {
+  console.log('Restore texture.psd...');
+
+  const t0 = new Date().getTime();
+  await exec('git', ['checkout', 'HEAD~1'], { cwd: repoPath });
+  return new Date().getTime() - t0;
+}
+
+export async function snowFsAddTexture(repoPath: string, t: any = console.log): Promise<number> {
+  fse.rmdirSync(repoPath, { recursive: true });
+
+  t(`Create SnowFS Repository at: ${repoPath}`);
+  const repo = await Repository.initExt(repoPath);
   const index = repo.getIndex();
 
-  const fooFile = join(gitPath, 'texture.psd');
+  const fooFile = join(repoPath, 'texture.psd');
   await createFile(fooFile, BENCHMARK_FILE_SIZE);
+
+  t('Checking in SnowFS...');
 
   const t0 = new Date().getTime();
   index.addFiles([fooFile]);
   await index.writeFiles();
-  await repo.createCommit(index, 'This is my first commit');
-  const t1: number = new Date().getTime() - t0;
-  console.log(`Checking in took ${t1} milliseconds`);
-  return t1;
+  await repo.createCommit(index, 'add texture.psd');
+  return new Date().getTime() - t0;
 }
 
-async function main() {
+export async function snowFsRmTexture(repoPath: string, t: any = console.log): Promise<number> {
+  t('Remove texture.psd...');
+
+  const repo = await Repository.open(repoPath);
+  const index = repo.getIndex();
+
+  const t0 = new Date().getTime();
+  index.deleteFiles(['texture.psd']);
+  await index.writeFiles();
+  await repo.createCommit(index, 'Remove texture');
+  return new Date().getTime() - t0;
+}
+
+export async function snowFsRestoreTexture(repoPath: string, t: any = console.log): Promise<number> {
+  t('Restore texture.psd...');
+
+  const repo = await Repository.open(repoPath);
+
+  const t0 = new Date().getTime();
+  const commit = repo.getCommitByHash(repo.getCommitByHead().parent[0]);
+  repo.restore(commit, RESET.RESTORE_DELETED_FILES);
+  return new Date().getTime() - t0;
+}
+
+export async function startBenchmark() {
   let playground: string;
   while (true) {
     const desktop = join(os.homedir(), 'desktop');
@@ -160,33 +203,41 @@ async function main() {
   }
 
   let timeGitAdd: number;
+  let timeGitRm: number;
+  let timeGitRestore: number;
+
+  console.log(chalk.bold('Benchmark Git'));
+  try {
+    const gitPath = join(playground, 'git-benchmark');
+    timeGitAdd = await gitAddTexture(gitPath);
+    timeGitRm = await gitRmTexture(gitPath);
+    timeGitRestore = await gitRestoreTexture(gitPath);
+  } catch (error) {
+    console.log(error);
+  }
+
   let timeSnowFsAdd: number;
+  let timeSnowFsRm: number;
+  let timeSnowRestore: number;
 
-  console.log('Benchmark Git');
-  console.log('-------------');
+  console.log(chalk.bold('Benchmark SnowFS'));
   try {
-    timeGitAdd = await gitAdd(playground);
+    const gitPath = join(playground, 'snowfs-benchmark');
+    timeSnowFsAdd = await snowFsAddTexture(gitPath);
+    timeSnowFsRm = await snowFsRmTexture(gitPath);
+    timeSnowRestore = await snowFsRestoreTexture(gitPath);
   } catch (error) {
     console.log(error);
   }
 
-  console.log('\n\n\n');
-
-  console.log('Benchmark SnowFS');
-  console.log('----------------');
-  try {
-    timeSnowFsAdd = await snowFsAdd(playground);
-  } catch (error) {
-    console.log(error);
-  }
-
-  if (timeGitAdd < timeSnowFsAdd) {
-    console.log(red('Git wins, please report this ;-)'));
-  } else if (timeGitAdd > timeSnowFsAdd) {
-    console.log(green(`Snowtrack was ${((timeGitAdd - timeSnowFsAdd) / timeSnowFsAdd * 100).toFixed(2)}% faster`));
-  } else if (timeGitAdd === timeSnowFsAdd) {
-    console.log('Same speed on ms? That\'s odd...');
-  }
+  console.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
+  console.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
+  console.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
+  console.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
+  console.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
+  console.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}`);
 }
 
-main();
+if (process.env.NODE_ENV === 'benchmark') {
+  startBenchmark();
+}
