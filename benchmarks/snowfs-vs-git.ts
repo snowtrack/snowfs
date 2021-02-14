@@ -62,7 +62,7 @@ async function createRandomBuffer() {
 async function createFile(dst: string, size: number, progress: boolean = true) {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
 
-  const delimiter: string = `Create ${basename(dst)} file of 4GB`;
+  const delimiter: string = `Create ${basename(dst)} file of ${size} bytes`;
   const t0 = new Date().getTime();
   let tLast = t0;
   let curSize: number = 0;
@@ -134,7 +134,7 @@ async function gitRestoreTexture(repoPath: string): Promise<number> {
   return new Date().getTime() - t0;
 }
 
-export async function snowFsAddTexture(repoPath: string, t: any = console.log): Promise<number> {
+export async function snowFsAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console.log): Promise<number> {
   fse.rmdirSync(repoPath, { recursive: true });
 
   t(`Create SnowFS Repository at: ${repoPath}`);
@@ -142,7 +142,7 @@ export async function snowFsAddTexture(repoPath: string, t: any = console.log): 
   const index = repo.getIndex();
 
   const fooFile = join(repoPath, 'texture.psd');
-  await createFile(fooFile, BENCHMARK_FILE_SIZE);
+  await createFile(fooFile, textureFilesize);
 
   t('Checking in SnowFS...');
 
