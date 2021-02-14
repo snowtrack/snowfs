@@ -26,7 +26,7 @@ export enum LOADING_STATE {
   GIT = 2,
 
   /** The directory is a SnowFS repo. */
-  SNOWTRACK = 4,
+  SNOW = 4,
 }
 
 /**
@@ -280,7 +280,7 @@ export async function getRepoDetails(repoPath: string): Promise<{state : LOADING
             const commondir: string = repo.commondir();
             if (repo) {
               return {
-                state: LOADING_STATE.SNOWTRACK,
+                state: LOADING_STATE.SNOW,
                 workdir,
                 commondir,
               };

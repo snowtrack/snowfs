@@ -243,7 +243,7 @@ export class Repository {
   repoCommonDir: string;
 
   /**
-   * Path to the repositories commondir, also known as the `.snowtrack` directory.
+   * Path to the repositories commondir, also known as the `.snow` directory.
    * The commondir might be located outside [[Repository.repoWorkDir]].
   */
   commondir(): string {
@@ -401,15 +401,50 @@ export class Repository {
    * @param hash  Commit hash of the new reference.
    * @param start Set commit hash of the start of the reference.
    */
-  async createReference(name: string, hash: string, start?: string|null): Promise<Reference> {
+  async createNewReference(name: string, hash: string, start?: string|null): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
-      throw new Error('Reference already exists');
+      throw new Error('ref already exists');
     }
 
-    const newRef: Reference = new Reference(name, this, { hash, start });
+    if (start && !this.commitMap.has(start)) {
+      throw new Error('start-point for new ref is not a known commit');
+    }
+
+    if (!this.commitMap.has(hash)) {
+      throw new Error('hash for new ref is not a known commit');
+    }
+
+    const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash });
     this.references.push(newRef);
     return this.repoOdb.writeReference(newRef).then(() => newRef);
+  }
+
+  /**
+   * Set the HEAD state to a specific reference. This can be useful right after a
+   * commit got checked out and multiple references point to this commit.
+   * The reference name must be valid, otherwise an exception is thrown.
+   * @param name    Name of the reference.
+   */
+  setHead(name: string) {
+    if (!this.references.find((v: Reference) => v.getName() === name)) {
+      throw new Error(`unknown reference name ${name}`);
+    }
+    this.head.setName(name);
+  }
+
+  /**
+   * Set the HEAD state to a specific reference. This can be useful right after a
+   * reference got checked out but the HEAD state needs to be detached.
+   * The commit hash must be valid, otherwise an exception is thrown.
+   * @param hash      Hash of the commit
+   */
+  setHeadDetached(hash: string) {
+    if (!this.commitMap.get(hash)) {
+      throw new Error('unknown commit hash');
+    }
+    this.head.hash = hash;
+    this.head.setName('HEAD');
   }
 
   /**
@@ -700,11 +735,11 @@ export class Repository {
       })
       .then(() => {
         this.head.hash = commit.hash;
-        // update .snowtrack/HEAD
+        // update .snow/HEAD
         return this.repoOdb.writeHeadReference(this.head);
       })
       .then(() =>
-      // update .snowtrack/refs/XYZ
+      // update .snow/refs/XYZ
         this.repoOdb.writeReference(this.head))
       .then(() => commit);
   }

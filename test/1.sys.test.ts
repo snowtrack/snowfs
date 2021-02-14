@@ -422,7 +422,7 @@ test('getRepoDetails (.git)', async (t) => {
   }
 });
 
-test('getRepoDetails (.git and .snowtrack)', async (t) => {
+test('getRepoDetails (.git and .snow)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
@@ -443,7 +443,7 @@ test('getRepoDetails (.git and .snowtrack)', async (t) => {
           commondir: string | null;
           uuid?: string;
         }) => {
-          const expect = LOADING_STATE.SNOWTRACK;
+          const expect = LOADING_STATE.SNOW;
           if (res.state === expect) {
             t.log('Project got detected as snowtrack - as expected');
           }
@@ -452,7 +452,7 @@ test('getRepoDetails (.git and .snowtrack)', async (t) => {
           res.commondir = properNormalize(res.commondir);
 
           t.is(res.commondir, properNormalize(join(tmpDir, '.snow')));
-          t.log(`Found .snowtrack in ${res.commondir}`);
+          t.log(`Found .snow in ${res.commondir}`);
           t.is(res.uuid, undefined);
           t.pass();
         },
@@ -476,7 +476,7 @@ test('getRepoDetails (.git and .snowtrack)', async (t) => {
   }
 });
 
-test('getRepoDetails (parent of .git and .snowtrack)', async (t) => {
+test('getRepoDetails (parent of .git and .snow)', async (t) => {
   // In this test we go a level up and expect that the snowtrack directory is
   // NOT detected because we intentionally only travel UP, never DOWN into the
   // hierarchy. Reason: Imagine someone selects C: or '/', that would take

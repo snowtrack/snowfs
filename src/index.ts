@@ -4,6 +4,7 @@ import { difference } from 'lodash';
 
 import { isAbsolute, join, relative } from 'path';
 import { Commit } from './commit';
+import { putToTrash } from './common';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
@@ -62,7 +63,7 @@ export class Index {
   }
 
   /**
-   * Store the index object to disk. Saved to {workdir}/.snowtrack/INDEX.
+   * Store the index object to disk. Saved to {workdir}/.snow/INDEX.
    */
   private async save() {
     const data: string = JSON.stringify({
@@ -81,7 +82,7 @@ export class Index {
   }
 
   /**
-   * Load a saved index object from `{workdir}/.snowtrack/INDEX`.
+   * Load a saved index object from `{workdir}/.snow/INDEX`.
    * If the index wasn't saved before, the function does not fail.
    */
   async load() {
@@ -145,6 +146,17 @@ export class Index {
     const ioContext = new IoContext();
 
     return ioContext.init()
+      .then(() => {
+        const promises = [];
+        for (const filepath of Array.from(this.deletes)) {
+          const filepathAbs: string = isAbsolute(filepath) ? filepath : join(this.repo.repoWorkDir, filepath);
+          if (!filepathAbs.startsWith(this.repo.workdir())) {
+            throw new Error(`file or directory not in workdir: ${filepath}`);
+          }
+          promises.push(putToTrash(filepathAbs));
+        }
+        return promises;
+      })
       .then(() => {
         const promises = [];
 

@@ -53,12 +53,12 @@ test('repo commondir', async (t) => {
 export async function testRepoCommondirOutside(t, repo: Repository) {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN)
     .then((dirItems: DirItem[]) => {
-      t.is(dirItems.length, 1, 'expect .snowtrack reference in workdir');
+      t.is(dirItems.length, 1, 'expect .snow reference in workdir');
 
       return osWalk(repo.commondir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     })
     .then((dirItems: DirItem[]) => {
-      t.is(dirItems.length, 8, 'expected .snowtrack reference');
+      t.is(dirItems.length, 8, 'expected .snow reference');
 
       t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
@@ -83,7 +83,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
 
 export async function testRepoCommondirInside(t, repo: Repository) {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN).then((dirItems: DirItem[]) => {
-    t.is(dirItems.length, 8 + 1, 'expect .snowtrack reference in workdir (+1 for .snowtrack)');
+    t.is(dirItems.length, 8 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 
     t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+script_directory=`dirname $0`
+if [ ! -d $script_directory/../node_modules/ ]; then
+    echo "node_modules missing - you must first install all node packages by executing 'npm install' in the root directory of SnowFS"
+    exit 1
+fi
+
+echo "[Compiling...]: WARNING: This is an executable for debugging purposes and not intended for production use!"
+
+/usr/local/bin/node -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
