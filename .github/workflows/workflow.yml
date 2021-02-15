@@ -1,7 +1,10 @@
-name: Node Continuous Integration
+name: Build and Test
 
 on:
   push:
+    branches:
+      - '*' # matches every branch
+  pull_request:
     branches:
       - '*' # matches every branch
 
