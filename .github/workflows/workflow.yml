@@ -16,6 +16,6 @@ jobs:
           lfs: true
           node-version: 12
       - name: Checkout LFS objects
-        run: git lfs checkout
+        run: git lfs pull
       - run: npm install
       - run: npm run ava
