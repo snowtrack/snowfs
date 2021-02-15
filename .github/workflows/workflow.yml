@@ -28,9 +28,6 @@ jobs:
       - name: Run Tests
         run: npm run ava
 
-      - name: Run Coverage
-        run: npm run coverage
-
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
         with:
