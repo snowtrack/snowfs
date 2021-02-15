@@ -8,6 +8,8 @@
     "snowfs": "node -r ts-node/register main.ts",
     "benchmarks": "NODE_ENV=benchmark node --require ts-node/register benchmarks/snowfs-vs-git.ts",
     "ava": "node_modules/.bin/nyc --reporter=html --reporter=text node_modules/.bin/ava --timeout 90s --verbose --serial --fail-fast --color true",
+    "coverage": "nyc report --reporter=text-lcov | coveralls"
+
     "docs": "node_modules/.bin/typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default"
   },
   "ava": {
@@ -55,6 +57,7 @@
     "@typescript-eslint/eslint-plugin": "^4.14.2",
     "@typescript-eslint/parser": "^4.14.2",
     "ava": "^3.15.0",
+    "coveralls": "^3.1.0",
     "eslint": "^7.19.0",
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.22.1",
