@@ -27,12 +27,6 @@ jobs:
 
       - name: Run Tests
         run: npm run ava
-      
-      - name: Print lcov
-        run: cat ./coverage/lcov.info
-
-      - name: Run Coverage
-        run: npm run coverage
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
