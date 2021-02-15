@@ -7,9 +7,11 @@ on:
 
 
 jobs:
-  test_pull_request:
+  windows:
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
+    
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
         with:
@@ -17,5 +19,9 @@ jobs:
           node-version: 12
       - name: Checkout LFS objects
         run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
       - run: npm run ava
