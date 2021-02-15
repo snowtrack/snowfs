@@ -22,7 +22,11 @@
       "--experimental-modules"
     ],
     "files": [
-      "test/1.sys.test.ts"
+      "test/1.sys.test.ts",
+      "test/2.repo.init.ts",
+      "test/3.repo.open.ts",
+      "test/4.repo.commit.ts",
+      "test/9.cli.ts"
     ]
   },
   "keywords": [],
