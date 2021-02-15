@@ -23,7 +23,9 @@ async function exec(command: string, args?: string[], opts?: {cwd?: string}): Pr
 }
 
 test('run-cli-test', async (t) => {
-  let snow;
+  t.timeout(180000);
+
+  let snow: string;
   switch (process.platform) {
     case 'darwin':
       snow = join(__dirname, '..', './bin/snow');
