@@ -24,9 +24,14 @@ jobs:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
-      - run: npm run ava
-      - run: npm run coverage
-      - name: Publish to coveralls.io
+
+      - name: Run Tests
+        run: npm run ava
+
+      - name: Run Coverage
+        run: npm run coverage
+
+      - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
         with:
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
