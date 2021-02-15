@@ -2,6 +2,10 @@
 SETLOCAL 
 CALL :find_dp0 
 
+IF NOT EXIST "%dp0%..\node_modules" ( 
+  echo "node_modules missing - you must first install all node packages by executing 'npm install' in the root directory of SnowFS" 
+  EXIT /b 
+) 
  
 IF EXIST "%dp0%node.exe" ( 
   SET "_prog=%dp0%node.exe" 
@@ -16,5 +20,5 @@ echo [Compiling...]: WARNING: This is an executable for debugging purposes and n
 ENDLOCAL 
 EXIT /b %errorlevel% 
 :find_dp0 
-SET dp0=%~dp0 
+SET dp0=%~dp0
 EXIT /b 
