@@ -3,6 +3,7 @@
 # SnowFS - a fast, scalable version control file storage for graphic files
 
 [![release](https://img.shields.io/badge/Download%20CLI%20Alpha-0.8.51-red)](https://github.com/Snowtrack/SnowFS/releases/tag/0.8.51)
+[![Coverage Status](https://coveralls.io/repos/github/Snowtrack/SnowFS/badge.svg)](https://coveralls.io/github/Snowtrack/SnowFS)
 
 ## Overview
 
