@@ -7,10 +7,9 @@ import * as os from 'os';
 import { Repository, RESET } from '../src/repository';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { green, red } = require('kleur');
 const chalk = require('chalk');
 
-const BENCHMARK_FILE_SIZE = 4000000;
+const BENCHMARK_FILE_SIZE = 4000000000;
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -32,10 +31,11 @@ async function input(question: string): Promise<string> {
 }
 
 async function exec(command: string, args?: string[], opts?: {cwd?: string}): Promise<void> {
+  console.log(`$ ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.' });
   return new Promise((resolve, reject) => {
-    p0.on('data', (data) => {
-      console.error(data.toString());
+    p0.stderr.on('data', (data) => {
+      console.log(data.toString());
     });
     p0.on('exit', (code) => {
       if (code === 0) {
@@ -66,17 +66,17 @@ async function createFile(dst: string, size: number, progress: boolean = true) {
   const t0 = new Date().getTime();
   let tLast = t0;
   let curSize: number = 0;
-  for (let i = 0; i < size / 100; ++i) {
+  for (let i = 0; i < size / 100000; ++i) {
     // eslint-disable-next-line no-await-in-loop
     const buf = await createRandomBuffer();
     stream.write(buf);
     if (progress) {
       const t1 = new Date().getTime() - t0;
       if (t1 > 5000) {
-        const percent = (curSize++ / size * 10000.0).toFixed(2);
+        const percent = (curSize++ / size * 10000000.0).toFixed(2);
 
         if (process.env.NODE_ENV === 'benchmark') {
-          process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(t1 / 10000)}`);
+          process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(t1 / 1000)}`);
         }
         tLast = t1;
       }
@@ -87,8 +87,8 @@ async function createFile(dst: string, size: number, progress: boolean = true) {
     stream.on('finish', () => {
       if (process.env.NODE_ENV === 'benchmark') {
         process.stdout.write(`\r${delimiter} [100%] ${'.'.repeat(10)}`);
+        process.stdout.write('\n');
       }
-      process.stdout.write('\n');
       resolve();
     });
     stream.on('error', (error) => {
@@ -103,6 +103,10 @@ async function gitAddTexture(repoPath: string): Promise<number> {
 
   console.log(`Create Git(+LFS) Repository at: ${repoPath}`);
   await exec('git', ['init', basename(repoPath)], { cwd: dirname(repoPath) });
+  // don't print 'Note: switching to 'HEAD~1'.' to console, it spoils stdout
+  await exec('git', ['config', 'advice.detachedHead', 'false'], { cwd: repoPath });
+  // don't sign for this test, just in case the global/system config has this set
+  await exec('git', ['config', 'commit.gpgsign', 'false'], { cwd: repoPath });
   await exec('git', ['lfs', 'install'], { cwd: repoPath });
   await exec('git', ['lfs', 'track', '*.psd'], { cwd: repoPath });
 
@@ -135,7 +139,9 @@ async function gitRestoreTexture(repoPath: string): Promise<number> {
 }
 
 export async function snowFsAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console.log): Promise<number> {
-  fse.rmdirSync(repoPath, { recursive: true });
+  if (fse.pathExistsSync(repoPath)) {
+    fse.rmdirSync(repoPath, { recursive: true });
+  }
 
   t(`Create SnowFS Repository at: ${repoPath}`);
   const repo = await Repository.initExt(repoPath);
@@ -202,40 +208,25 @@ export async function startBenchmark() {
     break;
   }
 
-  let timeGitAdd: number;
-  let timeGitRm: number;
-  let timeGitRestore: number;
-
   console.log(chalk.bold('Benchmark Git'));
-  try {
-    const gitPath = join(playground, 'git-benchmark');
-    timeGitAdd = await gitAddTexture(gitPath);
-    timeGitRm = await gitRmTexture(gitPath);
-    timeGitRestore = await gitRestoreTexture(gitPath);
-  } catch (error) {
-    console.log(error);
-  }
-
-  let timeSnowFsAdd: number;
-  let timeSnowFsRm: number;
-  let timeSnowRestore: number;
+  const gitPath = join(playground, 'git-benchmark');
+  const timeGitAdd = await gitAddTexture(gitPath);
+  const timeGitRm = await gitRmTexture(gitPath);
+  const timeGitRestore = await gitRestoreTexture(gitPath);
 
   console.log(chalk.bold('Benchmark SnowFS'));
-  try {
-    const gitPath = join(playground, 'snowfs-benchmark');
-    timeSnowFsAdd = await snowFsAddTexture(gitPath);
-    timeSnowFsRm = await snowFsRmTexture(gitPath);
-    timeSnowRestore = await snowFsRestoreTexture(gitPath);
-  } catch (error) {
-    console.log(error);
-  }
+  const snowFsPath = join(playground, 'snowfs-benchmark');
+  const timeSnowFsAdd = await snowFsAddTexture(snowFsPath);
+  const timeSnowFsRm = await snowFsRmTexture(snowFsPath);
+  const timeSnowRestore = await snowFsRestoreTexture(snowFsPath);
 
+  console.log(timeGitAdd, timeSnowFsRm, timeSnowRestore);
   console.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
   console.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
   console.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
   console.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
   console.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
-  console.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}`);
+  console.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 20 ? '<--this is real' : ''}`);
 }
 
 if (process.env.NODE_ENV === 'benchmark') {

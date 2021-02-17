@@ -52,6 +52,7 @@ export class Commit {
       this.root,
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
+    commit.data = { ...this.data };
     return commit;
   }
 

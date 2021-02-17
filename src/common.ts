@@ -90,7 +90,7 @@ export async function compareFileHash(filepath: string, filehash: string, hashBl
   return fse.stat(filepath).then(async (stat: fse.Stats) => {
     if (stat.size < MB20) {
       if (hashBlocks) {
-        console.warn(`File ${filepath} should have no hash blcoks because it's too small`);
+        console.warn(`File ${filepath} should have no hash blocks because it's too small`);
       }
       return getPartHash(filepath).then((hashBlock: HashBlock) => hashBlock.hash === filehash);
     }
@@ -115,6 +115,11 @@ export async function compareFileHash(filepath: string, filehash: string, hashBl
         start: blocks[i].start,
         end: blocks[i].end,
         highWaterMark: MB2,
+      }).then((hashBlock: HashBlock) => {
+        if (hashBlocks && hashBlock.hash !== hashBlocks[i]) {
+          throw new Error('hashblock different');
+        }
+        return hashBlock;
       }));
     }
 
@@ -125,6 +130,11 @@ export async function compareFileHash(filepath: string, filehash: string, hashBl
       }
       return filehash === hash.digest('hex');
     });
+  }).catch((error: Error) => {
+    // return false because it is an expected error
+    if (error.message === 'hashblock different') { return false; }
+
+    throw error;
   });
 }
 
