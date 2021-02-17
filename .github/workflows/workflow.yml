@@ -10,6 +10,20 @@ on:
 
 
 jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - if: ${{ github.repository_owner == 'Snowtrack' || github.repository_owner == 'snowtrack' }}
+        name: Discord Message
+        uses: appleboy/discord-action@master
+        with:
+          webhook_id: ${{ secrets.WEBHOOK_ID }}
+          webhook_token: ${{ secrets.WEBHOOK_TOKEN }}
+          color: "#48f442"
+          username: "GitHub Bot"
+          message: "A new commit has been pushed."
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 10

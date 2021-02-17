@@ -10,7 +10,9 @@ import {
   join, relative, dirname, sep,
 } from 'path';
 import { DirItem, OSWALK, osWalk } from '../src/io';
-import { getRepoDetails, LOADING_STATE, properNormalize } from '../src/common';
+import {
+  compareFileHash, getRepoDetails, LOADING_STATE, MB100, properNormalize,
+} from '../src/common';
 
 const exampleDirs = [
   join('foo', 'a'),
@@ -66,6 +68,39 @@ function getUniquePaths(dirSet: string[]): string[] {
   }
   return Array.from(visitedPaths).sort();
 }
+
+test('proper normalize', async (t) => {
+  let error: any;
+
+  error = await t.throwsAsync(async () => properNormalize(undefined));
+  t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
+
+  error = await t.throwsAsync(async () => properNormalize(null));
+  t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
+
+  t.is(properNormalize(''), '.');
+  t.is(properNormalize('xyz'), 'xyz');
+
+  switch (process.platform) {
+    case 'win32':
+      t.is(properNormalize('/xyz'), '\\xyz');
+      t.is(properNormalize('xyz/'), 'xyz');
+      t.is(properNormalize('/xyz/'), '\\xyz');
+      t.is(properNormalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo'), 'C:\\Users\\foo');
+      t.is(properNormalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo\\'), 'C:\\Users\\foo');
+      break;
+    case 'linux':
+    case 'darwin':
+      t.is(properNormalize('/xyz'), '/xyz');
+      t.is(properNormalize('xyz/'), 'xyz');
+      t.is(properNormalize('/xyz/'), '/xyz');
+      t.is(properNormalize('/Users/sebastian/Desktop/../../foo/'), '/Users/foo');
+      t.is(properNormalize('/Users/sebastian/Desktop/../../foo'), '/Users/foo');
+      break;
+    default:
+      throw new Error('unsupported operating system');
+  }
+});
 
 test('osWalk test#1', async (t) => {
   try {
@@ -514,6 +549,62 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
         fse.rmdirSync(tmpDir, { recursive: true });
       });
   } catch (error) {
+    t.fail(error.message);
+  }
+});
+
+test.only('compareFileHash test', async (t) => {
+  try {
+    interface TestCase {
+      fileContent: () => string;
+      filehash: string;
+      hashBlocks?: string[],
+      error?: boolean
+    }
+    const testCases: TestCase[] = [{
+      fileContent: () => '',
+      filehash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    }, {
+      fileContent: () => 'hello World',
+      filehash: 'db4067cec62c58bf8b2f8982071e77c082da9e00924bf3631f3b024fa54e7d7e',
+    }, {
+      fileContent: () => 'hello World!',
+      filehash: 'e4ad0102dc2523443333d808b91a989b71c2439d7362aca6538d49f76baaa5ca',
+    }, {
+      fileContent: () => 'x'.repeat(MB100),
+      filehash: 'b28c94b2195c8ed259f0b415aaee3f39b0b2920a4537611499fa044956917a21',
+      hashBlocks: ['9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb'],
+    }, {
+      fileContent: () => 'x'.repeat(MB100) + 'y'.repeat(MB100),
+      filehash: '4eb13de6d0eb98865b0028370cafe001afe19ebe961faa0ca227be3c9e282591',
+      hashBlocks: ['9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb',
+        '6d45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5'],
+    }, {
+      // failing test
+      fileContent: () => 'x'.repeat(MB100) + 'y'.repeat(MB100),
+      filehash: '4eb13de6d0eb98865b0028370cafe001afe19ebe961faa0ca227be3c9e282591',
+      hashBlocks: ['AB31c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb',
+        'AB45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5'],
+      error: true,
+    }];
+
+    let i = 0;
+    for (const test of testCases) {
+      const foo: string = join(os.tmpdir(), `foo${i++}.txt`);
+      fse.writeFileSync(foo, test.fileContent());
+      if (test.error) {
+        t.log(`Calculate '${foo}' and expect failing`);
+        // eslint-disable-next-line no-await-in-loop
+        t.false(await compareFileHash(foo, test.filehash, test.hashBlocks));
+      } else {
+        t.log(`Calculate '${foo}' and expect hash: ${test.filehash}`);
+        // eslint-disable-next-line no-await-in-loop
+        t.true(await compareFileHash(foo, test.filehash, test.hashBlocks));
+      }
+      fse.unlinkSync(foo);
+    }
+  } catch (error) {
+    console.error(error);
     t.fail(error.message);
   }
 });

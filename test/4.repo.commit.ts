@@ -209,3 +209,35 @@ test('repo open-commondir-outside', async (t) => {
   */
   await repoTest(t, false);
 });
+
+test('custom-commit-data', async (t) => {
+  /*
+  Add a file and attach user-data to the commit
+  */
+  const repoPath = getRandomPath();
+  let repo: Repository;
+
+  await Repository.initExt(repoPath).then((repoResult: Repository) => {
+    repo = repoResult;
+    return fse.writeFile(join(repo.workdir(), 'foo.txt'), 'Hello World!');
+  }).then(() => {
+    const index = repo.getIndex();
+    index.addFiles(['foo.txt']);
+    return index.writeFiles();
+  }).then(() => {
+    const index = repo.getIndex();
+    repo.createCommit(index, 'This is a commit with custom-data', {}, { hello: 'world', foo: 'bar', bas: 3 }).then((commit: Commit) => {
+      t.log('User Data of commit', commit.data);
+      t.is(commit.data.hello, 'world');
+      t.is(commit.data.foo, 'bar');
+      t.is(commit.data.bas, 3);
+    });
+  });
+
+  await Repository.open(repoPath).then((repo: Repository) => {
+    const lastCommit = repo.getAllCommits().sort((a: Commit, b: Commit) => (a.date.getTime() < b.date.getTime() ? 1 : -1))[0];
+    t.is(lastCommit.data.hello, 'world');
+    t.is(lastCommit.data.foo, 'bar');
+    t.is(lastCommit.data.bas, 3);
+  });
+});
