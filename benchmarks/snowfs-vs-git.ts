@@ -4,6 +4,7 @@ import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
+import * as tty from 'tty';
 import { Repository, RESET } from '../src/repository';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -18,6 +19,7 @@ const rl = readline.createInterface({
 
 async function input(question: string): Promise<string> {
   let res: string;
+
   rl.question(question, (answer: string) => {
     res = answer;
     rl.close();
@@ -30,12 +32,12 @@ async function input(question: string): Promise<string> {
   });
 }
 
-async function exec(command: string, args?: string[], opts?: {cwd?: string}): Promise<void> {
-  console.log(`$ ${command} ${args.join(' ')}`);
+async function exec(command: string, args?: string[], t = console, opts?: {cwd?: string}): Promise<void> {
+  t.log(`$ ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.' });
   return new Promise((resolve, reject) => {
     p0.stderr.on('data', (data) => {
-      console.log(data.toString());
+      t.log(data.toString());
     });
     p0.on('exit', (code) => {
       if (code === 0) {
@@ -59,98 +61,100 @@ async function createRandomBuffer() {
   return buffer;
 }
 
-async function createFile(dst: string, size: number, progress: boolean = true) {
+async function createFile(dst: string, size: number, t = console) {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
 
   const delimiter: string = `Create ${basename(dst)} file of ${size} bytes`;
-  const t0 = new Date().getTime();
-  let tLast = t0;
+  let t0 = new Date().getTime();
   let curSize: number = 0;
+
+  // if no terminal available, at least print the information about the size of hte file
+  if (!process.stdout.isTTY) {
+    t.log(`${delimiter}`);
+  }
+
   for (let i = 0; i < size / 100000; ++i) {
     // eslint-disable-next-line no-await-in-loop
     const buf = await createRandomBuffer();
     stream.write(buf);
-    if (progress) {
+    if (process.stdout.isTTY) {
       const t1 = new Date().getTime() - t0;
-      if (t1 > 5000) {
+      if (t1 > 2000) {
         const percent = (curSize++ / size * 10000000.0).toFixed(2);
 
-        if (process.env.NODE_ENV === 'benchmark') {
-          process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(t1 / 1000)}`);
-        }
-        tLast = t1;
+        process.stdout.write(`\r${delimiter} [${percent}%] ${'.'.repeat(i / 1000)}`);
+        t0 = t1;
       }
     }
   }
 
   return new Promise<void>((resolve, reject) => {
     stream.on('finish', () => {
-      if (process.env.NODE_ENV === 'benchmark') {
+      if (process.stdout.isTTY) {
         process.stdout.write(`\r${delimiter} [100%] ${'.'.repeat(10)}`);
         process.stdout.write('\n');
       }
       resolve();
     });
-    stream.on('error', (error) => {
-      reject(error);
-    });
+    stream.on('error', reject);
     stream.end();
   });
 }
-
-async function gitAddTexture(repoPath: string): Promise<number> {
+async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
   fse.rmdirSync(repoPath, { recursive: true });
 
-  console.log(`Create Git(+LFS) Repository at: ${repoPath}`);
-  await exec('git', ['init', basename(repoPath)], { cwd: dirname(repoPath) });
+  t.log(`Create Git(+LFS) Repository at: ${repoPath}`);
+  await exec('git', ['init', basename(repoPath)], t, { cwd: dirname(repoPath) });
+  await exec('git', ['config', 'user.name', 'github-actions'], t, { cwd: repoPath });
+  await exec('git', ['config', 'user.email', 'snowtrack@example.com'], t, { cwd: repoPath });
   // don't print 'Note: switching to 'HEAD~1'.' to console, it spoils stdout
-  await exec('git', ['config', 'advice.detachedHead', 'false'], { cwd: repoPath });
+  await exec('git', ['config', 'advice.detachedHead', 'false'], t, { cwd: repoPath });
   // don't sign for this test, just in case the global/system config has this set
-  await exec('git', ['config', 'commit.gpgsign', 'false'], { cwd: repoPath });
-  await exec('git', ['lfs', 'install'], { cwd: repoPath });
-  await exec('git', ['lfs', 'track', '*.psd'], { cwd: repoPath });
+  await exec('git', ['config', 'commit.gpgsign', 'false'], t, { cwd: repoPath });
+  await exec('git', ['lfs', 'install'], t, { cwd: repoPath });
+  await exec('git', ['lfs', 'track', '*.psd'], t, { cwd: repoPath });
 
   const fooFile = join(repoPath, 'texture.psd');
-  await createFile(fooFile, BENCHMARK_FILE_SIZE);
+  await createFile(fooFile, textureFilesize ?? BENCHMARK_FILE_SIZE, t);
 
-  console.log('Checking in Git-LFS...');
+  t.log('Checking in Git-LFS...');
 
   const t0 = new Date().getTime();
-  await exec('git', ['add', fooFile], { cwd: repoPath });
-  await exec('git', ['commit', '-m', 'My first commit'], { cwd: repoPath });
+  await exec('git', ['add', fooFile], t, { cwd: repoPath });
+  await exec('git', ['commit', '-m', 'My first commit'], t, { cwd: repoPath });
   return new Date().getTime() - t0;
 }
 
-async function gitRmTexture(repoPath: string): Promise<number> {
-  console.log('Remove texture.psd...');
+async function gitRmTexture(repoPath: string, t = console): Promise<number> {
+  t.log('Remove texture.psd...');
 
   const t0 = new Date().getTime();
-  await exec('git', ['rm', 'texture.psd'], { cwd: repoPath });
-  await exec('git', ['commit', '-m', 'Remove texture'], { cwd: repoPath });
+  await exec('git', ['rm', 'texture.psd'], t, { cwd: repoPath });
+  await exec('git', ['commit', '-m', 'Remove texture'], t, { cwd: repoPath });
   return new Date().getTime() - t0;
 }
 
-async function gitRestoreTexture(repoPath: string): Promise<number> {
-  console.log('Restore texture.psd...');
+async function gitRestoreTexture(repoPath: string, t = console): Promise<number> {
+  t.log('Restore texture.psd...');
 
   const t0 = new Date().getTime();
-  await exec('git', ['checkout', 'HEAD~1'], { cwd: repoPath });
+  await exec('git', ['checkout', 'HEAD~1'], t, { cwd: repoPath });
   return new Date().getTime() - t0;
 }
 
-export async function snowFsAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console.log): Promise<number> {
+export async function snowFsAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console): Promise<number> {
   if (fse.pathExistsSync(repoPath)) {
     fse.rmdirSync(repoPath, { recursive: true });
   }
 
-  t(`Create SnowFS Repository at: ${repoPath}`);
+  t.log(`Create SnowFS Repository at: ${repoPath}`);
   const repo = await Repository.initExt(repoPath);
   const index = repo.getIndex();
 
   const fooFile = join(repoPath, 'texture.psd');
-  await createFile(fooFile, textureFilesize);
+  await createFile(fooFile, textureFilesize, t);
 
-  t('Checking in SnowFS...');
+  t.log('Checking in SnowFS...');
 
   const t0 = new Date().getTime();
   index.addFiles([fooFile]);
@@ -159,8 +163,8 @@ export async function snowFsAddTexture(repoPath: string, textureFilesize: number
   return new Date().getTime() - t0;
 }
 
-export async function snowFsRmTexture(repoPath: string, t: any = console.log): Promise<number> {
-  t('Remove texture.psd...');
+export async function snowFsRmTexture(repoPath: string, t: any = console): Promise<number> {
+  t.log('Remove texture.psd...');
 
   const repo = await Repository.open(repoPath);
   const index = repo.getIndex();
@@ -172,8 +176,8 @@ export async function snowFsRmTexture(repoPath: string, t: any = console.log): P
   return new Date().getTime() - t0;
 }
 
-export async function snowFsRestoreTexture(repoPath: string, t: any = console.log): Promise<number> {
-  t('Restore texture.psd...');
+export async function snowFsRestoreTexture(repoPath: string, t: any = console): Promise<number> {
+  t.log('Restore texture.psd...');
 
   const repo = await Repository.open(repoPath);
 
@@ -183,17 +187,21 @@ export async function snowFsRestoreTexture(repoPath: string, t: any = console.lo
   return new Date().getTime() - t0;
 }
 
-export async function startBenchmark() {
+export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console) {
   let playground: string;
   while (true) {
     const desktop = join(os.homedir(), 'desktop');
 
-    // eslint-disable-next-line no-await-in-loop
-    const answer: string = await input(`Location for benchmark-tests [${desktop}]: `);
-    if (answer.length > 0) {
-      playground = answer;
+    if (process.stdin.isTTY) {
+      // eslint-disable-next-line no-await-in-loop
+      const answer: string = await input(`Location for benchmark-tests [${desktop}]: `);
+      if (answer.length > 0) {
+        playground = answer;
+      } else {
+        playground = desktop;
+      }
     } else {
-      playground = desktop;
+      playground = os.tmpdir();
     }
 
     const tmp: string = join(playground, 'benchmark-xyz-test');
@@ -201,32 +209,32 @@ export async function startBenchmark() {
       fse.mkdirpSync(tmp);
       fse.rmdirSync(tmp);
     } catch (error) {
-      console.log(error);
+      t.log(error);
       // eslint-disable-next-line no-continue
       continue;
     }
     break;
   }
 
-  console.log(chalk.bold('Benchmark Git'));
+  t.log(chalk.bold('Benchmark Git'));
   const gitPath = join(playground, 'git-benchmark');
-  const timeGitAdd = await gitAddTexture(gitPath);
-  const timeGitRm = await gitRmTexture(gitPath);
-  const timeGitRestore = await gitRestoreTexture(gitPath);
+  const timeGitAdd = await gitAddTexture(gitPath, textureFilesize, t);
+  const timeGitRm = await gitRmTexture(gitPath, t);
+  const timeGitRestore = await gitRestoreTexture(gitPath, t);
 
-  console.log(chalk.bold('Benchmark SnowFS'));
+  t.log(chalk.bold('Benchmark SnowFS'));
   const snowFsPath = join(playground, 'snowfs-benchmark');
-  const timeSnowFsAdd = await snowFsAddTexture(snowFsPath);
-  const timeSnowFsRm = await snowFsRmTexture(snowFsPath);
-  const timeSnowRestore = await snowFsRestoreTexture(snowFsPath);
+  const timeSnowFsAdd = await snowFsAddTexture(snowFsPath, textureFilesize, t);
+  const timeSnowFsRm = await snowFsRmTexture(snowFsPath, t);
+  const timeSnowRestore = await snowFsRestoreTexture(snowFsPath, t);
 
-  console.log(timeGitAdd, timeSnowFsRm, timeSnowRestore);
-  console.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
-  console.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
-  console.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
-  console.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
-  console.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
-  console.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 20 ? '<--this is real' : ''}`);
+  t.log(timeGitAdd, timeSnowFsRm, timeSnowRestore);
+  t.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
+  t.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
+  t.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
+  t.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
+  t.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
+  t.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 20 ? '<--this is real' : ''}`);
 }
 
 if (process.env.NODE_ENV === 'benchmark') {

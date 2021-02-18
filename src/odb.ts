@@ -107,6 +107,19 @@ export class Odb {
       });
   }
 
+  async readReference(ref: DirItem) {
+    const refPath = ref.path;
+    return fse.readFile(refPath)
+      .then((buf: Buffer) => {
+        try {
+          return { ref, content: JSON.parse(buf.toString()) };
+        } catch (error) {
+          console.log('Error');
+          return null;
+        }
+      });
+  }
+
   async readReferences(): Promise<Reference[]> {
     type DirItemAndReference = { ref: DirItem; content : any };
 
@@ -114,17 +127,9 @@ export class Odb {
 
     return osWalk(refsDir, OSWALK.FILES)
       .then((value: DirItem[]) => {
-        const promises: Promise<DirItemAndReference | null>[] = [];
+        const promises = [];
         for (const ref of value) {
-          promises.push(fse.readFile(ref.path).then((buf: Buffer) => {
-            try {
-              const content: any = JSON.parse(buf.toString());
-              return { ref, content };
-            } catch (error) {
-              console.log(`Error reading ref '${ref.path}' due to: ${error}`);
-              return null;
-            }
-          }));
+          promises.push(this.readReference(ref));
         }
         return Promise.all(promises);
       })
@@ -175,24 +180,12 @@ export class Odb {
       throw new Error(`hash value of ref is ${ref.hash}`);
     }
 
-    const stream = fse.createWriteStream(join(refsDir, ref.getName()), { flags: 'w' });
+    const refPath = join(refsDir, ref.getName());
 
-    stream.write('{');
-    stream.write(`"hash": "${ref.hash}"`);
-    if (ref.start) {
-      stream.write(`, "start": "${ref.start.toString()}"`);
-    }
-    stream.write('}');
-
-    return new Promise((resolve, reject) => {
-      stream.on('finish', () => {
-        resolve();
-      });
-      stream.on('error', (error) => {
-        reject(error);
-      });
-      stream.end();
-    });
+    return fse.writeFile(refPath, JSON.stringify({
+      hash: ref.hash,
+      start: ref.start ? ref.start : undefined,
+    }));
   }
 
   async writeCommit(commit: Commit): Promise<void> {
@@ -214,12 +207,8 @@ export class Odb {
     stream.write('}');
 
     return new Promise((resolve, reject) => {
-      stream.on('finish', () => {
-        resolve();
-      });
-      stream.on('error', (error) => {
-        reject(error);
-      });
+      stream.on('finish', resolve);
+      stream.on('error', reject);
       stream.end();
     });
   }

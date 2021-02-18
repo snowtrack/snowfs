@@ -55,9 +55,7 @@ async function createRandomFile(dst: string, size: number): Promise<{filepath: s
     stream.on('finish', () => {
       resolve(dst);
     });
-    stream.on('error', (error) => {
-      reject(error);
-    });
+    stream.on('error', reject);
     stream.end();
   }).then(() => calculateFileHash(dst))
     .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => ({ filepath: dst, filehash: res.filehash, hashBlocks: res.hashBlocks }));
@@ -73,7 +71,7 @@ async function repoTest(t, commondirInside: boolean) {
     await Repository.initExt(repoPath);
   } else {
     const commondir = getRandomPath();
-    await Repository.initExt(repoPath, { commondir });
+    await Repository.initExt(repoPath, { commondir: `${commondir}.external-snow` });
   }
 
   const firstCommitMessage = 'Add Foo';
@@ -226,13 +224,14 @@ test('custom-commit-data', async (t) => {
     return index.writeFiles();
   }).then(() => {
     const index = repo.getIndex();
-    repo.createCommit(index, 'This is a commit with custom-data', {}, { hello: 'world', foo: 'bar', bas: 3 }).then((commit: Commit) => {
+    return repo.createCommit(index, 'This is a commit with custom-data', {}, { hello: 'world', foo: 'bar', bas: 3 });
+  })
+    .then((commit: Commit) => {
       t.log('User Data of commit', commit.data);
       t.is(commit.data.hello, 'world');
       t.is(commit.data.foo, 'bar');
       t.is(commit.data.bas, 3);
     });
-  });
 
   await Repository.open(repoPath).then((repo: Repository) => {
     const lastCommit = repo.getAllCommits().sort((a: Commit, b: Commit) => (a.date.getTime() < b.date.getTime() ? 1 : -1))[0];

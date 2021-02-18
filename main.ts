@@ -154,7 +154,7 @@ program
       const repo = await Repository.open(process.cwd());
 
       if (opts.branch) { // snow checkout -b branch-name
-        await repo.createNewReference(opts.branch[0], repo.getHead().hash, repo.getHead().hash);
+        await repo.createNewReference(opts.branch, repo.getHead().hash, repo.getHead().hash);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
         if (opts.reset) {
@@ -312,7 +312,8 @@ program
       const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        const o = { commits: commits.reverse(), refs, head: headName };
+        commits.reverse();
+        const o = { commits, refs, head: headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {

@@ -553,7 +553,7 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
   }
 });
 
-test.only('compareFileHash test', async (t) => {
+test('compareFileHash test', async (t) => {
   try {
     interface TestCase {
       fileContent: () => string;

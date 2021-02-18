@@ -15,7 +15,8 @@ IF EXIST "%dp0%node.exe" (
 ) 
  
 echo [Compiling...]: WARNING: This is an executable for debugging purposes and not intended for production use!
- 
+echo To download a production build, visit the release page at: https://github.com/Snowtrack/SnowFS/releases
+
 "%_prog%" -r "%dp0%..\node_modules\ts-node\register\index.js" "%dp0%..\main.ts" %* 
 ENDLOCAL 
 EXIT /b %errorlevel% 
