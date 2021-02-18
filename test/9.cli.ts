@@ -12,48 +12,56 @@ async function exec(command: string, args?: string[], opts?: {cwd?: string}): Pr
     p0.stdout.on('data', (data) => {
       console.log(data.toString());
     });
+    p0.stderr.on('data', (data) => {
+      console.log(data.toString());
+    });
     p0.on('exit', (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject(Error(`Failed to execute ${command} ${args} with return-code ${code}`));
+        reject(Error(`Failed to execute ${command} ${args.join(' ')} with return-code ${code}`));
       }
     });
   });
 }
 
-test('run-cli-test', async (t) => {
-  t.timeout(180000);
+if (!process.env.GITHUB_WORKFLOW || process.platform !== 'darwin') {
+  // test doesn't work on the GitHub runners
+  // https://github.com/seb-mtl/SnowFS/runs/1923599289?check_suite_focus=true#step:7:245
 
-  let snow: string;
-  switch (process.platform) {
-    case 'darwin':
-      snow = join(__dirname, '..', './bin/snow');
-      break;
-    case 'win32':
-      snow = join(__dirname, '..', './bin/snow.bat');
-      break;
-    default:
-      throw new Error('Unsupported Operating System');
-  }
-  const playground = join(os.tmpdir(), 'xyz');
+  test('run-cli-test', async (t) => {
+    t.timeout(180000);
 
-  if (fse.pathExistsSync(playground)) {
-    fse.rmdirSync(playground, { recursive: true });
-  }
+    let snow: string;
+    switch (process.platform) {
+      case 'darwin':
+        snow = join(__dirname, '..', './bin/snow');
+        break;
+      case 'win32':
+        snow = join(__dirname, '..', './bin/snow.bat');
+        break;
+      default:
+        throw new Error('Unsupported Operating System');
+    }
+    const playground = join(os.tmpdir(), 'xyz');
 
-  await exec(snow, ['init', playground], { cwd: dirname(os.tmpdir()) });
+    if (fse.pathExistsSync(playground)) {
+      fse.rmdirSync(playground, { recursive: true });
+    }
 
-  for (let i = 0; i < 2; ++i) {
-    console.log(`Write abc${i}.txt`);
-    fse.writeFileSync(join(playground, `abc${i}.txt`), 'Hello World');
-    // eslint-disable-next-line no-await-in-loop
-    await exec(snow, ['add', '.'], { cwd: playground });
-    // eslint-disable-next-line no-await-in-loop
-    await exec(snow, ['commit', '-m', `add hello-world ${i}`], { cwd: playground });
-    // eslint-disable-next-line no-await-in-loop
-    await exec(snow, ['log'], { cwd: playground });
-  }
+    await exec(snow, ['init', playground], { cwd: dirname(os.tmpdir()) });
 
-  t.is(true, true);
-});
+    for (let i = 0; i < 2; ++i) {
+      console.log(`Write abc${i}.txt`);
+      fse.writeFileSync(join(playground, `abc${i}.txt`), 'Hello World');
+      // eslint-disable-next-line no-await-in-loop
+      await exec(snow, ['add', '.'], { cwd: playground });
+      // eslint-disable-next-line no-await-in-loop
+      await exec(snow, ['commit', '-m', `add hello-world ${i}`], { cwd: playground });
+      // eslint-disable-next-line no-await-in-loop
+      await exec(snow, ['log'], { cwd: playground });
+    }
+
+    t.is(true, true);
+  });
+}
