@@ -50,6 +50,20 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-darwin-x64.zip
+          path: |
+            dist/out-tsc/main-macos
+            node_modules/drivelist/build/Release/*.node
+
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 15
@@ -75,3 +89,16 @@ jobs:
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-win-x64.zip
+          path: |
+            dist/out-tsc/main-win.exe
+            node_modules/drivelist/build/Release/*.node
