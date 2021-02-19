@@ -6,7 +6,9 @@ if [ ! -d $script_directory/../node_modules/ ]; then
     exit 1
 fi
 
-echo "[Compiling...]: WARNING: This is an executable for debugging purposes and not intended for production use!"
-echo "                For production build visit https://github.com/Snowtrack/SnowFS/releases"
+if [[ -z "${SUPPRESS_BANNER}" ]]; then
+    echo "[Compiling...]: WARNING: This is an executable for debugging purposes and not intended for production use!"
+    echo "                For production build visit https://github.com/Snowtrack/SnowFS/releases"
+fi
 
 /usr/local/bin/node -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
