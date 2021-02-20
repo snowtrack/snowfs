@@ -55,7 +55,7 @@ jobs:
           npm run tsc
           npm run build
           find dist/out-tsc -mindepth 1 ! -name main-macos -delete
-          mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/ || true
+          mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
           mv dist/out-tsc/main-macos dist/out-tsc/snow
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
 
@@ -99,8 +99,6 @@ jobs:
         run: |
           npm run tsc
           npm run build
-          find dist/out-tsc -mindepth 1 ! -name main-win.exe -delete
-          mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/ || true
           mv dist/out-tsc/main-win.exe dist/out-tsc/snow.exe
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
 
