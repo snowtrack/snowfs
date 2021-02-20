@@ -346,7 +346,7 @@ program
             };
           }
           if (value instanceof Reference) {
-            return { name: value.getName(), hash: value.hash };
+            return { name: value.getName(), hash: value.hash, start: value.start };
           }
           return value;
         }, opts.output === 'json-pretty' ? '   ' : ''));
