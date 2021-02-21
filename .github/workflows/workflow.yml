@@ -99,8 +99,9 @@ jobs:
         run: |
           npm run tsc
           npm run build -- --target node14-win-x64 --output=dist/out-tsc/snow.exe
+          New-Item -Path dist/out-tsc/node_modules/drivelist/build/Release -ItemType Directory -Force
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
-          cp -r resources dist/out-tsc
+          Copy-Item -Path resources -Destination dist/out-tsc -recurse -Force
 
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
