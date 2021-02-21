@@ -30,18 +30,20 @@ async function copyTest(t, searchForFilesystem: FILESYSTEM) {
   return false;
 }
 
-test('ReFS Test', async (t) => {
-  const driveFound: boolean = await copyTest(t, FILESYSTEM.REFS);
-  if (!driveFound) {
-    t.log('Skipped test because no ReFS drive could be found');
-    t.pass();
-  }
-});
+if (!process.env.GITHUB_WORKFLOW) {
+  test('ReFS Test', async (t) => {
+    const driveFound: boolean = await copyTest(t, FILESYSTEM.REFS);
+    if (!driveFound) {
+      t.log('Skipped test because no ReFS drive could be found');
+      t.pass();
+    }
+  });
 
-test('APFS Test', async (t) => {
-  const driveFound: boolean = await copyTest(t, FILESYSTEM.APFS);
-  if (!driveFound) {
-    t.log('Skipped test because no APFS drive could be found');
-    t.pass();
-  }
-});
+  test('APFS Test', async (t) => {
+    const driveFound: boolean = await copyTest(t, FILESYSTEM.APFS);
+    if (!driveFound) {
+      t.log('Skipped test because no APFS drive could be found');
+      t.pass();
+    }
+  });
+}
