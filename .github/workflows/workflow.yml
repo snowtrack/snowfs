@@ -53,15 +53,20 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build
+          npm run build -- --target node14-macos-x64 --output=dist/out-tsc/snow
+          find dist/out-tsc -mindepth 1 ! -name snow -delete
+          mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
+          cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist/out-tsc
+
+      - name: 'Tar files'
+        run: tar -cvf snow.tar -C dist/out-tsc .
 
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
         with:
           name: snow-cli-darwin-x64.zip
-          path: |
-            dist/out-tsc/main-macos
-            node_modules/drivelist/build/Release/*.node
+          path: snow.tar
 
 
   windows:
@@ -93,12 +98,14 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build
+          npm run build -- --target node14-win-x64 --output=dist/out-tsc/snow.exe
+          cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist/out-tsc
 
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
         with:
           name: snow-cli-win-x64.zip
           path: |
-            dist/out-tsc/main-win.exe
-            node_modules/drivelist/build/Release/*.node
+            dist/out-tsc/snow.exe
+            dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node

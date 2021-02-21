@@ -64,26 +64,37 @@ program
     }
   });
 
+function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
+  return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
+}
+
 program
   .command('add <path>')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
-  .action(async (path: string, opts?: any) => {
+  .action(async (pathPattern: string, opts?: any) => {
     try {
       const repo = await Repository.open(process.cwd());
-      const files: string[] = [];
-      const stats: fse.Stats = fse.statSync(path);
-      if (stats.isDirectory()) {
-        const dirItems: DirItem[] = await osWalk(path, OSWALK.FILES);
-        for (const dirItem of dirItems) files.push(resolve(dirItem.path));
-      } else files.push(resolve(path));
-
-      if (files.length === 0) return;
 
       const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
 
+      const relCwd = relative(repo.workdir(), process.cwd());
+
       const index: Index = repo.getIndex();
-      index.addFiles(intersection(files, statusFiles.map((v: StatusEntry) => resolve(v.path))));
+      for (const file of statusFiles) {
+        if (file.isNew() || file.isModified()) {
+          if (fileMatch(file.path, relCwd, pathPattern)) {
+            index.addFiles([file.path]);
+          }
+        }
+      }
+      for (const file of statusFiles) {
+        if (file.isDeleted()) {
+          if (fileMatch(file.path, relCwd, pathPattern)) {
+            index.deleteFiles([file.path]);
+          }
+        }
+      }
       await index.writeFiles();
     } catch (error) {
       if (opts.debug) {
@@ -301,7 +312,8 @@ program
         const bDate = b.date.getTime();
         if (aDate > bDate) {
           return 1;
-        } if (aDate < bDate) {
+        }
+        if (aDate < bDate) {
           return -1;
         }
         return 0;
@@ -320,9 +332,11 @@ program
             return {
               hash: value.hash, message: value.message, date: value.date.getTime() / 1000.0, root: opts.verbose ? value.root : undefined,
             };
-          } if (value instanceof TreeDir) {
+          }
+          if (value instanceof TreeDir) {
             return { path: value.path, hash: value.hash, children: value.children };
-          } if (value instanceof TreeFile) {
+          }
+          if (value instanceof TreeFile) {
             return {
               path: value.path,
               hash: value.hash,
@@ -330,13 +344,15 @@ program
               mtime: value.mtime / 1000.0,
               size: value.size,
             };
-          } if (value instanceof Reference) {
-            return { name: value.getName(), hash: value.hash };
+          }
+          if (value instanceof Reference) {
+            return { name: value.getName(), hash: value.hash, start: value.start };
           }
           return value;
         }, opts.output === 'json-pretty' ? '   ' : ''));
       } else {
-        for (const commit of commits.reverse()) {
+        commits.reverse();
+        for (const commit of commits) {
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 
           const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
