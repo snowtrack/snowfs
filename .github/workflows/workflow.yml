@@ -60,7 +60,7 @@ jobs:
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
 
       - name: 'Tar files'
-        run: tar -cvf snow.tar dist/out-tsc
+        run: tar -cvf snow.tar -C dist/out-tsc .
 
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
