@@ -53,11 +53,11 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build -- --target node14-macos-x64
-          find dist/out-tsc -mindepth 1 ! -name main-macos -delete
+          npm run build -- --target node14-macos-x64 --output=dist/out-tsc/snow
+          find dist/out-tsc -mindepth 1 ! -name snow -delete
           mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
-          mv dist/out-tsc/main-macos dist/out-tsc/snow
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist/out-tsc
 
       - name: 'Tar files'
         run: tar -cvf snow.tar -C dist/out-tsc .
@@ -98,9 +98,9 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build -- --target node14-win-x64
-          mv dist/out-tsc/main-win.exe dist/out-tsc/snow.exe
+          npm run build -- --target node14-win-x64 --output=dist/out-tsc/snow.exe
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist/out-tsc
 
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
