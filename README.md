@@ -93,7 +93,7 @@ After executing the [build instructions](#build-instructions) for a development 
 $ npm run benchmarks
 ```
 
-Example run on a Macbook Pro (2020) with an APFS formatted SSD:
+Example run on a Macbook Pro (2020) with an APFS formatted SSD to check-in, delete and restore a 4GB Photoshop File.
 
 ```
 ...
