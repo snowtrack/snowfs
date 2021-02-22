@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+node_executable=`which node`
+if [ ! -e $node_executable ]; then
+    echo "node not found, you must install nodejs runtime"
+    exit 1
+fi
+
 script_directory=`dirname $0`
 if [ ! -d $script_directory/../node_modules/ ]; then
     echo "node_modules missing - you must first install all node packages by executing 'npm install' in the root directory of SnowFS"
@@ -11,4 +17,4 @@ if [[ -z "${SUPPRESS_BANNER}" ]]; then
     echo "                For production build visit https://github.com/Snowtrack/SnowFS/releases"
 fi
 
-/usr/local/bin/node -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
+$node_executable -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
