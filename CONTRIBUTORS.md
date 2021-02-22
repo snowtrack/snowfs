@@ -1,3 +1,3 @@
 - Sebastian Rath <sebastian@snowtrack.io>
 - Jan Frischmuth <https://github.com/halninekilo>
-- Daniel Lanner <hello@daniellanner.io>
+- Daniel Lanner <https://github.com/daniellanner>
