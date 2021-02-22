@@ -181,6 +181,18 @@ The benchmarks can be executed (after building) with the following command:
 $ npm run benchmarks
 ```
 
+Example Run on a Macbook Pro (2020) with an APFS formatted SSD:
+
+```
+...
+git add texture.psd: 20164ms
+snow add texture.psd: 4596ms
+git rm texture.psd: 575ms
+snow rm texture.psd: 111ms
+git checkout HEAD~1: 9739ms
+snow checkout HEAD~1: 1ms
+```
+
 ## Supported Platforms
 
 Currently, Windows, macOS, and Linux are supported. `SnowFS` works on plain filesystems like FAT, NTFS, HFS+ and has extended support for APFS and ReFS\*.
