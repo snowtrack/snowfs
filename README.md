@@ -57,7 +57,6 @@ But due to their focus on the software development lifecycle they are not suitab
 
 **Disadvantages:**
 
-  - (**Without Git-LFS**): Heavy cost with zipping, packing, and delta-compression for larger files
   - If not properly tracked, binaries become accidentally part of "base" history
   - Removing older commits is cumbersome due to Gits commit hashing integrity
   - Complicated *rewriting history* procedure
