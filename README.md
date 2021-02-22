@@ -84,6 +84,28 @@ But due to their focus on the software development lifecycle they are not suitab
 I/O bound prototypes. There is a basic and experimental **C/C++** backport, but we are looking for maintainers
 to get things finally rolling. If you have comments, ideas or recommendations, please let us know.
 
+### Running benchmarks
+
+We have also implemented a comparison benchmark between **SnowFS** vs. **git-lfs**.
+After executing the [build instructions](#build-instructions) for a development build, the benchmarks can be executed with the following command:
+
+```bash
+$ npm run benchmarks
+```
+
+Example run on a Macbook Pro (2020) with an APFS formatted SSD:
+
+```
+...
+git lfs track *.psd
+git add texture.psd: 20164ms
+snow add texture.psd: 4596ms
+git rm texture.psd: 575ms
+snow rm texture.psd: 111ms
+git checkout HEAD~1: 9739ms
+snow checkout HEAD~1: 1ms
+```
+
 ## Examples
 
 ### Code
@@ -134,6 +156,27 @@ $ snow checkout -b MyNewBranch
 $ snow log
 ```
 
+## Build Instructions
+
+1. To build `SnowFS` install [node.js](https://nodejs.org/en/) for your specific platform.
+
+2. To build a **development build** execute:
+
+```bash
+$ git clone https://github.com/Snowtrack/snowfs.git
+$ cd snowfs.git
+$ npm install
+$ npm run ava
+```
+
+3. To build a **production build**, execute the commands above, and continue with the commands below:
+
+```bash
+$ npm run tsc
+$ npm run build
+$ cd dist/out-tsc
+```
+
 ## Versioning
 
 Starting with version 1.0.0 `SnowFS` follows the [semantic versioning](http://semver.org/)
@@ -158,40 +201,6 @@ Excluded from the license are images, artworks, and logos. Please file a request
 The [tests and benchmarks](https://github.com/snowtrack/snowfs/tree/main/test) also serve as API specification and usage examples.
 
 These resources are not handled by `SnowFS` maintainers and might be out of date. Please verify it before opening new issues.
-
-## Build Instructions
-
-To build `SnowFS` use a version `>=12.10.0` of [node.js](https://nodejs.org/en/). To build with node run:
-
-```bash
-$ git clone https://github.com/Snowtrack/snowfs.git
-$ cd snowfs.git
-$ npm install
-$ npm run ava
-```
-
-After `npm run ava` you will find a coverage report in `./coverage/index.html`.
-
-### Running benchmarks
-
-We have also implemented a comparison benchmark between `SnowFS` vs. `git`.
-The benchmarks can be executed (after building) with the following command:
-
-```bash
-$ npm run benchmarks
-```
-
-Example Run on a Macbook Pro (2020) with an APFS formatted SSD:
-
-```
-...
-git add texture.psd: 20164ms
-snow add texture.psd: 4596ms
-git rm texture.psd: 575ms
-snow rm texture.psd: 111ms
-git checkout HEAD~1: 9739ms
-snow checkout HEAD~1: 1ms
-```
 
 ## Supported Platforms
 
