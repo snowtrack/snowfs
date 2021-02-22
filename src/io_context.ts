@@ -1,11 +1,13 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 
+import { exec } from 'child_process';
+import { join, dirname } from 'path';
 import { MB1 } from './common';
 
 const drivelist = require('drivelist');
 
-enum FILESYSTEM {
+export enum FILESYSTEM {
   APFS = 1,
   HFS_PLUS = 2,
   REFS = 3,
@@ -15,7 +17,7 @@ enum FILESYSTEM {
   OTHER = 7
 }
 
-class Drive {
+export class Drive {
   displayName: string;
 
   filesystem: FILESYSTEM;
@@ -26,14 +28,54 @@ class Drive {
   }
 }
 
-function getFilesystem(drive: any) {
-  const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
-  if (isApfs) {
-    return FILESYSTEM.APFS;
-  }
+async function getFilesystem(drive: any, mountpoint: string) {
+  try {
+    if (process.platform === 'win32') {
+      return new Promise<string | null>((resolve, reject) => {
+        const driveLetter = mountpoint.endsWith('\\') ? mountpoint.substring(0, mountpoint.length - 1) : mountpoint;
+        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, stderr) => {
+          if (error) {
+            return resolve(null); // if we can't extract the volume info, we simply skip the ReFS detection
+          }
 
-  // TODO: Implement $ diskutil info to extract filesystem
-  // https://ss64.com/osx/diskutil.html
+          const lines = stdout.replace(/\r\n/g, '\r').replace(/\n/g, '\r').split(/\r/);
+          for (const line of lines) {
+            if (line.startsWith('File System Name :')) {
+              const filesystem: string = line.split(':', 2)[1].trim();
+              return resolve(filesystem);
+            }
+          }
+          return resolve(null);
+        });
+      }).then((filesystem: string | null) => {
+        if (filesystem) {
+          // eslint-disable-next-line default-case
+          switch (filesystem.toLowerCase()) {
+            case 'refs':
+              return FILESYSTEM.REFS;
+            case 'ntfs':
+              return FILESYSTEM.NTFS;
+            case 'fat16':
+              return FILESYSTEM.FAT16;
+            case 'fat32':
+            case 'fat':
+              return FILESYSTEM.FAT32;
+          }
+        }
+        return FILESYSTEM.OTHER;
+      }).catch((error) => {
+        console.log(error);
+        return FILESYSTEM.OTHER;
+      });
+    } if (process.platform === 'darwin') {
+      const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
+      if (isApfs) {
+        return FILESYSTEM.APFS;
+      }
+    }
+  } catch (error) {
+    return FILESYSTEM.OTHER;
+  }
 
   return FILESYSTEM.OTHER;
 }
@@ -69,8 +111,6 @@ export class IoContext {
   /** Set of all known mountpoints. Set after [[IoContext.init]] is called */
   mountpoints: Set<string>;
 
-  driveDesc: Map<string, string[]>;
-
   constructor() {
     this.valid = false;
   }
@@ -84,27 +124,46 @@ export class IoContext {
     this.mountpoints = undefined;
   }
 
+  checkIfInitialized() {
+    if (!this.valid) {
+      throw new Error('IoContext is not initialized, did you forget to call IoContext.init(..)?');
+    }
+  }
+
   async init() {
-    return drivelist.list().then((drives: any) => {
+    const tmpDrives = [];
+    return drivelist.list().then(async (drives: any) => {
       this.origDrives = drives;
       this.mountpoints = new Set();
-      this.driveDesc = new Map();
       this.drives = new Map();
 
       for (const drive of drives) {
         for (const mountpoint of drive.mountpoints) {
-          this.drives.set(mountpoint.path, new Drive(drive.displayName, getFilesystem(drive)));
-
-          this.mountpoints.add(mountpoint.path);
-
-          const mntPts = this.driveDesc.get(mountpoint.path);
-          if (mntPts) {
-            mntPts.push(mountpoint.description);
-          } else {
-            this.driveDesc.set(mountpoint.path, [mountpoint.description]);
+          if (mountpoint && !mountpoint.path.startsWith('/System/')) {
+            this.mountpoints.add(mountpoint.path);
           }
         }
       }
+
+      const promises = [];
+
+      for (const drive of drives) {
+        for (const mountpoint of drive.mountpoints) {
+          promises.push(getFilesystem(drive, mountpoint.path));
+          tmpDrives.push([mountpoint.path, mountpoint.label]);
+        }
+      }
+      return Promise.all(promises);
+    }).then((res: FILESYSTEM[]) => {
+      let i = 0;
+      res.forEach((filesystem: FILESYSTEM) => {
+        if (!tmpDrives[i][0].startsWith('/System/')) {
+          this.drives.set(tmpDrives[i][0], new Drive(tmpDrives[i][1], filesystem));
+        }
+        i++;
+      });
+    }).then(() => {
+      this.valid = true;
     });
   }
 
@@ -114,6 +173,8 @@ export class IoContext {
    * * @param file1   Second filepath.
    */
   areFilesOnSameDrive(file0: string, file1: string): boolean {
+    this.checkIfInitialized();
+
     // detect if src and dst are copied onto the same drive
     let i = 0; let
       j = 0;
@@ -136,7 +197,61 @@ export class IoContext {
    * @param options  overwrite existing file or directory, default is `false`.
    */
   async move(src: string, dst: string, options?: fse.MoveOptions): Promise<void> {
+    this.checkIfInitialized();
     return fse.move(src, dst, options);
+  }
+
+  private async copyFileApfs(src: string, dst: string): Promise<void> {
+    return fse.stat(src).then((stat: fse.Stats) => {
+      // TODO: (Need help)
+      // It seems on APFS copying files smaller than 1MB is faster than using COW.
+      // Could be a local hickup on my system, verification/citation needed
+      if (stat.size < MB1) {
+        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+      }
+
+      const p0 = cp.spawn('cp', ['-c', src, dst]);
+      return new Promise((resolve, reject) => {
+        p0.on('exit', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(code);
+          }
+        });
+      });
+    });
+  }
+
+  private async copyFileRefs(src: string, dst: string): Promise<void> {
+    return fse.stat(src).then((stat: fse.Stats) => {
+      if (stat.size < MB1) {
+        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+      }
+
+      let cloneFileViaBlockClonePs1: string = 'Clone-FileViaBlockClone.ps1';
+      if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1))) {
+        cloneFileViaBlockClonePs1 = join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1);
+      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1))) {
+        cloneFileViaBlockClonePs1 = join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1);
+      } else {
+        console.warn(`unable to locate ${cloneFileViaBlockClonePs1}, fallback to fse.copyFile(..)`);
+        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+      }
+
+      const p0 = cp.spawn('powershell.exe', [cloneFileViaBlockClonePs1, src, dst]);
+      return new Promise((resolve, reject) => {
+        p0.stdout.on('data', (data) => console.log(data.toString()));
+        p0.stderr.on('data', (data) => console.log(data.toString()));
+        p0.on('exit', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(code);
+          }
+        });
+      });
+    });
   }
 
   /**
@@ -150,13 +265,14 @@ export class IoContext {
    * @param dst   destination filename of the copy operation
    */
   async copyFile(src: string, dst: string): Promise<void> {
+    this.checkIfInitialized();
     const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
-    let isApfs: boolean = false;
+    let filesystem = FILESYSTEM.OTHER;
     if (srcAndDstOnSameDrive) {
       // find the mountpoint again to extract filesystem info
       for (const mountpoint of Array.from(this.mountpoints)) {
         if (src.startsWith(mountpoint)) {
-          isApfs = this.drives.get(mountpoint).filesystem === FILESYSTEM.APFS;
+          filesystem = this.drives.get(mountpoint).filesystem;
           break;
         }
       }
@@ -164,36 +280,14 @@ export class IoContext {
 
     switch (process.platform) {
       case 'darwin':
-        if (srcAndDstOnSameDrive && isApfs) {
-          return fse.stat(src).then((stat: fse.Stats) => {
-            // TODO: (Need help)
-            // It seems on APFS copying files smaller than 1MB is faster than using COW.
-            // Could be a local hickup on my system, verification/citation needed
-            if (stat.size < MB1) {
-              return fse.copyFile(src, dst);
-            }
-
-            const p0 = cp.spawn('cp', ['-c', src, dst]);
-            return new Promise((resolve, reject) => {
-              p0.on('exit', (code) => {
-                if (code === 0) {
-                  resolve();
-                } else {
-                  reject(code);
-                }
-              });
-            });
-          });
+        if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.APFS) {
+          return this.copyFileApfs(src, dst);
         }
         /* falls through */
       case 'win32':
-        // TODO: Implement block cloning of ReFS. The script below can give some insights,
-        // but I am not sure if there are simpler methods to achieve this. License also unclear
-        // https://github.com/Sorrowfulgod/ReFSBlockClone
-
-        // For more information about ReFS also check this tweet:
-        // https://twitter.com/snowtrack_io/status/1351186255816646657
-
+        if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.REFS) {
+          return this.copyFileRefs(src, dst);
+        }
         /* falls through */
       case 'linux':
         // The copy operation will attempt to create a copy-on-write reflink.

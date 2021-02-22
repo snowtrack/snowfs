@@ -16,7 +16,7 @@ export class IgnoreManager {
           if (line.length > 0 && !line.startsWith('//')) {
             line = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
             if (line.startsWith('!')) {
-              this.includes.push(new RegExp(line.substr(1, line.length - 1).replace(/\*/, '[\\w\/]*')));
+              this.includes.push(new RegExp(line.substr(1, line.length - 1).replace(/\*/, '[\\w/]*')));
             } else {
               this.ignores.push(new RegExp(line.replace(/\*/, '[\\w/]*')));
             }

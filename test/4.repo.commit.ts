@@ -35,7 +35,7 @@ async function rmDirRecursive(dir: string): Promise<void> {
   });
 }
 
-function createRandomString(length: number) {
+export function createRandomString(length: number) {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const charactersLength = characters.length;
@@ -45,7 +45,7 @@ function createRandomString(length: number) {
   return result;
 }
 
-async function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
+export async function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
   for (let i = 0; i < size; ++i) {
     stream.write(createRandomString(size));
@@ -191,14 +191,6 @@ async function repoTest(t, commondirInside: boolean) {
     .then((): Promise<void> => // cleanup unit-test
       rmDirRecursive(repo.commondir()));
 }
-
-test('repo open-commondir-inside', async (t) => {
-  /* This test creates a repo, and creates 2 commits.
-  1st commit: Add file 'foo'
-  2nd commit: Delete file  'foo'
-  */
-  await repoTest(t, true);
-});
 
 test('repo open-commondir-outside', async (t) => {
   /* This test creates a repo, and creates 2 commits.
