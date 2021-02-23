@@ -1,7 +1,9 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 
-import { basename, join, relative } from 'path';
+import {
+  basename, join, dirname, relative,
+} from 'path';
 import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
@@ -264,7 +266,7 @@ export class Odb {
         throw new Error(`object ${hash} not found`);
       }
 
-      return ioContext.copyFile(objectFile, dst);
-    });
+      return fse.ensureDir(dirname(dst));
+    }).then(() => ioContext.copyFile(objectFile, dst));
   }
 }
