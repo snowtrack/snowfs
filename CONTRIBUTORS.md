@@ -1,3 +1,4 @@
 - Sebastian Rath <sebastian@snowtrack.io>
 - Jan Frischmuth <https://github.com/halninekilo>
 - Daniel Lanner <https://github.com/daniellanner>
+- Timothy Sanders <unqueued@gmail.com>
