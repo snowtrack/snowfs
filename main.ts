@@ -320,12 +320,11 @@ program
       });
 
       const refs: Reference[] = repo.getAllReferences();
-      const headHash: string = repo.getHead().hash;
-      const headName: string = repo.getHead().getName();
+      const head: Reference = repo.getHead();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
         commits.reverse();
-        const o = { commits, refs, head: headName };
+        const o = { commits, refs, head: head.isDetached() ? head.hash : head.getName() };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {
@@ -356,17 +355,14 @@ program
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 
           const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
-          if (repo.getHead().isDetached() && commit.hash === headHash) {
-            branchRefs.unshift(repo.getHead());
-          }
 
           if (branchRefs.length > 0) {
             process.stdout.write('  (');
 
             process.stdout.write(`${branchRefs.map((ref) => {
               if (ref.hash === commit.hash) {
-                if (ref.getName() === headName) {
-                  if (headName === 'HEAD') {
+                if (ref.getName() === head.getName()) {
+                  if (head.isDetached()) {
                     return chalk.blue.bold(ref.getName());
                   }
                   return chalk.blue.bold(`HEAD -> ${ref.getName()}`);
