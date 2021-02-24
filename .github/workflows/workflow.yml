@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - if: ${{ github.repository_owner == 'Snowtrack' || github.repository_owner == 'snowtrack' }}
+      - if: false  # temporarily disable until https://github.com/appleboy/discord-action/issues/4 is fixed
         name: Discord Message
         uses: appleboy/discord-action@master
         with:
