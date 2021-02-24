@@ -1,54 +1,54 @@
 {
-    "version": "0.1.0",
-    // List of configurations. Add new configurations or edit existing ones.  
-    // ONLY "node" and "mono" are supported, change "type" to switch.
-    "configurations": [
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Launch Program",
-            "runtimeArgs": [
-                "-r",
-                "${workspaceFolder}/node_modules/ts-node/register"
-            ],
-            "args": [
-                "${workspaceFolder}/main.ts",
-                "--",
-                "status"
-            ]
-        },
-        {
+  "version": "0.1.0",
+  // List of configurations. Add new configurations or edit existing ones.  
+  // ONLY "node" and "mono" are supported, change "type" to switch.
+  "configurations": [
+      {
           "type": "node",
           "request": "launch",
-          "name": "Launch Benchmarks",
+          "name": "Launch CLI (main.ts)",
           "runtimeArgs": [
               "-r",
-              "ts-node/register"
+              "${workspaceFolder}/node_modules/ts-node/register"
           ],
           "args": [
-              "${workspaceFolder}/benchmarks/snowfs-vs-git.ts"
+              "${workspaceFolder}/main.ts",
+              "--",
+              "status"
           ]
       },
-        {
-          "type": "node",
-          "request": "launch",
-          "name": "Electron: AVA",
-          "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ava",
-          "runtimeArgs": [
-            "--experimental-modules",
-            "--timeout 15m",
-            "--verbose",
-            "--fail-fast",
-            "--serial",
-            "${file}"
-          ],
-          "outputCapture": "std",
-          "skipFiles": [
-            "<node_internals>/**/*.js"
-          ],
-          "windows": {
-            "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ava.cmd",
-          }
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Launch Tests (test/*)",
+        "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ava",
+        "runtimeArgs": [
+          "--experimental-modules",
+          "--timeout 15m",
+          "--verbose",
+          "--fail-fast",
+          "--serial",
+          "${file}"
+        ],
+        "outputCapture": "std",
+        "skipFiles": [
+          "<node_internals>/**/*.js"
+        ],
+        "windows": {
+          "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ava.cmd",
         }
-    ]
+      },
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Launch Benchmark",
+        "runtimeArgs": [
+            "-r",
+            "ts-node/register"
+        ],
+        "args": [
+            "${workspaceFolder}/benchmarks/snowfs-vs-git.ts"
+        ]
+    },
+  ]
 }
