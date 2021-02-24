@@ -8,7 +8,7 @@
 
 ## Overview
 
-SnowFS is a lightweight multi-platform support library with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
+SnowFS is a lightweight command-line application and library with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
 
 **Disclaimer:** This project is in alpha state and actively developed. Do not use this yet in a production environment or without backups.
 
@@ -30,7 +30,7 @@ SnowFS is a lightweight multi-platform support library with a focus on binary fi
 
 - Support for files bigger >4TB
 
-- Block-cloning and Copy-on-Write support for APFS and ReFS\*\*\*
+- Block-cloning and Copy-on-Write support for APFS and ReFS
 
 - Support for removing single versions and/or binaries
 
@@ -159,6 +159,10 @@ $ snow log
 
 1. To build `SnowFS` install [node.js](https://nodejs.org/en/) for your specific platform.
 
+    1.1. On Windows, Visual Studio is required. We recommend the [Visual Studio 2019 Community Edition](https://visualstudio.microsoft.com/downloads/). During the installation, please enable <a href="https://docs.microsoft.com/en-us/cpp/build/media/vscpp-concierge-choose-workload.gif?view=msvc-160" target="_blank">Desktop development with C++</a>.
+
+    1.2. On MacOS, [XCode](https://developer.apple.com/xcode/) is required.
+
 2. To build a **development build** execute:
 
 ```bash
@@ -168,13 +172,18 @@ $ npm install
 $ npm run ava
 ```
 
-3. To build a **production build**, execute the commands above, and continue with the commands below:
+3. To build a **production build including the CLI**, execute the commands above, and continue with the commands below:
 
 ```bash
 $ npm run tsc
 $ npm run build
 $ cd dist/out-tsc
 ```
+
+### How To Debug
+
+For the development of SnowFS we recommend **VSCode**. The repository contains a [launch.json](.vscode/launch.json) file with pre-defined runner configurations. For more information, please visit [this](https://github.com/Snowtrack/SnowFS/pull/49#issue-579026705) pull-request.
+
 
 ## Versioning
 
@@ -199,11 +208,9 @@ Excluded from the license are images, artworks, and logos. Please file a request
 
 The [tests and benchmarks](https://github.com/snowtrack/snowfs/tree/main/test) also serve as API specification and usage examples.
 
-These resources are not handled by `SnowFS` maintainers and might be out of date. Please verify it before opening new issues.
-
 ## Supported Platforms
 
-Currently, Windows, macOS, and Linux are supported. `SnowFS` works on plain filesystems like FAT, NTFS, HFS+ and has extended support for APFS and ReFS\*.
+Currently, Windows, macOS, and Linux are supported. `SnowFS` works on plain filesystems like FAT, NTFS, HFS+ and has extended support for APFS and ReFS.
 
 ## How can I contribute?
 
