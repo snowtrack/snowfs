@@ -80,8 +80,9 @@ But due to their focus on the software development lifecycle they are not suitab
 ## TypeScript / C++ backport
 
 `SnowFS` is currently written in TypeScript. It is a great language to write powerful and performant
-I/O bound prototypes. There is a basic and experimental **C/C++** backport, but we are looking for maintainers
-to get things finally rolling. If you have comments, ideas or recommendations, please let us know.
+I/O bound prototypes. We are aware of the demand for a C++ implementation, and due to
+our roots as C++ developers, we are very interested in a backport as well. It would make SnowFS easier
+to integrate into other projects. If you have comments, ideas or recommendations, please let us know.
 
 ### Running benchmarks
 
