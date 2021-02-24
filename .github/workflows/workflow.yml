@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - if: ${{ github.repository_owner == 'Snowtrack' || github.repository_owner == 'snowtrack' }}
+      - if: ${{ secrets.WEBHOOK_ID && secrets.WEBHOOK_TOKEN }}
         name: Discord Message
         uses: appleboy/discord-action@master
         with:
