@@ -84,7 +84,7 @@ I/O bound prototypes. We are aware of the demand for a C++ implementation, and d
 our roots as C++ developers, we are very interested in a backport as well. It would make SnowFS easier
 to integrate into other projects. If you have comments, ideas or recommendations, please let us know.
 
-### Running benchmarks
+## Running benchmarks
 
 We have also implemented a comparison benchmark between **SnowFS** vs. **git-lfs**.
 After executing the [build instructions](#build-instructions) for a development build, the benchmarks can be executed with the following command:
