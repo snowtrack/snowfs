@@ -14,8 +14,8 @@ export class Commit {
   /** Unique commit hash */
   hash: string;
 
-  /** Custom commit data, that was added to [[Repository.createCommit]]. */
-  data: any;
+  /** Custom commit user data, that was added to [[Repository.createCommit]]. */
+  userData: any;
 
   /** The repository this commit belongs to. */
   repo: Repository;
@@ -34,7 +34,7 @@ export class Commit {
 
   constructor(repo: Repository, message: string, creationDate: Date, root: TreeDir, parent: string[] | null) {
     this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
-    this.data = {};
+    this.userData = {};
     this.repo = repo;
     this.message = message;
     this.date = creationDate;
@@ -52,7 +52,12 @@ export class Commit {
       this.root,
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
-    commit.data = { ...this.data };
+    commit.userData = { ...this.userData };
+    // // eslint-disable-next-line guard-for-in
+    // for (const key in this.userData) {
+    //   commit.userData[key] = this.userData[key];
+    // }
+
     return commit;
   }
 
@@ -60,7 +65,7 @@ export class Commit {
    * Add custom data to the commit object.
    */
   addData(key: string, value: any) {
-    this.data[key] = value;
+    this.userData[key] = value;
   }
 
   /**

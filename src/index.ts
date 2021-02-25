@@ -66,7 +66,7 @@ export class Index {
    * Store the index object to disk. Saved to {workdir}/.snow/INDEX.
    */
   private async save() {
-    const data: string = JSON.stringify({
+    const userData: string = JSON.stringify({
       adds: this.adds,
       deletes: this.deletes,
       hashMap: this.processed,
@@ -78,7 +78,7 @@ export class Index {
       }
       return value;
     });
-    return fse.writeFile(join(this.repo.commondir(), 'INDEX'), data);
+    return fse.writeFile(join(this.repo.commondir(), 'INDEX'), userData);
   }
 
   /**
