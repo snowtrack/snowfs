@@ -219,16 +219,16 @@ test('custom-commit-data', async (t) => {
     return repo.createCommit(index, 'This is a commit with custom-data', {}, { hello: 'world', foo: 'bar', bas: 3 });
   })
     .then((commit: Commit) => {
-      t.log('User Data of commit', commit.data);
-      t.is(commit.data.hello, 'world');
-      t.is(commit.data.foo, 'bar');
-      t.is(commit.data.bas, 3);
+      t.log('User Data of commit', commit.userData);
+      t.is(commit.userData.hello, 'world');
+      t.is(commit.userData.foo, 'bar');
+      t.is(commit.userData.bas, 3);
     });
 
   await Repository.open(repoPath).then((repo: Repository) => {
     const lastCommit = repo.getAllCommits().sort((a: Commit, b: Commit) => (a.date.getTime() < b.date.getTime() ? 1 : -1))[0];
-    t.is(lastCommit.data.hello, 'world');
-    t.is(lastCommit.data.foo, 'bar');
-    t.is(lastCommit.data.bas, 3);
+    t.is(lastCommit.userData.hello, 'world');
+    t.is(lastCommit.userData.foo, 'bar');
+    t.is(lastCommit.userData.bas, 3);
   });
 });

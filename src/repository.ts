@@ -692,10 +692,10 @@ export class Repository {
    * Create a new commit, by the given index. The index must have been written onto disk by calling [[Index.writeFiles]].
    * @param index Passed index of files that will be added to the commit object.
    * @param message A human readable message string, that describes the changes.
-   * @param data Custom data that is attached to the commit data. The data must be JSON.stringifyable.
+   * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns     New commit object.
    */
-  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, data?: {}): Promise<Commit> {
+  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, userData?: {}): Promise<Commit> {
     let tree: TreeDir;
     let commit: Commit;
     if (index.adds.size === 0 && index.deletes.size === 0 && (!opts || !opts.allowEmpty)) {
@@ -714,8 +714,8 @@ export class Repository {
         return index.reset();
       }).then(() => {
         commit = new Commit(this, message, new Date(), tree, [this.head ? this.head.hash : null]);
-        if (data) {
-          for (const [key, value] of Object.entries(data)) {
+        if (userData) {
+          for (const [key, value] of Object.entries(userData)) {
             commit.addData(key, value);
           }
         }

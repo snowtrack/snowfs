@@ -1,10 +1,11 @@
 /* eslint-disable max-len */
 import * as fse from 'fs-extra';
 
-import { intersection } from 'lodash';
 import {
   isAbsolute, join, resolve, relative,
 } from 'path';
+
+import * as readline from 'readline';
 import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { DirItem, OSWALK, osWalk } from './src/io';
@@ -16,6 +17,26 @@ import { TreeDir, TreeFile } from './src/treedir';
 
 const program = require('commander');
 const chalk = require('chalk');
+
+async function input(question: string): Promise<string> {
+  // eslint-disable-next-line no-undef
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  let res: string;
+
+  rl.question(question, (answer: string) => {
+    res = answer;
+    rl.close();
+  });
+
+  return new Promise<string>((resolve, reject) => {
+    rl.on('close', () => {
+      resolve(res);
+    });
+  });
+}
 
 program
   .version('0.9.1')
@@ -265,6 +286,7 @@ program
         process.exit(-1);
       }
     }
+    // process.exit(0);
   });
 
 program
@@ -272,13 +294,26 @@ program
   .option('-m, --message [message]', 'input file')
   .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
   .option('--debug', 'add more debug information on errors')
+  .option('--user-data', 'open standard input to apply user data for commit')
   .description('complete the commit')
   .action(async (opts: any) => {
     try {
       const repo = await Repository.open(process.cwd());
       const index: Index = repo.getIndex();
+      let data = {};
 
-      const newCommit: Commit = await repo.createCommit(index, opts.message, opts);
+      let res: string;
+      if (opts.userData) {
+        res = await input('Enter User Data: ');
+
+        try {
+          data = JSON.parse(res);
+        } catch (e) {
+          process.stdout.write(`ERROR: The received JSON is not well-formed. The commit is created without user data.\nParsing failed with message: ${e}\n`);
+        }
+      }
+
+      const newCommit: Commit = await repo.createCommit(index, opts.message, opts, data);
 
       console.log(`[${repo.getHead().getName()} (root-commit) ${newCommit.hash.substr(0, 6)}]`);
     } catch (error) {
@@ -320,16 +355,21 @@ program
       });
 
       const refs: Reference[] = repo.getAllReferences();
-      const head: Reference = repo.getHead();
+      const headHash: string = repo.getHead().hash;
+      const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
         commits.reverse();
-        const o = { commits, refs, head: head.isDetached() ? head.hash : head.getName() };
+        const o = { commits, refs, head: headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {
             return {
-              hash: value.hash, message: value.message, date: value.date.getTime() / 1000.0, root: opts.verbose ? value.root : undefined,
+              hash: value.hash,
+              message: value.message,
+              date: value.date.getTime() / 1000.0,
+              root: opts.verbose ? value.root : undefined,
+              userData: JSON.parse(JSON.stringify(value.userData)),
             };
           }
           if (value instanceof TreeDir) {
@@ -355,14 +395,17 @@ program
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 
           const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
+          if (repo.getHead().isDetached() && commit.hash === headHash) {
+            branchRefs.unshift(repo.getHead());
+          }
 
           if (branchRefs.length > 0) {
             process.stdout.write('  (');
 
             process.stdout.write(`${branchRefs.map((ref) => {
               if (ref.hash === commit.hash) {
-                if (ref.getName() === head.getName()) {
-                  if (head.isDetached()) {
+                if (ref.getName() === headName) {
+                  if (headName === 'HEAD') {
                     return chalk.blue.bold(ref.getName());
                   }
                   return chalk.blue.bold(`HEAD -> ${ref.getName()}`);
@@ -377,7 +420,21 @@ program
           process.stdout.write('\n');
 
           process.stdout.write(`Date: ${commit.date}\n`);
-          process.stdout.write(`\n  ${commit.message}\n\n`);
+
+          if (Object.keys(commit.userData).length > 0) {
+            process.stdout.write('User Data:');
+            let seperator = ' ';
+            // eslint-disable-next-line guard-for-in
+            for (const key in commit.userData) {
+              if ({}.hasOwnProperty.call(commit.userData, key)) {
+                process.stdout.write(`${seperator}${key}=${commit.userData[key]}`);
+              }
+              seperator = ', ';
+            }
+            process.stdout.write('\n');
+          }
+          process.stdout.write(`\n  ${commit.message}\n\n\n`);
+
           if (opts.verbose) {
             const files = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
             for (const file of Array.from(files)) {

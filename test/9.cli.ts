@@ -6,17 +6,22 @@ import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
 
 enum EXEC_OPTIONS {
-  RETURN_STDOUT = 1
+  RETURN_STDOUT = 1,
+  WRITE_STDIN = 2
 }
 
-async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, returnStdout?: EXEC_OPTIONS): Promise<void | string> {
+async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: { SUPPRESS_BANNER: 'true' } });
   return new Promise((resolve, reject) => {
-    let stdout: string;
+    let stdout: string = '';
+    if (stdiopts & EXEC_OPTIONS.WRITE_STDIN) {
+      p0.stdin.write(`${stdin}\n`);
+      p0.stdin.end(); /// this call seems necessary, at least with plain node.js executable
+    }
     p0.stdout.on('data', (data) => {
-      if (returnStdout === EXEC_OPTIONS.RETURN_STDOUT) {
-        stdout = data.toString();
+      if (stdiopts & EXEC_OPTIONS.RETURN_STDOUT && data != null) {
+        stdout += data.toString();
       } else {
         t.log(data.toString());
       }
@@ -82,7 +87,7 @@ if (!process.env.GITHUB_WORKFLOW || process.platform !== 'darwin') {
     const snowWorkdir = createUniqueTmpDir();
     const subdir = join(snowWorkdir, 'subdir');
 
-    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    await exec(console, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
     t.log('Write foo.txt');
     fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
@@ -166,5 +171,55 @@ if (!process.env.GITHUB_WORKFLOW || process.platform !== 'darwin') {
     // const stdout = await exec(t, snow, ['status', '--output=json-pretty'], { cwd: subdir }, EXEC_OPTIONS.RETURN_STDOUT);
 
     t.is(true, true);
+  });
+
+  test('User Data --- STORE AND LOAD IDENTICAL', async (t) => {
+    const snow: string = getSnowexec(t);
+    const snowWorkdir = createUniqueTmpDir();
+
+    const uData: any = { str_key: 'str_value', int_key: 3 };
+
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    await exec(t, snow,
+      ['commit', '-m', 'unit test user data', '--allow-empty', '--user-data'], { cwd: snowWorkdir },
+      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
+      JSON.stringify(uData));
+
+    const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+    const c: any = JSON.parse(String(out));
+
+    let identical = false;
+    if (c.commits.length > 0) {
+      const d = c.commits[0].userData;
+
+      // eslint-disable-next-line guard-for-in
+      for (const key in d) {
+        if (!(key in uData)) {
+          identical = false;
+          break;
+        }
+        if (d[key] !== uData[key]) {
+          identical = false;
+          break;
+        }
+
+        identical = true;
+      }
+    }
+
+    t.is(true, identical);
+  });
+
+  test('User Data --- FAIL INVALID INPUT', async (t) => {
+    const snow: string = getSnowexec(t);
+    const snowWorkdir = createUniqueTmpDir();
+
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    const out = await exec(t, snow,
+      ['commit', '-m', 'unit test user data', '--allow-empty', '--user-data'], { cwd: snowWorkdir },
+      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, 'garbage');
+
+    const errorMsgSub = 'ERROR: The received JSON is not well-formed';
+    t.is(true, String(out).includes(errorMsgSub));
   });
 }

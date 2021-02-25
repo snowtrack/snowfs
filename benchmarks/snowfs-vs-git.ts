@@ -12,12 +12,11 @@ const chalk = require('chalk');
 
 const BENCHMARK_FILE_SIZE = 4000000000;
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 async function input(question: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   let res: string;
 
   rl.question(question, (answer: string) => {

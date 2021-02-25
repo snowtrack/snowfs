@@ -1,9 +1,7 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 
-import {
-  basename, join, dirname, relative,
-} from 'path';
+import { basename, join, relative } from 'path';
 import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
@@ -203,8 +201,8 @@ export class Odb {
                   "date": ${commit.date.getTime()},
                   "parent": [${parent}], "root":`);
     stream.write(commit.root.toString(true));
-    if (commit.data) {
-      stream.write(`,"data": ${JSON.stringify(commit.data)}`);
+    if (commit.userData) {
+      stream.write(`,"userData": ${JSON.stringify(commit.userData)}`);
     }
     stream.write('}');
 
@@ -266,7 +264,7 @@ export class Odb {
         throw new Error(`object ${hash} not found`);
       }
 
-      return fse.ensureDir(dirname(dst));
-    }).then(() => ioContext.copyFile(objectFile, dst));
+      return ioContext.copyFile(objectFile, dst);
+    });
   }
 }
