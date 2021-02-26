@@ -14,6 +14,8 @@ export class Commit {
   /** Unique commit hash */
   hash: string;
 
+  tags: string[];
+
   /** Custom commit user data, that was added to [[Repository.createCommit]]. */
   userData: any;
 
@@ -34,6 +36,7 @@ export class Commit {
 
   constructor(repo: Repository, message: string, creationDate: Date, root: TreeDir, parent: string[] | null) {
     this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
+    this.tags = [];
     this.userData = {};
     this.repo = repo;
     this.message = message;
@@ -52,11 +55,16 @@ export class Commit {
       this.root,
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
-    commit.userData = { ...this.userData };
-    // // eslint-disable-next-line guard-for-in
-    // for (const key in this.userData) {
-    //   commit.userData[key] = this.userData[key];
-    // }
+
+    commit.tags = [];
+    if (this.tags != null) {
+      commit.tags = [...this.tags];
+    }
+
+    commit.userData = {};
+    if (this.userData != null) {
+      commit.userData = { ...this.userData };
+    }
 
     return commit;
   }
@@ -66,6 +74,35 @@ export class Commit {
    */
   addData(key: string, value: any) {
     this.userData[key] = value;
+  }
+
+  /**
+   * Add custom tag to the commit object.
+   */
+  addTag(tag: string) {
+    if (tag.length === 0) {
+      return;
+    }
+
+    if (this.tags == null) {
+      this.tags = [];
+    }
+
+    if (this.tags.includes(tag)) {
+      return;
+    }
+
+    tag = tag
+      .replace(/\\n/g, '\\n')
+      .replace(/\\'/g, "\\'")
+      .replace(/\\"/g, '\\"')
+      .replace(/\\&/g, '\\&')
+      .replace(/\\r/g, '\\r')
+      .replace(/\\t/g, '\\t')
+      .replace(/\\b/g, '\\b')
+      .replace(/\\f/g, '\\f');
+
+    this.tags.push(tag);
   }
 
   /**

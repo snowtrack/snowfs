@@ -201,6 +201,15 @@ export class Odb {
                   "date": ${commit.date.getTime()},
                   "parent": [${parent}], "root":`);
     stream.write(commit.root.toString(true));
+    if (commit.tags) {
+      stream.write(',"tags": [');
+      let seperator = ' ';
+      commit.tags.forEach((tag) => {
+        stream.write(`${seperator}"${tag}"`);
+        seperator = ', ';
+      });
+      stream.write(' ]');
+    }
     if (commit.userData) {
       stream.write(`,"userData": ${JSON.stringify(commit.userData)}`);
     }

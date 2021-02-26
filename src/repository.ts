@@ -695,7 +695,7 @@ export class Repository {
    * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns     New commit object.
    */
-  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, userData?: {}): Promise<Commit> {
+  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
     let tree: TreeDir;
     let commit: Commit;
     if (index.adds.size === 0 && index.deletes.size === 0 && (!opts || !opts.allowEmpty)) {
@@ -714,6 +714,13 @@ export class Repository {
         return index.reset();
       }).then(() => {
         commit = new Commit(this, message, new Date(), tree, [this.head ? this.head.hash : null]);
+
+        if (tags && tags.length > 0) {
+          tags.forEach((tag: string) => {
+            commit.addTag(tag);
+          });
+        }
+
         if (userData) {
           for (const [key, value] of Object.entries(userData)) {
             commit.addData(key, value);
