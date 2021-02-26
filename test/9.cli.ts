@@ -222,4 +222,61 @@ if (!process.env.GITHUB_WORKFLOW || process.platform !== 'darwin') {
     const errorMsgSub = 'ERROR: The received JSON is not well-formed';
     t.is(true, String(out).includes(errorMsgSub));
   });
+
+  test('Tags --- STORE AND LOAD IDENTICAL', async (t) => {
+    const snow: string = getSnowexec(t);
+    const snowWorkdir = createUniqueTmpDir();
+
+    const tag1 = 'FirstTag';
+    const tag2 = 'SecondTag';
+
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    await exec(t, snow, ['commit', '-m', 'unit test tags', '--allow-empty', `--tags=${tag1},${tag2}`], { cwd: snowWorkdir });
+
+    const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+    const c: any = JSON.parse(String(out));
+
+    let identical = false;
+    if (c.commits.length > 0) {
+      const d = c.commits[0].tags;
+      identical = d.includes(tag1) && d.includes(tag2);
+    }
+
+    t.is(true, identical);
+  });
+
+  test('Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
+    const snow: string = getSnowexec(t);
+    const snowWorkdir = createUniqueTmpDir();
+
+    const tag1 = '[]}';
+    const tag2 = '\'%$[,.}}';
+
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    await exec(t, snow, ['commit', '-m', 'unit test tags', '--allow-empty', `--tags=${tag1},${tag2}`], { cwd: snowWorkdir });
+
+    const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+    const c: any = JSON.parse(String(out));
+
+    let tags: string[] = [];
+    if (c.commits.length > 0) {
+      tags = c.commits[0].tags;
+    }
+
+    t.is(true, tags.length === 3); // === 3 due to comma in tag2
+  });
+
+  test('Tags --- EMPTY INPUT', async (t) => {
+    const snow: string = getSnowexec(t);
+    const snowWorkdir = createUniqueTmpDir();
+
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    await exec(t, snow, ['commit', '-m', 'unit test tags', '--allow-empty', '--tags='], { cwd: snowWorkdir });
+
+    const out = await exec(t, snow, ['log'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+    // should not print tags as we never passed any
+    const tagsLog = 'Tags:';
+    t.is(true, !String(out).includes(tagsLog));
+  });
 }

@@ -216,7 +216,7 @@ test('custom-commit-data', async (t) => {
     return index.writeFiles();
   }).then(() => {
     const index = repo.getIndex();
-    return repo.createCommit(index, 'This is a commit with custom-data', {}, { hello: 'world', foo: 'bar', bas: 3 });
+    return repo.createCommit(index, 'This is a commit with custom-data', {}, [], { hello: 'world', foo: 'bar', bas: 3 });
   })
     .then((commit: Commit) => {
       t.log('User Data of commit', commit.userData);

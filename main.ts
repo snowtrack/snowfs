@@ -295,12 +295,18 @@ program
   .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
   .option('--debug', 'add more debug information on errors')
   .option('--user-data', 'open standard input to apply user data for commit')
+  .option('--tags [collection]', 'add user defined tags to commit')
   .description('complete the commit')
   .action(async (opts: any) => {
     try {
       const repo = await Repository.open(process.cwd());
       const index: Index = repo.getIndex();
       let data = {};
+
+      let tags: string[];
+      if (opts.tags && opts.tags.length > 0) {
+        tags = String(opts.tags).split(',');
+      }
 
       let res: string;
       if (opts.userData) {
@@ -313,7 +319,7 @@ program
         }
       }
 
-      const newCommit: Commit = await repo.createCommit(index, opts.message, opts, data);
+      const newCommit: Commit = await repo.createCommit(index, opts.message, opts, tags, data);
 
       console.log(`[${repo.getHead().getName()} (root-commit) ${newCommit.hash.substr(0, 6)}]`);
     } catch (error) {
@@ -369,6 +375,7 @@ program
               message: value.message,
               date: value.date.getTime() / 1000.0,
               root: opts.verbose ? value.root : undefined,
+              tags: value.tags,
               userData: JSON.parse(JSON.stringify(value.userData)),
             };
           }
@@ -420,6 +427,16 @@ program
           process.stdout.write('\n');
 
           process.stdout.write(`Date: ${commit.date}\n`);
+
+          if (commit.tags && commit.tags.length > 0) {
+            process.stdout.write('Tags:');
+            let seperator = ' ';
+            commit.tags.forEach((tag) => {
+              process.stdout.write(`${seperator}${tag}`);
+              seperator = ', ';
+            });
+            process.stdout.write('\n');
+          }
 
           if (Object.keys(commit.userData).length > 0) {
             process.stdout.write('User Data:');
