@@ -700,7 +700,7 @@ export class Repository {
     let commit: Commit;
     if (index.adds.size === 0 && index.deletes.size === 0 && (!opts || !opts.allowEmpty)) {
       // did you forget to call index.writeFiles(..)?
-      throw new Error('nothing to commit (create/copy files and use "git add" to track)');
+      throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
     const hashMap: Map<string, string> = index.getHashedIndexMap();
