@@ -92,6 +92,7 @@ export class Commit {
       return;
     }
 
+    // replace JSON invalid symbols
     tag = tag
       .replace(/\\n/g, '\\n')
       .replace(/\\'/g, "\\'")
