@@ -304,7 +304,7 @@ program
       let data = {};
 
       let tags: string[];
-      if (opts.tags.length > 0) {
+      if (opts.tags && opts.tags.length > 0) {
         tags = String(opts.tags).split(',');
       }
 
