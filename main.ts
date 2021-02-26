@@ -311,12 +311,7 @@ program
       let res: string;
       if (opts.userData) {
         res = await input('Enter User Data: ');
-
-        try {
-          data = JSON.parse(res);
-        } catch (e) {
-          process.stdout.write(`ERROR: The received JSON is not well-formed. The commit is created without user data.\nParsing failed with message: ${e}\n`);
-        }
+        data = JSON.parse(res);
       }
 
       const newCommit: Commit = await repo.createCommit(index, opts.message, opts, tags, data);
