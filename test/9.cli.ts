@@ -15,25 +15,26 @@ async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, 
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
   return new Promise((resolve, reject) => {
     let stdout: string = '';
+    let stderr: string = '';
     if (stdiopts & EXEC_OPTIONS.WRITE_STDIN) {
       p0.stdin.write(`${stdin}\n`);
       p0.stdin.end(); /// this call seems necessary, at least with plain node.js executable
     }
     p0.stdout.on('data', (data) => {
-      if (stdiopts & EXEC_OPTIONS.RETURN_STDOUT && data != null) {
+      if (stdiopts & EXEC_OPTIONS.RETURN_STDOUT) {
         stdout += data.toString();
       } else {
         t.log(data.toString());
       }
     });
     p0.stderr.on('data', (data) => {
-      t.log(data.toString());
+      stderr += data.toString();
     });
     p0.on('exit', (code) => {
       if (code === 0) {
         resolve(stdout ?? undefined);
       } else {
-        reject(Error(`Failed to execute ${command} ${args.join(' ')} with return-code ${code}`));
+        reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${stderr}`));
       }
     });
   });
@@ -213,13 +214,15 @@ test('User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
-  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-  const out = await exec(t, snow,
-    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
-    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
-
-  const errorMsgSub = 'ERROR: The received JSON is not well-formed';
-  t.is(true, String(out).includes(errorMsgSub));
+  try {
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    const out = await exec(t, snow,
+      ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
+      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
+  } catch (error) {
+    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+    t.true(error.message.includes(errorMsgSub));
+  }
 });
 
 test('Tags --- STORE AND LOAD IDENTICAL', async (t) => {

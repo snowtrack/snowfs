@@ -47,7 +47,7 @@ async function parseOptions(opts: any) {
       });
       let res: string;
 
-      rl.question(' ', (answer: string) => {
+      rl.question('', (answer: string) => {
         res = answer;
         rl.close();
       });
@@ -106,7 +106,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -131,7 +131,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -169,7 +169,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -192,7 +192,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -249,7 +249,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -330,7 +330,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -363,7 +363,7 @@ program
         try {
           data = JSON.parse(opts.userData);
         } catch (e) {
-          throw new Error(`fatal: Failed to parse user-data: ${e}`);
+          throw new Error(`invalid user-data: ${e}`);
         }
       }
 
@@ -374,7 +374,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
@@ -515,7 +515,7 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        console.log(`fatal: ${error.message}`);
+        process.stderr.write(`fatal: ${error.message}\n`);
         process.exit(-1);
       }
     }
