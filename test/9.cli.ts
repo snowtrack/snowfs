@@ -126,8 +126,8 @@ test('snow add *', async (t) => {
 });
 
 /**
-   * This test ensures that foo.txt is not added to the staging area because cwd is the subdirectory
-   */
+ * This test ensures that foo.txt is not added to the staging area because cwd is the subdirectory
+ */
 test('snow add foo.txt', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
@@ -180,9 +180,9 @@ test('User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   await exec(t, snow,
-    ['commit', '-m', 'unit test user data', '--allow-empty', '--user-data'], { cwd: snowWorkdir },
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
-    JSON.stringify(uData));
+    `--user-data: ${JSON.stringify(uData)}`);
 
   const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   const c: any = JSON.parse(String(out));
@@ -215,8 +215,8 @@ test('User Data --- FAIL INVALID INPUT', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   const out = await exec(t, snow,
-    ['commit', '-m', 'unit test user data', '--allow-empty', '--user-data'], { cwd: snowWorkdir },
-    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, 'garbage');
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
 
   const errorMsgSub = 'ERROR: The received JSON is not well-formed';
   t.is(true, String(out).includes(errorMsgSub));

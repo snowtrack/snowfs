@@ -8,7 +8,6 @@ import {
 import * as readline from 'readline';
 import { Index } from './src/index';
 import { Commit } from './src/commit';
-import { DirItem, OSWALK, osWalk } from './src/io';
 import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET,
@@ -18,24 +17,77 @@ import { TreeDir, TreeFile } from './src/treedir';
 const program = require('commander');
 const chalk = require('chalk');
 
-async function input(question: string): Promise<string> {
-  // eslint-disable-next-line no-undef
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  let res: string;
+function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
+  return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
+}
 
-  rl.question(question, (answer: string) => {
-    res = answer;
-    rl.close();
-  });
+/**
+ * Helper function for additional parsing options. Some CLI commands support passing information
+ * through stdin or a text-file (e.g. --user-data for commits). If the passed options object
+ * contains 'input', the options can be loaded from a stdin, otherwise the value is treated as
+ * a filepath. The content is extracted from the source and applied on top of the 'opts' object.
+ *
+ * Example:
+ *    --cmd-arg1: can,be,multiple\nlines\r\n\r\n\r\n\r\n
+ *    --cmd-arg2: random-value
+ *
+ * '\r\n\r\n\r\n\r\n' is the delimiter between the passed arguments.
+ * The payload of the argument must not contain the delimiter, otherwise an error will occur.
+ *
+ * @param opts      Options passed from the commander.
+ * @return          New options object.
+ */
+async function parseOptions(opts: any) {
+  let tmp: string;
+  if (opts.input) {
+    if (opts.input === 'stdin') {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      let res: string;
 
-  return new Promise<string>((resolve, reject) => {
-    rl.on('close', () => {
-      resolve(res);
-    });
-  });
+      rl.question(' ', (answer: string) => {
+        res = answer;
+        rl.close();
+      });
+
+      tmp = await new Promise<string>((resolve, reject) => {
+        rl.on('close', () => {
+          resolve(res);
+        });
+      });
+    } else { // else assumes it is a file-path
+      const buf: Buffer = fse.readFileSync(opts.input);
+      tmp = buf.toString();
+    }
+  } else {
+    // no --input set, simply use the options from the command-line
+    return opts;
+  }
+
+  const splitOpts: string[] = tmp.split('\r\n\r\n\r\n\r\n');
+  for (const splitOpt of splitOpts) {
+    if (!splitOpt.startsWith('--')) {
+      throw new Error("option must start with '--', e.g. --option: value");
+    }
+
+    // '--option:'
+    const parsed = splitOpt.match(/--([\w-]+):/g);
+    if (!parsed) {
+      throw new Error(`option '${parsed}' is invalid`);
+    }
+
+    // '--foo-bar:' ==> 'fooBar'
+    const parsedOption = parsed[0].substr(2, parsed[0].length - 3)
+      .replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+
+    opts[parsedOption] = splitOpt.substring(parsed[0].length, splitOpt.length)
+      .replace(/^[\n|\s]*/, '')
+      .replace(/[\n|\s]*$/, '');
+  }
+
+  return opts;
 }
 
 program
@@ -84,10 +136,6 @@ program
       }
     }
   });
-
-function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
-  return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
-}
 
 program
   .command('add <path>')
@@ -296,9 +344,12 @@ program
   .option('--debug', 'add more debug information on errors')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--tags [collection]', 'add user defined tags to commit')
+  .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('complete the commit')
   .action(async (opts: any) => {
     try {
+      opts = await parseOptions(opts);
+
       const repo = await Repository.open(process.cwd());
       const index: Index = repo.getIndex();
       let data = {};
@@ -308,12 +359,9 @@ program
         tags = String(opts.tags).split(',');
       }
 
-      let res: string;
       if (opts.userData) {
-        res = await input('Enter User Data: ');
-
         try {
-          data = JSON.parse(res);
+          data = JSON.parse(opts.userData);
         } catch (e) {
           process.stdout.write(`ERROR: The received JSON is not well-formed. The commit is created without user data.\nParsing failed with message: ${e}\n`);
         }
