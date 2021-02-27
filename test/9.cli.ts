@@ -173,6 +173,113 @@ test('snow add bar.txt', async (t) => {
   t.is(true, true);
 });
 
+test('snow rm foo.txt', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+  const subdir = join(snowWorkdir, 'subdir');
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  t.log('Create subdir');
+  fse.mkdirpSync(subdir);
+  t.log('Write subdir/foo.txt');
+  fse.writeFileSync(join(subdir, 'bar.txt'), 'bar');
+
+  await exec(t, snow, ['add', '*'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'First commit'], { cwd: snowWorkdir });
+
+  // delete the file and commit
+  await exec(t, snow, ['rm', 'foo.txt'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'Delete foo.txt'], { cwd: snowWorkdir });
+
+  // TODO: (Fix getStatus to differ between worktree and staging area)
+  // const stdout = await exec(t, snow, ['status', '--output=json-pretty'], { cwd: subdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  t.is(true, true);
+});
+
+test('snow rm subdir', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+  const subdir = join(snowWorkdir, 'subdir');
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  t.log('Create subdir');
+  fse.mkdirpSync(subdir);
+  t.log('Write subdir/foo.txt');
+  fse.writeFileSync(join(subdir, 'bar.txt'), 'bar');
+
+  await exec(t, snow, ['add', '*'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'First commit'], { cwd: snowWorkdir });
+
+  // delete the file and commit
+  await exec(t, snow, ['rm', 'subdir'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'Delete subdir'], { cwd: snowWorkdir });
+
+  // TODO: (Fix getStatus to differ between worktree and staging area)
+  // const stdout = await exec(t, snow, ['status', '--output=json-pretty'], { cwd: subdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  t.is(true, true);
+});
+
+test('snow rm subdir/bar.txt', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+  const subdir = join(snowWorkdir, 'subdir');
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  t.log('Create subdir');
+  fse.mkdirpSync(subdir);
+  t.log('Write subdir/foo.txt');
+  fse.writeFileSync(join(subdir, 'bar.txt'), 'bar');
+
+  await exec(t, snow, ['add', '*'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'First commit'], { cwd: snowWorkdir });
+
+  // delete the file and commit
+  await exec(t, snow, ['rm', 'subdir/bar.txt'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'Delete subdir/bar.txt'], { cwd: snowWorkdir });
+
+  // TODO: (Fix getStatus to differ between worktree and staging area)
+  // const stdout = await exec(t, snow, ['status', '--output=json-pretty'], { cwd: subdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  t.is(true, true);
+});
+
+test.only('snow rm file-does-not-exist', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+  const subdir = join(snowWorkdir, 'subdir');
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  t.log('Create subdir');
+  fse.mkdirpSync(subdir);
+  t.log('Write subdir/foo.txt');
+  fse.writeFileSync(join(subdir, 'bar.txt'), 'bar');
+
+  await exec(t, snow, ['add', '*'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'First commit'], { cwd: snowWorkdir });
+
+  const error = await t.throwsAsync(async () => exec(t, snow, ['rm', 'file-does-not-exist'], { cwd: snowWorkdir }));
+  t.true(error.message.includes('fatal: ENOENT: no such file or directory, stat'));
+
+  // TODO: (Fix getStatus to differ between worktree and staging area)
+  // const stdout = await exec(t, snow, ['status', '--output=json-pretty'], { cwd: subdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  t.is(true, true);
+});
+
 test('User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
