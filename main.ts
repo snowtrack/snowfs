@@ -122,7 +122,12 @@ program
       const repo = await Repository.open(process.cwd());
 
       const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
-      fse.unlinkSync(filepathAbs);
+      const stats = fse.statSync(filepathAbs);
+      if (stats.isDirectory()) {
+        fse.rmdirSync(filepathAbs, { recursive: true });
+      } else {
+        fse.unlinkSync(filepathAbs);
+      }
 
       const index: Index = repo.getIndex();
       index.deleteFiles([path]);
