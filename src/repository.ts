@@ -401,7 +401,7 @@ export class Repository {
    * @param hash  Commit hash of the new reference.
    * @param start Set commit hash of the start of the reference.
    */
-  async createNewReference(name: string, hash: string, start?: string|null): Promise<Reference> {
+  async createNewReference(name: string, hash: string, start?: string|null, userData?: {}): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
       throw new Error('ref already exists');
@@ -415,7 +415,8 @@ export class Repository {
       throw new Error('hash for new ref is not a known commit');
     }
 
-    const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash });
+    const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash, userData });
+
     this.references.push(newRef);
     return this.repoOdb.writeReference(newRef).then(() => newRef);
   }

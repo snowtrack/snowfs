@@ -254,7 +254,7 @@ test('snow rm subdir/bar.txt', async (t) => {
   t.is(true, true);
 });
 
-test.only('snow rm file-does-not-exist', async (t) => {
+test('snow rm file-does-not-exist', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
   const subdir = join(snowWorkdir, 'subdir');
@@ -280,7 +280,7 @@ test.only('snow rm file-does-not-exist', async (t) => {
   t.is(true, true);
 });
 
-test('User Data --- STORE AND LOAD IDENTICAL', async (t) => {
+test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
@@ -317,7 +317,7 @@ test('User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   t.is(true, identical);
 });
 
-test('User Data --- FAIL INVALID INPUT', async (t) => {
+test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
@@ -332,7 +332,7 @@ test('User Data --- FAIL INVALID INPUT', async (t) => {
   }
 });
 
-test('Tags --- STORE AND LOAD IDENTICAL', async (t) => {
+test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
@@ -354,7 +354,7 @@ test('Tags --- STORE AND LOAD IDENTICAL', async (t) => {
   t.is(true, identical);
 });
 
-test('Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
+test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
@@ -375,7 +375,7 @@ test('Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
   t.is(true, tags.length === 3); // === 3 due to comma in tag2
 });
 
-test('Tags --- EMPTY INPUT', async (t) => {
+test('Commit Tags --- EMPTY INPUT', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = createUniqueTmpDir();
 
@@ -387,4 +387,58 @@ test('Tags --- EMPTY INPUT', async (t) => {
   // should not print tags as we never passed any
   const tagsLog = 'Tags:';
   t.is(true, !String(out).includes(tagsLog));
+});
+
+test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+
+  const uData: any = { str_key: 'str_value', int_key: 3 };
+  const branchName = 'u-data-test';
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+  await exec(t, snow,
+    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
+    `--user-data:${JSON.stringify(uData)}`);
+
+  const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  const c: any = JSON.parse(String(out));
+
+  let identical = false;
+  if (c.refs.length > 1) {
+    const d = c.refs[1].userData;
+
+    // eslint-disable-next-line guard-for-in
+    for (const key in d) {
+      if (!(key in uData)) {
+        identical = false;
+        break;
+      }
+      if (d[key] !== uData[key]) {
+        identical = false;
+        break;
+      }
+
+      identical = true;
+    }
+  }
+
+  t.is(true, identical);
+});
+
+test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = createUniqueTmpDir();
+  const branchName = 'u-data-test';
+
+  try {
+    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+    const out = await exec(t, snow,
+      ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
+  } catch (error) {
+    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+    t.true(error.message.includes(errorMsgSub));
+  }
 });

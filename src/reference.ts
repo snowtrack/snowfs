@@ -7,14 +7,18 @@ import { Repository } from './repository';
 export class Reference {
     hash: string;
 
+    /** Custom commit user data, that was added to [[Repository.createCommit]]. */
+    userData: any;
+
     refName: string;
 
     repo: Repository;
 
     start: string;
 
-    constructor(refName: string, repo: Repository, c: {hash: string, start: string}) {
+    constructor(refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
       this.hash = c.hash;
+      this.userData = c.userData ?? {};
       this.start = c.start;
       this.refName = refName;
       this.repo = repo;
@@ -41,6 +45,17 @@ export class Reference {
     }
 
     clone(): Reference {
-      return new Reference(this.refName, this.repo, { hash: this.hash, start: this.start });
+      const ref = new Reference(this.refName, this.repo,
+        {
+          hash: this.hash,
+          start: this.start,
+        });
+
+      ref.userData = {};
+      if (this.userData != null) {
+        ref.userData = { ...this.userData };
+      }
+
+      return ref;
     }
 }

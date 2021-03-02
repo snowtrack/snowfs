@@ -184,6 +184,8 @@ program
   .command('branch [branch-name] [start-point]')
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
+  .option('--user-data', 'open standard input to apply user data for commit')
+  .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('create a new branch')
   .action(async (branchName: string | undefined, startPoint: string, opts: any) => {
     if (opts.noColor) {
@@ -192,7 +194,19 @@ program
 
     try {
       const repo = await Repository.open(process.cwd());
-      await repo.createNewReference(branchName, startPoint, startPoint);
+
+      opts = await parseOptions(opts);
+
+      let data = {};
+      if (opts.userData) {
+        try {
+          data = JSON.parse(opts.userData);
+        } catch (e) {
+          throw new Error(`invalid user-data: ${e}`);
+        }
+      }
+
+      await repo.createNewReference(branchName, startPoint, startPoint, data);
     } catch (error) {
       if (opts.debug) {
         throw error;
@@ -229,6 +243,8 @@ program
   .option('-n, --no-reset', "don't modify the worktree")
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
+  .option('--user-data', 'open standard input to apply user data for commit')
+  .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description(checkoutDesc)
   .action(async (target: string | undefined, opts: any) => {
     if (opts.noColor) {
@@ -239,7 +255,18 @@ program
       const repo = await Repository.open(process.cwd());
 
       if (opts.branch) { // snow checkout -b branch-name
-        await repo.createNewReference(opts.branch, repo.getHead().hash, repo.getHead().hash);
+        opts = await parseOptions(opts);
+
+        let data = {};
+        if (opts.userData) {
+          try {
+            data = JSON.parse(opts.userData);
+          } catch (e) {
+            throw new Error(`invalid user-data: ${e}`);
+          }
+        }
+
+        await repo.createNewReference(opts.branch, repo.getHead().hash, repo.getHead().hash, data);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
         if (opts.reset) {
@@ -429,7 +456,7 @@ program
               date: value.date.getTime() / 1000.0,
               root: opts.verbose ? value.root : undefined,
               tags: value.tags,
-              userData: JSON.parse(JSON.stringify(value.userData)),
+              userData: value.userData ? JSON.parse(JSON.stringify(value.userData)) : {},
             };
           }
           if (value instanceof TreeDir) {
@@ -445,7 +472,12 @@ program
             };
           }
           if (value instanceof Reference) {
-            return { name: value.getName(), hash: value.hash, start: value.start };
+            return {
+              name: value.getName(),
+              hash: value.hash,
+              start: value.start,
+              userData: value.userData ? JSON.parse(JSON.stringify(value.userData)) : {},
+            };
           }
           return value;
         }, opts.output === 'json-pretty' ? '   ' : ''));

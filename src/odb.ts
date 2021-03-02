@@ -137,6 +137,7 @@ export class Odb {
         const opts = {
           hash: ret.content.hash,
           start: ret.content.start,
+          userData: ret.content.userData,
         };
         return new Reference(basename(ret.ref.path), this.repo, opts);
       }))
@@ -185,6 +186,7 @@ export class Odb {
     return fse.writeFile(refPath, JSON.stringify({
       hash: ref.hash,
       start: ref.start ? ref.start : undefined,
+      userData: ref.userData ?? {},
     }));
   }
 
