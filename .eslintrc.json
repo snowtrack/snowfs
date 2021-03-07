@@ -43,6 +43,7 @@
       "prefer-destructuring": "off",
       "consistent-return": "off",
       "implicit-arrow-linebreak": "off",
-      "no-continue": "off"
+      "no-continue": "off",
+      "linebreak-style": "off"
     }
 }
