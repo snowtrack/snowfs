@@ -30,7 +30,7 @@ SnowFS is a lightweight command-line application and library with a focus on bin
 
 - Support for files bigger >4TB
 
-- Block-cloning and Copy-on-Write support for APFS and ReFS
+- Block-cloning and Copy-on-Write support for [APFS](https://developer.apple.com/documentation/foundation/file_system/about_apple_file_system), [ReFS](https://docs.microsoft.com/en-us/windows-server/storage/refs/refs-overview) and [Btrfs](https://en.wikipedia.org/wiki/Btrfs)
 
 - Support for removing single versions and/or binaries
 
@@ -38,7 +38,7 @@ SnowFS is a lightweight command-line application and library with a focus on bin
 
 - Feature XYZ made by you!
 
-\*\* If the underlying filesystem supports it (e.g. APFS, ReFS)
+\*\* If the underlying filesystem supports it (e.g. APFS, ReFS and Btrfs)
 
 ## Why not Git/Git-LFS, libgit2, or SVN?
 
@@ -211,7 +211,7 @@ The [tests and benchmarks](https://github.com/snowtrack/snowfs/tree/main/test) a
 
 ## Supported Platforms
 
-Currently, Windows, macOS, and Linux are supported. `SnowFS` works on plain filesystems like FAT, NTFS, HFS+ and has extended support for APFS and ReFS.
+Currently, Windows, macOS, and Linux are supported. `SnowFS` works on plain filesystems like FAT, NTFS, HFS+ and has extended support for APFS, ReFS and Btrfs.
 
 ## How can I contribute?
 
