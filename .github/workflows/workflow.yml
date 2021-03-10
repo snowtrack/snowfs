@@ -33,13 +33,13 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 12
+          node-version: 14
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
 
       - name: Run Tests
@@ -78,13 +78,13 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 12
+          node-version: 14
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
 
       - name: Run Tests
