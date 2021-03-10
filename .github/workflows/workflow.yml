@@ -49,6 +49,8 @@ jobs:
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
 
       - name: npm run tsc, build
         run: |
@@ -94,6 +96,8 @@ jobs:
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
 
       - name: npm run tsc, build
         run: |
@@ -111,3 +115,13 @@ jobs:
             dist/out-tsc/snow.exe
             dist/out-tsc/resources
             dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+
+  finish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
