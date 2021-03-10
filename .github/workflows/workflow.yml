@@ -39,7 +39,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v3-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
 
       - name: Run Tests
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v3-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
 
       - name: Run Tests
