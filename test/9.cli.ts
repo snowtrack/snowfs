@@ -459,10 +459,10 @@ test('driveinfo test', async (t) => {
   t.true(out1.includes('    '), 'driveinfo uses --output json-pretty as default and requires a 4-width space JSON output');
 
   const out2 = await exec(t, snow, ['driveinfo', '--output', 'json'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
-  t.true(JSON.parse(out2).description?.length > 0, 'stdout must be a JSON parsable string');
+  t.true(JSON.parse(out2)[0].description?.length > 0, 'stdout must be a JSON parsable string');
   t.true(out1.includes('    '), 'driveinfo --output json must return a minified JSON output');
 
   const out3 = await exec(t, snow, ['driveinfo', '--output', 'json-pretty'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
-  t.true(JSON.parse(out3).description?.length > 0, 'stdout must be a JSON parsable string');
+  t.true(JSON.parse(out3)[0].description?.length > 0, 'stdout must be a JSON parsable string');
   t.true(out1.includes('    '), 'driveinfo --output json-pretty requires a 4-width space JSON output');
 });
