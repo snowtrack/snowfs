@@ -1,8 +1,5 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
-import * as os from 'os';
-
-import { spawn } from 'child_process';
 import {
   join, dirname, normalize, sep,
 } from 'path';
@@ -177,86 +174,6 @@ export async function calculateFileHash(filepath: string): Promise<{filehash : s
         hash.update(h.hash);
       }
       return { filehash: hash.digest('hex'), hashBlocks: hashes };
-    });
-  });
-}
-
-/**
- * Move a file into the trash of the operating system. `SnowFS` tends to avoid
- * destructive delete operations at all costs, and rather moves files into the trash.
- *
- * @param path        The file to move to the trash.
- * @param execPath    If `SnowFS` is embedded in another application, the resource path
- *                    might be located somewhere else. Can be set so `SnowFS` can find
- *                    the executables.
-*/
-export async function putToTrash(path: string, execPath?: string): Promise<void> {
-  try {
-    fse.lstatSync(path);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return;
-    }
-    throw error;
-  }
-
-  let trashPath: string;
-  switch (process.platform) {
-    case 'darwin': {
-      if (fse.pathExistsSync(execPath)) {
-        trashPath = execPath;
-      } else if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'trash'))) {
-        trashPath = join(dirname(process.execPath), 'resources', 'trash');
-      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'trash'))) {
-        trashPath = join(__dirname, '..', 'resources', 'trash');
-      } else {
-        throw new Error('unable to locate trash executable');
-      }
-      break;
-    }
-    case 'win32': {
-      if (fse.pathExistsSync(execPath)) {
-        trashPath = execPath;
-      } else if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'recycle-bin.exe'))) {
-        trashPath = join(dirname(process.execPath), 'resources', 'recycle-bin.exe');
-      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'recycle-bin.exe'))) {
-        trashPath = join(__dirname, '..', 'resources', 'recycle-bin.exe');
-      } else {
-        throw new Error('unable to locate trash executable');
-      }
-      break;
-    }
-    default: {
-      throw new Error('Unknown operating system');
-    }
-  }
-
-  let proc: any;
-  switch (process.platform) {
-    case 'darwin': {
-      const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
-      if (isOlderThanMountainLion) {
-        throw new Error('macOS 10.12 or later required');
-      }
-      proc = spawn(trashPath, [path]);
-      break;
-    }
-    case 'win32': {
-      proc = spawn(trashPath, [path]);
-      break;
-    }
-    default: {
-      throw new Error('Unknown operating system');
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    proc.on('exit', (code: number|null, signal: string|null) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(code);
-      }
     });
   });
 }

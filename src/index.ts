@@ -4,7 +4,6 @@ import { difference } from 'lodash';
 
 import { isAbsolute, join, relative } from 'path';
 import { Commit } from './commit';
-import { putToTrash } from './common';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
@@ -153,7 +152,7 @@ export class Index {
           if (!filepathAbs.startsWith(this.repo.workdir())) {
             throw new Error(`file or directory not in workdir: ${filepath}`);
           }
-          promises.push(putToTrash(filepathAbs));
+          promises.push(IoContext.putToTrash(filepathAbs));
         }
         return promises;
       })

@@ -7,7 +7,7 @@ import {
 } from 'path';
 
 import { Commit } from './commit';
-import { properNormalize, putToTrash } from './common';
+import { properNormalize } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -537,7 +537,7 @@ export class Repository {
           // Delete files which didn't exist before, but do now
           const newFiles: string[] = difference(currentFiles, oldFilePaths);
           for (const newFile of newFiles) {
-            promises.push(putToTrash(join(this.repoWorkDir, newFile)));
+            promises.push(IoContext.putToTrash(join(this.repoWorkDir, newFile)));
           }
         }
 
