@@ -442,3 +442,27 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
     t.true(error.message.includes(errorMsgSub));
   }
 });
+
+test('driveinfo test', async (t) => {
+  const snow: string = getSnowexec(t);
+
+  const out1 = await exec(t, snow, ['driveinfo'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+
+  const parsedObj = JSON.parse(out1);
+  if (!Array.isArray(parsedObj) || parsedObj.length === 0) {
+    t.fail('expected array with minimum size of 1 element');
+    return;
+  }
+
+  t.log(out1);
+  t.true(parsedObj[0].description?.length > 0, 'stdout must be a JSON parsable string');
+  t.true(out1.includes('    '), 'driveinfo uses --output json-pretty as default and requires a 4-width space JSON output');
+
+  const out2 = await exec(t, snow, ['driveinfo', '--output', 'json'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+  t.true(JSON.parse(out2)[0].description?.length > 0, 'stdout must be a JSON parsable string');
+  t.true(out1.includes('    '), 'driveinfo --output json must return a minified JSON output');
+
+  const out3 = await exec(t, snow, ['driveinfo', '--output', 'json-pretty'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+  t.true(JSON.parse(out3)[0].description?.length > 0, 'stdout must be a JSON parsable string');
+  t.true(out1.includes('    '), 'driveinfo --output json-pretty requires a 4-width space JSON output');
+});

@@ -3,3 +3,4 @@
 - Daniel Lanner <https://github.com/daniellanner>
 - Timothy Sanders <unqueued@gmail.com>
 - M. McKester <https://github.com/MMcKester>
+- Jonathan Dupre <hello@jonathandupre.com>
