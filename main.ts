@@ -16,6 +16,7 @@ import { TreeDir, TreeFile } from './src/treedir';
 
 const program = require('commander');
 const chalk = require('chalk');
+const drivelist = require('drivelist');
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
@@ -556,6 +557,15 @@ program
         process.exit(-1);
       }
     }
+  });
+
+program
+  .command('driveinfo')
+  .option('--output [format=json-pretty]', "currently supported output formats 'json', 'json-pretty'")
+  .description('List all connected drives in your computer, in all major operating systems')
+  .action(async (opts: any) => {
+    const drives = await drivelist.list();
+    console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
   });
 
 program.parse(process.argv.filter((x) => x !== '--'));
