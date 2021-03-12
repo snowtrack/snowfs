@@ -1,9 +1,11 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
+import * as os from 'os';
 
 import { exec } from 'child_process';
 import { join, dirname } from 'path';
 import { MB1 } from './common';
+import { spawn } from 'child_process';
 
 const drivelist = require('drivelist');
 
@@ -96,6 +98,12 @@ async function getFilesystem(drive: any, mountpoint: string) {
  * ```
  */
 export class IoContext {
+
+  /** Path to the trash executable (e.g. 'recycle-bin.exe', 'trash', ...)
+   * of the currently active system. If undefined or null the path is guessed.
+   */
+  private static trashExecPath?: string;
+
   /** Original returned object from `drivelist` */
   origDrives: any;
 
@@ -128,6 +136,22 @@ export class IoContext {
     if (!this.valid) {
       throw new Error('IoContext is not initialized, did you forget to call IoContext.init(..)?');
     }
+  }
+
+  /**
+   * In some cases the helper processes, which are used in `IoContext.putToTrash` to move a file
+   * to the recycle-bin/trash are located in a different location. If that is the case, pass
+   * the path of the executable.
+   * @param execPath  Path to the executable. Fails if the file does not exist or the path is a directory.
+   */
+  static setTrashExecPath(execPath: string) {
+    if (!fse.pathExistsSync(execPath)) {
+      throw new Error(`path ${execPath} does not exist`);
+    }
+    if (fse.statSync(execPath).isDirectory()) {
+      throw new Error(`path ${execPath} must not be a directory`);
+    }
+    IoContext.trashExecPath = execPath;
   }
 
   async init() {
@@ -296,5 +320,83 @@ export class IoContext {
       default:
         throw new Error('Unsupported Operating System');
     }
+  }
+
+  /**
+   * Move a file into the trash of the operating system. `SnowFS` tends to avoid
+   * destructive delete operations at all costs, and rather moves files into the trash.
+   *
+   * @param path        The file to move to the trash.
+   * @param execPath    If `SnowFS` is embedded in another application, the resource path
+   *                    might be located somewhere else. Can be set so `SnowFS` can find
+   *                    the executables.
+  */
+  static async putToTrash(path: string): Promise<void> {
+    try {
+      fse.lstatSync(path);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return;
+      }
+      throw error;
+    }
+
+    let trashPath: string = IoContext.trashExecPath;
+    if (!trashPath) {
+      switch (process.platform) {
+        case 'darwin': {
+          if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'trash'))) {
+            trashPath = join(dirname(process.execPath), 'resources', 'trash');
+          } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'trash'))) {
+            trashPath = join(__dirname, '..', 'resources', 'trash');
+          } else {
+            throw new Error('unable to locate trash executable');
+          }
+          break;
+        }
+        case 'win32': {
+          if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'recycle-bin.exe'))) {
+            trashPath = join(dirname(process.execPath), 'resources', 'recycle-bin.exe');
+          } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'recycle-bin.exe'))) {
+            trashPath = join(__dirname, '..', 'resources', 'recycle-bin.exe');
+          } else {
+            throw new Error('unable to locate trash executable');
+          }
+          break;
+        }
+        default: {
+          throw new Error('Unknown operating system');
+        }
+      }
+    }
+  
+    let proc: any;
+    switch (process.platform) {
+      case 'darwin': {
+        const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
+        if (isOlderThanMountainLion) {
+          throw new Error('macOS 10.12 or later required');
+        }
+        proc = spawn(trashPath, [path]);
+        break;
+      }
+      case 'win32': {
+        proc = spawn(trashPath, [path]);
+        break;
+      }
+      default: {
+        throw new Error('Unknown operating system');
+      }
+    }
+  
+    return new Promise((resolve, reject) => {
+      proc.on('exit', (code: number|null, signal: string|null) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(code);
+        }
+      });
+    });
   }
 }
