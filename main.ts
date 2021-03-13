@@ -29,7 +29,9 @@ function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): bo
 */
 function getIndex(repo: Repository, index: string | null | undefined) {
   if (index === 'create') {
-    return repo.createIndex();
+    const i = repo.createIndex();
+    console.log(`Created new index: [${i.id}]`);
+    return i;
   }
   if (index) {
     const i = repo.getIndex(index);

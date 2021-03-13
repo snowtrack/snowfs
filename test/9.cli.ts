@@ -6,6 +6,7 @@ import * as fse from 'fs-extra';
 
 import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
+import { Repository } from '../src/repository';
 
 enum EXEC_OPTIONS {
   RETURN_STDOUT = 1,
@@ -325,15 +326,14 @@ test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = generateUniqueTmpDirName();
 
-  try {
-    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-    const out = await exec(t, snow,
-      ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
-      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
-  } catch (error) {
-    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
-    t.true(error.message.includes(errorMsgSub));
-  }
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  const error = await t.throwsAsync(async () => exec(t, snow,
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+
+  const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+  t.true(error.message.includes(errorMsgSub));
 });
 
 test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
@@ -436,15 +436,90 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
   const snowWorkdir = generateUniqueTmpDirName();
   const branchName = 'u-data-test';
 
-  try {
-    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-    const out = await exec(t, snow,
-      ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
-      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
-  } catch (error) {
-    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
-    t.true(error.message.includes(errorMsgSub));
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  const error = await t.throwsAsync(async () => exec(t, snow,
+    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+
+  const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+  t.true(error.message.includes(errorMsgSub));
+  t.log('Test failed as expected');
+});
+
+test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write a.txt');
+  fse.writeFileSync(join(snowWorkdir, 'a.txt'), 'a');
+
+  t.log('Write b.txt');
+  fse.writeFileSync(join(snowWorkdir, 'b.txt'), 'b');
+
+  const outAddA = await exec(t, snow, ['add', 'a.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  const outAddB = await exec(t, snow, ['add', 'b.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  const indexAMatch = (outAddA as string).match(/Created new index:\s\[(\w*)\]/);
+  t.true(Boolean(indexAMatch));
+
+  const indexBMatch = (outAddB as string).match(/Created new index:\s\[(\w*)\]/);
+  t.true(Boolean(indexBMatch));
+
+  t.log('Write dontcommit-c.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-c.txt'), 'dontcommit-c');
+
+  if (indexAMatch) {
+    const indexA: string = indexAMatch[1];
+    await exec(t, snow, ['commit', '-m', 'commit a.txt', '--index', indexA], { cwd: snowWorkdir });
   }
+
+  t.log('Write dontcommit-d.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-d.txt'), 'dontcommit-d');
+
+  if (indexBMatch) {
+    const indexB: string = indexBMatch[1];
+    await exec(t, snow, ['commit', '-m', 'commit b.txt', '--index', indexB], { cwd: snowWorkdir });
+  }
+
+  t.log('Write dontcommit-e.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-e.txt'), 'dontcommit-e');
+
+  const repo = await Repository.open(snowWorkdir);
+  const allCommits = repo.getAllCommits();
+
+  t.is(allCommits.length, 3, 'all 3 commits'); // Dummy commit 'Created Project' + 'commit a.txt' + 'commit b.txt'
+  t.is(allCommits[1].message, 'commit a.txt');
+  t.is(allCommits[2].message, 'commit b.txt');
+
+  // ensure a.txt and b.txt are in their commits
+  t.true(allCommits[1].root.children.map((t) => t.path).includes('a.txt'));
+  t.true(allCommits[1].root.children.map((t) => t.path).includes('a.txt'));
+  t.true(allCommits[2].root.children.map((t) => t.path).includes('b.txt'));
+
+  // ensure the commits ONLY contain these files
+  t.is(allCommits[1].root.children.length, 1, '"First" commit shall contain 1 file (a.txt)');
+  t.is(allCommits[2].root.children.length, 2, 'Last commit shall contain 2 files (a.txt, b.txt)');
+});
+
+test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
+  t.timeout(180000);
+
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write abc.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc.txt'), 'Hello World');
+
+  const error = await t.throwsAsync(async () => exec(t, snow, ['add', '.', '--index', 'non-existing-index'], { cwd: snowWorkdir }));
+
+  const errorMsgSub = 'fatal: unknown index: non-existing-index';
+  t.true(error.message.includes(errorMsgSub));
+  t.log('Test failed as expected');
 });
 
 test('driveinfo test', async (t) => {
