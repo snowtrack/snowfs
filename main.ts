@@ -30,7 +30,8 @@ function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): bo
 function getIndex(repo: Repository, index: string | null | undefined) {
   if (index === 'create') {
     return repo.createIndex();
-  } if (index) {
+  }
+  if (index) {
     const i = repo.getIndex(index);
     if (!i) {
       throw new Error(`unknown index: ${index}`);

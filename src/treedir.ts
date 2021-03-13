@@ -108,7 +108,8 @@ export class TreeDir {
     const visit = (obj: TreeEntry[] | TreeEntry, map: Map<string, TreeEntry>) => {
       if (Array.isArray(obj)) {
         return obj.forEach((c: any) => visit(c, map));
-      } if (obj instanceof TreeDir) {
+      }
+      if (obj instanceof TreeDir) {
         if (opt.includeDirs) {
           map.set(obj.path, obj);
         }

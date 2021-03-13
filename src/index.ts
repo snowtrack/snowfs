@@ -120,7 +120,8 @@ export class Index {
     }, (key, value) => {
       if (value instanceof Map) {
         return Array.from(value.entries());
-      } if (value instanceof Set) {
+      }
+      if (value instanceof Set) {
         return Array.from(value);
       }
       return value;

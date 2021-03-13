@@ -68,7 +68,8 @@ async function getFilesystem(drive: any, mountpoint: string) {
         console.log(error);
         return FILESYSTEM.OTHER;
       });
-    } if (process.platform === 'darwin') {
+    }
+    if (process.platform === 'darwin') {
       const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
       if (isApfs) {
         return FILESYSTEM.APFS;
