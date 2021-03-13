@@ -4,9 +4,13 @@
   // ONLY "node" and "mono" are supported, change "type" to switch.
   "configurations": [
       {
-          "type": "node",
+          "type": "pwa-node",
           "request": "launch",
           "name": "Launch CLI (main.ts)",
+          "resolveSourceMapLocations": [
+            "${workspaceFolder}/**",
+            "!**/node_modules/**"
+          ],
           "runtimeArgs": [
               "-r",
               "${workspaceFolder}/node_modules/ts-node/register"
@@ -18,9 +22,13 @@
           ]
       },
       {
-        "type": "node",
+        "type": "pwa-node",
         "request": "launch",
         "name": "Launch Tests (test/*)",
+        "resolveSourceMapLocations": [
+          "${workspaceFolder}/**",
+          "!**/node_modules/**"
+        ],
         "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ava",
         "runtimeArgs": [
           "--experimental-modules",
@@ -39,9 +47,13 @@
         }
       },
       {
-        "type": "node",
+        "type": "pwa-node",
         "request": "launch",
         "name": "Launch Benchmark",
+        "resolveSourceMapLocations": [
+          "${workspaceFolder}/**",
+          "!**/node_modules/**"
+        ],
         "runtimeArgs": [
             "-r",
             "ts-node/register"
