@@ -315,6 +315,10 @@ program
       const repo = await Repository.open(process.cwd());
       if (command === 'create') {
         const index = repo.createIndex();
+        // the user explicitely asked for an index
+        // so we must dump the empty index to disk
+        await index.writeFiles();
+
         console.log(`Created new index: [${index.id}]`);
       }
     } catch (error) {
