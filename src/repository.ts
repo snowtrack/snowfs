@@ -4,9 +4,10 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import { difference, intersection } from 'lodash';
 import {
-  isAbsolute, join, dirname, relative,
+  resolve, join, dirname, relative,
 } from 'path';
 
+import { Log } from './log';
 import { Commit } from './commit';
 import { FileInfo, properNormalize } from './common';
 import { IgnoreManager } from './ignore';
@@ -224,6 +225,9 @@ async function getSnowFSRepo(path: string): Promise<string | null> {
 export class Repository {
   /** Object database of the repository */
   repoOdb: Odb;
+
+  /** Repository log helper */
+  repoLog: Log;
 
   /** Repository index of the repository */
   repoIndexes: Index[];
@@ -511,7 +515,7 @@ export class Repository {
     const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash, userData });
 
     this.references.push(newRef);
-    return this.repoOdb.writeReference(newRef).then(() => newRef);
+    return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${hash}`)).then(() => newRef);
   }
 
   /**
@@ -676,9 +680,7 @@ export class Repository {
         }
         return Promise.all(promises);
       })
-      .then(() => {
-
-      });
+      .then(() => this.repoLog.writeLog(`checkout: move to ${target} at ${targetCommit.hash} with ${reset}`));
   }
 
   /**
@@ -868,6 +870,7 @@ export class Repository {
       .then(() =>
       // update .snow/refs/XYZ
         this.repoOdb.writeReference(this.head))
+      .then(() => this.repoLog.writeLog(`commit: ${message}`))
       .then(() => commit);
   }
 
@@ -918,6 +921,7 @@ export class Repository {
       .then((odbResult: Odb) => {
         odb = odbResult;
         repo.repoOdb = odbResult;
+        repo.repoLog = new Log(repo);
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
@@ -994,17 +998,18 @@ export class Repository {
           const snowtrackFile: string = join(workdir, '.snow');
           return fse.writeFile(snowtrackFile, opts.commondir);
         }
-      })
-      .then(() => Odb.create(repo, opts))
+      }).then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
         repo.repoIndexes = [];
-
-        return repo.createCommit(repo.getFirstIndex(), 'Created Project', { allowEmpty: true });
+        repo.repoLog = new Log(repo);
+        return repo.repoLog.init();
       })
-      .then((_commit: Commit) => repo);
+      .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
+      .then(() => repo.createCommit(repo.getFirstIndex(), 'Created Project', { allowEmpty: true }))
+      .then(() => repo);
   }
 }
