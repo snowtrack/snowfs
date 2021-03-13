@@ -13,6 +13,7 @@ import {
   StatusEntry, FILTER, Repository, RESET,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
+import { IoContext } from './src/io_context';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -20,6 +21,23 @@ const drivelist = require('drivelist');
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
+}
+
+/**
+ * Helper function to get an existing or creating a new index.
+ * @param index   Either null/defined, or 'create' or an existing index;
+*/
+function getIndex(repo: Repository, index: string | null | undefined) {
+  if (index === 'create') {
+    return repo.createIndex();
+  } if (index) {
+    const i = repo.getIndex(index);
+    if (!i) {
+      throw new Error(`unknown index: ${index}`);
+    }
+    return i;
+  }
+  return repo.ensureMainIndex();
 }
 
 /**
@@ -116,6 +134,7 @@ program
 
 program
   .command('rm [path]')
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
   .action(async (path: string, opts?: any) => {
@@ -123,14 +142,14 @@ program
       const repo = await Repository.open(process.cwd());
 
       const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
-      const stats = fse.statSync(filepathAbs);
-      if (stats.isDirectory()) {
-        fse.rmdirSync(filepathAbs, { recursive: true });
-      } else {
-        fse.unlinkSync(filepathAbs);
-      }
 
-      const index: Index = repo.getIndex();
+      // important! this fails and throw an error
+      // if the file is not there! (expected by a unit-test in 9.cli.test)
+      fse.statSync(filepathAbs);
+
+      IoContext.putToTrash(filepathAbs);
+
+      const index: Index = getIndex(repo, opts.index);
       index.deleteFiles([path]);
       await index.writeFiles();
     } catch (error) {
@@ -145,6 +164,7 @@ program
 
 program
   .command('add <path>')
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
   .action(async (pathPattern: string, opts?: any) => {
@@ -155,7 +175,7 @@ program
 
       const relCwd = relative(repo.workdir(), process.cwd());
 
-      const index: Index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
       for (const file of statusFiles) {
         if (file.isNew() || file.isModified()) {
           if (fileMatch(file.path, relCwd, pathPattern)) {
@@ -289,9 +309,29 @@ program
   });
 
 program
+  .command('index [command]')
+  .action(async (command, opts: any) => {
+    try {
+      const repo = await Repository.open(process.cwd());
+      if (command === 'create') {
+        const index = repo.createIndex();
+        console.log(`Created new index: [${index.id}]`);
+      }
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        process.stderr.write(`fatal: ${error.message}\n`);
+        process.exit(-1);
+      }
+    }
+  });
+
+program
   .command('status')
   .option('--no-color')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('show the working tree status')
   .action(async (opts: any) => {
@@ -316,7 +356,7 @@ program
         }
       }
 
-      const index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
         const o = { new_files: newFiles, modified_files: modifiedFiles, deleted_files: deletedFiles };
@@ -350,7 +390,7 @@ program
         if (newFiles.length > 0) {
           console.log('New files:');
           for (const newFile of newFiles) {
-            if (index.adds.has(relative(repo.workdir(), newFile.path))) {
+            if (index.addRelPaths.has(relative(repo.workdir(), newFile.path))) {
               process.stdout.write(chalk.red('+ '));
             }
             console.log(newFile.path);
@@ -378,13 +418,14 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--tags [collection]', 'add user defined tags to commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
+  .option('--index [id]', 'use a custom index id')
   .description('complete the commit')
   .action(async (opts: any) => {
     try {
       opts = await parseOptions(opts);
 
       const repo = await Repository.open(process.cwd());
-      const index: Index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
       let data = {};
 
       let tags: string[];

@@ -1,4 +1,6 @@
 import test from 'ava';
+
+import * as crypto from 'crypto';
 import * as os from 'os';
 import * as fse from 'fs-extra';
 
@@ -12,6 +14,7 @@ enum EXEC_OPTIONS {
 
 async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
+
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
   return new Promise((resolve, reject) => {
     let stdout: string = '';
@@ -51,8 +54,9 @@ function getSnowexec(t): string {
   }
 }
 
-function createUniqueTmpDir(): string {
-  return join(os.tmpdir(), fse.mkdtempSync('snowfs-cli-test-'));
+function generateUniqueTmpDirName(): string {
+  const id = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
+  return join(os.tmpdir(), `snowfs-cli-test-${id}`);
 }
 
 // test doesn't work on the GitHub runners
@@ -62,7 +66,7 @@ test('snow add/commit/log', async (t) => {
   t.timeout(180000);
 
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
@@ -84,10 +88,10 @@ test('snow add .', async (t) => {
   t.timeout(180000);
 
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
-  await exec(console, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
   t.log('Write foo.txt');
   fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
@@ -106,7 +110,7 @@ test('snow add .', async (t) => {
 
 test('snow add *', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -131,7 +135,7 @@ test('snow add *', async (t) => {
  */
 test('snow add foo.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -153,7 +157,7 @@ test('snow add foo.txt', async (t) => {
 
 test('snow add bar.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -175,7 +179,7 @@ test('snow add bar.txt', async (t) => {
 
 test('snow rm foo.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -202,7 +206,7 @@ test('snow rm foo.txt', async (t) => {
 
 test('snow rm subdir', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -229,7 +233,7 @@ test('snow rm subdir', async (t) => {
 
 test('snow rm subdir/bar.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -256,7 +260,7 @@ test('snow rm subdir/bar.txt', async (t) => {
 
 test('snow rm file-does-not-exist', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -282,7 +286,7 @@ test('snow rm file-does-not-exist', async (t) => {
 
 test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
 
@@ -319,7 +323,7 @@ test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   try {
     await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -334,7 +338,7 @@ test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
 
 test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = 'FirstTag';
   const tag2 = 'SecondTag';
@@ -356,7 +360,7 @@ test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = '[]}';
   const tag2 = '\'%$[,.}}';
@@ -377,7 +381,7 @@ test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
 
 test('Commit Tags --- EMPTY INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   await exec(t, snow, ['commit', '-m', 'unit test tags', '--allow-empty', '--tags='], { cwd: snowWorkdir });
@@ -391,7 +395,7 @@ test('Commit Tags --- EMPTY INPUT', async (t) => {
 
 test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
   const branchName = 'u-data-test';
@@ -429,7 +433,7 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const branchName = 'u-data-test';
 
   try {

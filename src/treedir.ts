@@ -3,7 +3,9 @@ import * as crypto from 'crypto';
 
 import { join, sep, relative } from 'path';
 import { Repository } from './repository';
-import { getPartHash, HashBlock, MB20 } from './common';
+import {
+  FileInfo, getPartHash, HashBlock, MB20,
+} from './common';
 
 export const enum FILEMODE {
   UNREADABLE = 0,
@@ -140,7 +142,13 @@ export class TreeDir {
     return tree;
   }
 
-  remove(relativePath: string): TreeEntry | null {
+  /**
+   * Browse through the entire hierarchy of the tree and remove the given file.
+   * Doesn't throw an error if the element is not found.
+   *
+   * @param relativePath      The relative file path to remove.
+   */
+  remove(relativePath: string) {
     function privateDelete(
       tree: TreeDir,
       cb: (entry: TreeEntry, index: number, length: number) => boolean,
@@ -166,7 +174,6 @@ export class TreeDir {
         return true;
       }
     });
-    return tree;
   }
 
   static walk(
@@ -186,7 +193,7 @@ export class TreeDir {
 // This function has the same basic functioanlity as io.osWalk(..) but works with Tree
 export async function constructTree(
   dirPath: string,
-  hashMap: Map<string, string>,
+  processed: Map<string, FileInfo>,
   tree?: TreeDir,
   root?: string,
 ): Promise<TreeDir> {
@@ -230,12 +237,12 @@ export async function constructTree(
                 tree,
               );
               tree.children.push(subtree);
-              return constructTree(absPath, hashMap, subtree, root);
+              return constructTree(absPath, processed, subtree, root);
             }
-            const hash: string | null = hashMap?.get(relative(root, absPath).replace(/\\/g, '/'));
-            if (hash) {
+            const fileinfo: FileInfo | null = processed?.get(relative(root, absPath).replace(/\\/g, '/'));
+            if (fileinfo) {
               const path: string = relative(root, absPath);
-              const entry: TreeFile = new TreeFile(hash, tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
+              const entry: TreeFile = new TreeFile(fileinfo.hash, tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
               tree.children.push(entry);
             } else {
               // console.warn(`No hash for ${absPath}`);

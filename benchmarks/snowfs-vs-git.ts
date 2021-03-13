@@ -148,7 +148,7 @@ export async function snowFsAddTexture(repoPath: string, textureFilesize: number
 
   t.log(`Create SnowFS Repository at: ${repoPath}`);
   const repo = await Repository.initExt(repoPath);
-  const index = repo.getIndex();
+  const index = repo.ensureMainIndex();
 
   const fooFile = join(repoPath, 'texture.psd');
   await createFile(fooFile, textureFilesize, t);
@@ -166,7 +166,7 @@ export async function snowFsRmTexture(repoPath: string, t: any = console): Promi
   t.log('Remove texture.psd...');
 
   const repo = await Repository.open(repoPath);
-  const index = repo.getIndex();
+  const index = repo.ensureMainIndex();
 
   const t0 = new Date().getTime();
   index.deleteFiles(['texture.psd']);

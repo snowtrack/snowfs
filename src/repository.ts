@@ -1,20 +1,23 @@
 /* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
 
 import * as fse from 'fs-extra';
+import * as crypto from 'crypto';
 import { difference, intersection } from 'lodash';
 import {
   isAbsolute, join, dirname, relative,
 } from 'path';
 
 import { Commit } from './commit';
-import { properNormalize } from './common';
+import { FileInfo, properNormalize } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import { DirItem, OSWALK, osWalk } from './io';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Reference } from './reference';
-import { constructTree, TreeDir, TreeFile } from './treedir';
+import {
+  constructTree, TreeDir, TreeEntry, TreeFile,
+} from './treedir';
 
 /**
  * Initialize a new [[Repository]].
@@ -217,7 +220,7 @@ export class Repository {
   repoOdb: Odb;
 
   /** Repository index of the repository */
-  repoIndex: Index;
+  repoIndexes: Index[];
 
   /** Options object, with which the repository got initialized */
   options: RepositoryInitOptions;
@@ -258,10 +261,62 @@ export class Repository {
   }
 
   /**
-   * Return the currently active Index object for the repository.
+   * Ensure the existance of at least 1 repo and return it. If the repo has no
+   * index, one will be added. Otherwise the first one is returned.
+   * @returns     Return a new or existing index.
    */
-  getIndex(): Index {
-    return this.repoIndex;
+  ensureMainIndex(): Index {
+    let mainIndex = this.repoIndexes.find((index: Index) => index.id === '');
+    if (!mainIndex) {
+      mainIndex = new Index(this, this.repoOdb);
+      this.repoIndexes.push(mainIndex);
+    }
+    return mainIndex;
+  }
+
+  /**
+   * Create a new Index. The index is not saved to disk yet.
+   * @returns     The new index.
+   */
+  createIndex(): Index {
+    const indexId = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
+    const index = new Index(this, this.repoOdb, indexId);
+    this.repoIndexes.push(index);
+    return index;
+  }
+
+  /**
+   * Return the first index of the repository.
+   */
+  getFirstIndex(): Index | null {
+    return this.repoIndexes.length > 0 ? this.repoIndexes[0] : null;
+  }
+
+  /**
+   * Return the index by id.
+   */
+  getIndex(id: string): Index | null {
+    return this.repoIndexes.find((index: Index) => index.id === id);
+  }
+
+  /**
+   * Remove a passed index from the internal index array. The index is identifier by its id.
+   * @param index       The index to be removed. Must not be invalidated yet, otherwise an error is thrown.
+   */
+  removeIndex(index: Index) {
+    index.throwIfNotValid();
+
+    const foundIndex = this.repoIndexes.findIndex((i: Index) => i.id === index.id);
+    if (foundIndex > -1) {
+      this.repoIndexes.splice(foundIndex, 1);
+    }
+  }
+
+  /**
+   * Return all indexes. No copied are returned
+   */
+  getIndexes(): Index[] {
+    return this.repoIndexes;
   }
 
   /**
@@ -691,28 +746,54 @@ export class Repository {
 
   /**
    * Create a new commit, by the given index. The index must have been written onto disk by calling [[Index.writeFiles]].
-   * @param index Passed index of files that will be added to the commit object.
-   * @param message A human readable message string, that describes the changes.
+   * @param index    Passed index of files that will be added to the commit object. Can be null if opts.allowEmpty is true.
+   * @param message  A human readable message string, that describes the changes.
    * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
-   * @returns     New commit object.
+   * @returns        New commit object.
    */
   async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
     let tree: TreeDir;
     let commit: Commit;
-    if (index.adds.size === 0 && index.deletes.size === 0 && (!opts || !opts.allowEmpty)) {
+    if (opts?.allowEmpty) {
+      if (!index) {
+        index = new Index(this, this.repoOdb); // dummy index if no index got passed
+        await index.writeFiles();
+      }
+    } else if (index.addRelPaths.size === 0 && index.deleteRelPaths.size === 0) {
       // did you forget to call index.writeFiles(..)?
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const hashMap: Map<string, string> = index.getHashedIndexMap();
-    return constructTree(this.repoWorkDir, hashMap)
+    const processedMap: Map<string, FileInfo> = index.getProcessedMap();
+    // head is not available when repo is initialized
+    if (this.head?.hash) {
+      const headCommit = this.getCommitByHead();
+      const currentTree: Map<string, TreeEntry> = headCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+
+      currentTree.forEach((value: TreeFile) => {
+        processedMap.set(value.path, {
+          hash: value.hash,
+          stat: {
+            size: value.size, atime: 0, mtime: value.mtime, ctime: value.ctime,
+          },
+        });
+      });
+    }
+
+    return constructTree(this.repoWorkDir, processedMap)
       .then((treeResult: TreeDir) => {
         tree = treeResult;
-        this.repoIndex.deletes.forEach((r: string) => {
-          tree.remove(isAbsolute(r) ? relative(this.repoWorkDir, r) : r);
+
+        // the tree already contains the new files, added by constructTree
+        // through the processed hashmap
+        // index.addRelPaths.forEach(...) ...
+
+        // remove the elements from the tree that were removed in the index
+        index.deleteRelPaths.forEach((relPath: string) => {
+          tree.remove(relPath);
         });
 
-        return index.reset();
+        return index.invalidate();
       }).then(() => {
         commit = new Commit(this, message, new Date(), tree, [this.head ? this.head.hash : null]);
 
@@ -835,10 +916,12 @@ export class Repository {
 
         repo.head.setName(headRef.getName());
         repo.head.hash = headRef.hash;
-        repo.repoIndex = new Index(repo, odb);
-        return repo.repoIndex.load();
+        return Index.loadAll(repo, odb);
       })
-      .then(() => repo);
+      .then((indexes: Index[]) => {
+        repo.repoIndexes = indexes;
+        return repo;
+      });
   }
 
   /**
@@ -880,12 +963,10 @@ export class Repository {
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
-        repo.repoIndex = new Index(repo, odb);
+        repo.repoIndexes = [];
 
-        // although empty, call writeFiles to satisfy createCommit which checks that writeFiles got called
-        return repo.repoIndex.writeFiles();
+        return repo.createCommit(repo.getFirstIndex(), 'Created Project', { allowEmpty: true });
       })
-      .then(() => repo.createCommit(repo.getIndex(), 'Created Project', { allowEmpty: true }))
-      .then((commit: Commit) => repo);
+      .then((_commit: Commit) => repo);
   }
 }

@@ -58,7 +58,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
       return osWalk(repo.commondir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     })
     .then((dirItems: DirItem[]) => {
-      t.is(dirItems.length, 8, 'expected .snow reference');
+      t.is(dirItems.length, 9, 'expected .snow reference with 9 elements inside');
 
       t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
@@ -66,8 +66,10 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
       t.true(fse.pathExistsSync(join(repo.commondir(), 'objects')), 'repo must contain an objects directory');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'refs')), 'repo must have a refs directory');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'refs', 'Main')), 'Main reference');
+      t.true(fse.pathExistsSync(join(repo.commondir(), 'indexes')), 'repo must contain an index directory');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'versions')), 'repo must have a version directory');
-      // t.true(fse.pathExistsSync(join(repo.commondir(), "versions", "4d3bbbc06afa29bd9287f22c813436a6cb9593f7a00196c5d81714dffe1e9b9b")), "repo must contain a config file");
+      // t.true(fse.pathExistsSync(join(repo.commondir(), "versions", "4d3bbbc06afa29bd9287f22c813436a6cb9593f7a00196c5d81714dffe1e9b9b")),
+      // "repo must contain a config file");
 
       // Reference checks
       const head: Reference = repo.getHead();
@@ -83,11 +85,12 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
 
 export async function testRepoCommondirInside(t, repo: Repository) {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN).then((dirItems: DirItem[]) => {
-    t.is(dirItems.length, 8 + 1, 'expect .snow reference in workdir (+1 for .snow)');
+    t.is(dirItems.length, 9 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 
     t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'hooks')), 'repo must contain a hooks directory');
+    t.true(fse.pathExistsSync(join(repo.commondir(), 'indexes')), 'repo must contain a index directory');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'objects')), 'repo must contain an objects directory');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'refs')), 'repo must have a refs directory');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'refs', 'Main')), 'Main reference');

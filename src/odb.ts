@@ -9,7 +9,7 @@ import {
 import { Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
-import { calculateFileHash, HashBlock } from './common';
+import { calculateFileHash, FileInfo, HashBlock } from './common';
 import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
 
@@ -224,7 +224,7 @@ export class Odb {
     });
   }
 
-  async writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, hash: string}> {
+  async writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
     const tmpFilename: string = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     const objects: string = join(this.repo.options.commondir, 'objects');
     const tmpDir: string = join(this.repo.options.commondir, 'tmp');
@@ -264,7 +264,19 @@ export class Odb {
         }
         return Promise.resolve();
       })
-      .then(() => ({ file: relative(this.repo.repoWorkDir, filepath), hash: filehash }));
+      .then(() => fse.stat(filepath)
+        .then((stat: fse.Stats) => ({
+          file: relative(this.repo.repoWorkDir, filepath),
+          fileinfo: {
+            hash: filehash,
+            stat: {
+              size: stat.size,
+              atime: stat.atime.getTime(),
+              mtime: stat.mtime.getTime(),
+              ctime: stat.ctime.getTime(),
+            },
+          },
+        })));
   }
 
   async readObject(hash: string, dst: string, ioContext: IoContext): Promise<void> {

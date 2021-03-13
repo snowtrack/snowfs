@@ -13,6 +13,21 @@ export const MB2: number = 2000000;
 export const MB1: number = 1000000;
 
 /**
+ * A commonly used class which contains a hash and
+ * file stats of a given file
+ */
+export class FileInfo {
+  hash: string;
+
+  stat: {
+    size: number,
+    atime: number;
+    mtime: number;
+    ctime: number;
+  }
+}
+
+/**
  * Indicating the type of a directory.
  */
 export enum LOADING_STATE {
