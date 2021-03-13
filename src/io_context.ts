@@ -2,10 +2,9 @@ import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 import * as os from 'os';
 
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { MB1 } from './common';
-import { spawn } from 'child_process';
 
 const drivelist = require('drivelist');
 
@@ -69,7 +68,8 @@ async function getFilesystem(drive: any, mountpoint: string) {
         console.log(error);
         return FILESYSTEM.OTHER;
       });
-    } if (process.platform === 'darwin') {
+    }
+    if (process.platform === 'darwin') {
       const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
       if (isApfs) {
         return FILESYSTEM.APFS;
@@ -98,7 +98,6 @@ async function getFilesystem(drive: any, mountpoint: string) {
  * ```
  */
 export class IoContext {
-
   /** Path to the trash executable (e.g. 'recycle-bin.exe', 'trash', ...)
    * of the currently active system. If undefined or null the path is guessed.
    */
@@ -369,7 +368,7 @@ export class IoContext {
         }
       }
     }
-  
+
     let proc: any;
     switch (process.platform) {
       case 'darwin': {
@@ -388,7 +387,7 @@ export class IoContext {
         throw new Error('Unknown operating system');
       }
     }
-  
+
     return new Promise((resolve, reject) => {
       proc.on('exit', (code: number|null, signal: string|null) => {
         if (code === 0) {

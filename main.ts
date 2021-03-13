@@ -10,9 +10,10 @@ import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
-  StatusEntry, FILTER, Repository, RESET,
+  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
+import { IoContext } from './src/io_context';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -20,6 +21,26 @@ const drivelist = require('drivelist');
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
+}
+
+/**
+ * Helper function to get an existing or creating a new index.
+ * @param index   Either null/defined, or 'create' or an existing index;
+*/
+function getIndex(repo: Repository, index: string | null | undefined) {
+  if (index === 'create') {
+    const i = repo.createIndex();
+    console.log(`Created new index: [${i.id}]`);
+    return i;
+  }
+  if (index) {
+    const i = repo.getIndex(index);
+    if (!i) {
+      throw new Error(`unknown index: ${index}`);
+    }
+    return i;
+  }
+  return repo.ensureMainIndex();
 }
 
 /**
@@ -116,6 +137,7 @@ program
 
 program
   .command('rm [path]')
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
   .action(async (path: string, opts?: any) => {
@@ -123,14 +145,14 @@ program
       const repo = await Repository.open(process.cwd());
 
       const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
-      const stats = fse.statSync(filepathAbs);
-      if (stats.isDirectory()) {
-        fse.rmdirSync(filepathAbs, { recursive: true });
-      } else {
-        fse.unlinkSync(filepathAbs);
-      }
 
-      const index: Index = repo.getIndex();
+      // important! this fails and throw an error
+      // if the file is not there! (expected by a unit-test in 9.cli.test)
+      fse.statSync(filepathAbs);
+
+      IoContext.putToTrash(filepathAbs);
+
+      const index: Index = getIndex(repo, opts.index);
       index.deleteFiles([path]);
       await index.writeFiles();
     } catch (error) {
@@ -145,6 +167,7 @@ program
 
 program
   .command('add <path>')
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
   .action(async (pathPattern: string, opts?: any) => {
@@ -155,7 +178,7 @@ program
 
       const relCwd = relative(repo.workdir(), process.cwd());
 
-      const index: Index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
       for (const file of statusFiles) {
         if (file.isNew() || file.isModified()) {
           if (fileMatch(file.path, relCwd, pathPattern)) {
@@ -289,9 +312,33 @@ program
   });
 
 program
+  .command('index [command]')
+  .action(async (command, opts: any) => {
+    try {
+      const repo = await Repository.open(process.cwd());
+      if (command === 'create') {
+        const index = repo.createIndex();
+        // the user explicitely asked for an index
+        // so we must dump the empty index to disk
+        await index.writeFiles();
+
+        console.log(`Created new index: [${index.id}]`);
+      }
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        process.stderr.write(`fatal: ${error.message}\n`);
+        process.exit(-1);
+      }
+    }
+  });
+
+program
   .command('status')
   .option('--no-color')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
+  .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('show the working tree status')
   .action(async (opts: any) => {
@@ -316,7 +363,7 @@ program
         }
       }
 
-      const index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
         const o = { new_files: newFiles, modified_files: modifiedFiles, deleted_files: deletedFiles };
@@ -350,7 +397,7 @@ program
         if (newFiles.length > 0) {
           console.log('New files:');
           for (const newFile of newFiles) {
-            if (index.adds.has(relative(repo.workdir(), newFile.path))) {
+            if (index.addRelPaths.has(relative(repo.workdir(), newFile.path))) {
               process.stdout.write(chalk.red('+ '));
             }
             console.log(newFile.path);
@@ -378,13 +425,14 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--tags [collection]', 'add user defined tags to commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
+  .option('--index [id]', 'use a custom index id')
   .description('complete the commit')
   .action(async (opts: any) => {
     try {
       opts = await parseOptions(opts);
 
       const repo = await Repository.open(process.cwd());
-      const index: Index = repo.getIndex();
+      const index: Index = getIndex(repo, opts.index);
       let data = {};
 
       let tags: string[];
@@ -428,25 +476,12 @@ program
     try {
       const repo = await Repository.open(process.cwd());
 
-      const commits: Commit[] = repo.getAllCommits();
-      commits.sort((a: Commit, b: Commit) => {
-        const aDate = a.date.getTime();
-        const bDate = b.date.getTime();
-        if (aDate > bDate) {
-          return 1;
-        }
-        if (aDate < bDate) {
-          return -1;
-        }
-        return 0;
-      });
-
+      const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST);
       const refs: Reference[] = repo.getAllReferences();
       const headHash: string = repo.getHead().hash;
       const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        commits.reverse();
         const o = { commits, refs, head: headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
@@ -483,7 +518,6 @@ program
           return value;
         }, opts.output === 'json-pretty' ? '   ' : ''));
       } else {
-        commits.reverse();
         for (const commit of commits) {
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 

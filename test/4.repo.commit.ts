@@ -11,7 +11,7 @@ import { calculateFileHash, HashBlock } from '../src/common';
 import { Index } from '../src/index';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
-import { Repository } from '../src/repository';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 
 function getRandomPath(): string {
   // eslint-disable-next-line no-constant-condition
@@ -79,7 +79,7 @@ async function repoTest(t, commondirInside: boolean) {
   await Repository.open(repoPath)
     .then((repoResult: Repository) => {
       repo = repoResult;
-      index = repo.getIndex();
+      index = repo.ensureMainIndex();
       foopath = join(repo.workdir(), 'foo');
 
       return createRandomFile(foopath, 2048);
@@ -92,7 +92,7 @@ async function repoTest(t, commondirInside: boolean) {
       index.addFiles([res.filepath]);
 
       return index.writeFiles();
-    }).then(() => repo.createCommit(repo.getIndex(), firstCommitMessage))
+    }).then(() => repo.createCommit(repo.getFirstIndex(), firstCommitMessage))
     .then((commit: Commit) => {
       t.is(commit.message, firstCommitMessage, 'commit message');
       t.true(Boolean(commit.parent), "Commit has a parent 'Created Project'");
@@ -137,7 +137,7 @@ async function repoTest(t, commondirInside: boolean) {
 
       // Commit checks
       const commit: Commit = repo.getCommitByHead();
-      t.is(repo.getAllCommits().length, 2);
+      t.is(repo.getAllCommits(COMMIT_ORDER.UNDEFINED).length, 2);
       t.is(commit.message, firstCommitMessage);
 
       return osWalk(join(repo.commondir(), 'versions'), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
@@ -147,10 +147,11 @@ async function repoTest(t, commondirInside: boolean) {
       return fse.unlink(foopath);
     })
     .then(() => {
+      index = repo.ensureMainIndex();
       index.deleteFiles([foopath]);
       return index.writeFiles();
     })
-    .then(() => repo.createCommit(repo.getIndex(), secondCommitMessage))
+    .then(() => repo.createCommit(repo.getFirstIndex(), secondCommitMessage))
     .then((commit: Commit) => {
       t.is(commit.message, secondCommitMessage, 'commit message');
       t.true(Boolean(commit.parent), "Commit has a parent 'Created Project'");
@@ -211,11 +212,11 @@ test('custom-commit-data', async (t) => {
     repo = repoResult;
     return fse.writeFile(join(repo.workdir(), 'foo.txt'), 'Hello World!');
   }).then(() => {
-    const index = repo.getIndex();
+    const index = repo.ensureMainIndex();
     index.addFiles(['foo.txt']);
     return index.writeFiles();
   }).then(() => {
-    const index = repo.getIndex();
+    const index = repo.getFirstIndex();
     return repo.createCommit(index, 'This is a commit with custom-data', {}, [], { hello: 'world', foo: 'bar', bas: 3 });
   })
     .then((commit: Commit) => {
@@ -226,7 +227,7 @@ test('custom-commit-data', async (t) => {
     });
 
   await Repository.open(repoPath).then((repo: Repository) => {
-    const lastCommit = repo.getAllCommits().sort((a: Commit, b: Commit) => (a.date.getTime() < b.date.getTime() ? 1 : -1))[0];
+    const lastCommit = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST)[0];
     t.is(lastCommit.userData.hello, 'world');
     t.is(lastCommit.userData.foo, 'bar');
     t.is(lastCommit.userData.bas, 3);

@@ -1,9 +1,12 @@
 import test from 'ava';
+
+import * as crypto from 'crypto';
 import * as os from 'os';
 import * as fse from 'fs-extra';
 
 import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 
 enum EXEC_OPTIONS {
   RETURN_STDOUT = 1,
@@ -12,6 +15,7 @@ enum EXEC_OPTIONS {
 
 async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
+
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
   return new Promise((resolve, reject) => {
     let stdout: string = '';
@@ -51,8 +55,9 @@ function getSnowexec(t): string {
   }
 }
 
-function createUniqueTmpDir(): string {
-  return join(os.tmpdir(), fse.mkdtempSync('snowfs-cli-test-'));
+function generateUniqueTmpDirName(): string {
+  const id = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
+  return join(os.tmpdir(), `snowfs-cli-test-${id}`);
 }
 
 // test doesn't work on the GitHub runners
@@ -62,7 +67,7 @@ test('snow add/commit/log', async (t) => {
   t.timeout(180000);
 
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
@@ -84,10 +89,10 @@ test('snow add .', async (t) => {
   t.timeout(180000);
 
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
-  await exec(console, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
   t.log('Write foo.txt');
   fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
@@ -106,7 +111,7 @@ test('snow add .', async (t) => {
 
 test('snow add *', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -131,7 +136,7 @@ test('snow add *', async (t) => {
  */
 test('snow add foo.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -153,7 +158,7 @@ test('snow add foo.txt', async (t) => {
 
 test('snow add bar.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -175,7 +180,7 @@ test('snow add bar.txt', async (t) => {
 
 test('snow rm foo.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -202,7 +207,7 @@ test('snow rm foo.txt', async (t) => {
 
 test('snow rm subdir', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -229,7 +234,7 @@ test('snow rm subdir', async (t) => {
 
 test('snow rm subdir/bar.txt', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -256,7 +261,7 @@ test('snow rm subdir/bar.txt', async (t) => {
 
 test('snow rm file-does-not-exist', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -282,7 +287,7 @@ test('snow rm file-does-not-exist', async (t) => {
 
 test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
 
@@ -319,22 +324,21 @@ test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
-  try {
-    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-    const out = await exec(t, snow,
-      ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
-      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
-  } catch (error) {
-    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
-    t.true(error.message.includes(errorMsgSub));
-  }
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  const error = await t.throwsAsync(async () => exec(t, snow,
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+
+  const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+  t.true(error.message.includes(errorMsgSub));
 });
 
 test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = 'FirstTag';
   const tag2 = 'SecondTag';
@@ -356,7 +360,7 @@ test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = '[]}';
   const tag2 = '\'%$[,.}}';
@@ -377,7 +381,7 @@ test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
 
 test('Commit Tags --- EMPTY INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   await exec(t, snow, ['commit', '-m', 'unit test tags', '--allow-empty', '--tags='], { cwd: snowWorkdir });
@@ -391,7 +395,7 @@ test('Commit Tags --- EMPTY INPUT', async (t) => {
 
 test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
   const branchName = 'u-data-test';
@@ -429,18 +433,93 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
 test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
   const snow: string = getSnowexec(t);
-  const snowWorkdir = createUniqueTmpDir();
+  const snowWorkdir = generateUniqueTmpDirName();
   const branchName = 'u-data-test';
 
-  try {
-    await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-    const out = await exec(t, snow,
-      ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
-      EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected');
-  } catch (error) {
-    const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
-    t.true(error.message.includes(errorMsgSub));
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  const error = await t.throwsAsync(async () => exec(t, snow,
+    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+
+  const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
+  t.true(error.message.includes(errorMsgSub));
+  t.log('Test failed as expected');
+});
+
+test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write a.txt');
+  fse.writeFileSync(join(snowWorkdir, 'a.txt'), 'a');
+
+  t.log('Write b.txt');
+  fse.writeFileSync(join(snowWorkdir, 'b.txt'), 'b');
+
+  const outAddA = await exec(t, snow, ['add', 'a.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  const outAddB = await exec(t, snow, ['add', 'b.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  const indexAMatch = (outAddA as string).match(/Created new index:\s\[(\w*)\]/);
+  t.true(Boolean(indexAMatch));
+
+  const indexBMatch = (outAddB as string).match(/Created new index:\s\[(\w*)\]/);
+  t.true(Boolean(indexBMatch));
+
+  t.log('Write dontcommit-c.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-c.txt'), 'dontcommit-c');
+
+  if (indexAMatch) {
+    const indexA: string = indexAMatch[1];
+    await exec(t, snow, ['commit', '-m', 'commit a.txt', '--index', indexA], { cwd: snowWorkdir });
   }
+
+  t.log('Write dontcommit-d.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-d.txt'), 'dontcommit-d');
+
+  if (indexBMatch) {
+    const indexB: string = indexBMatch[1];
+    await exec(t, snow, ['commit', '-m', 'commit b.txt', '--index', indexB], { cwd: snowWorkdir });
+  }
+
+  t.log('Write dontcommit-e.txt'); // dummy file just to ensure file is not commited
+  fse.writeFileSync(join(snowWorkdir, 'dontcommit-e.txt'), 'dontcommit-e');
+
+  const repo = await Repository.open(snowWorkdir);
+  const allCommits = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
+
+  t.is(allCommits.length, 3, 'all 3 commits'); // Dummy commit 'Created Project' + 'commit a.txt' + 'commit b.txt'
+  t.is(allCommits[1].message, 'commit a.txt');
+  t.is(allCommits[2].message, 'commit b.txt');
+
+  // ensure a.txt and b.txt are in their commits
+  t.true(allCommits[1].root.children.map((t) => t.path).includes('a.txt'));
+  t.true(allCommits[1].root.children.map((t) => t.path).includes('a.txt'));
+  t.true(allCommits[2].root.children.map((t) => t.path).includes('b.txt'));
+
+  // ensure the commits ONLY contain these files
+  t.is(allCommits[1].root.children.length, 1, '"First" commit shall contain 1 file (a.txt)');
+  t.is(allCommits[2].root.children.length, 2, 'Last commit shall contain 2 files (a.txt, b.txt)');
+});
+
+test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
+  t.timeout(180000);
+
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write abc.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc.txt'), 'Hello World');
+
+  const error = await t.throwsAsync(async () => exec(t, snow, ['add', '.', '--index', 'non-existing-index'], { cwd: snowWorkdir }));
+
+  const errorMsgSub = 'fatal: unknown index: non-existing-index';
+  t.true(error.message.includes(errorMsgSub));
+  t.log('Test failed as expected');
 });
 
 test('driveinfo test', async (t) => {

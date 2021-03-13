@@ -1,13 +1,16 @@
 import * as fse from 'fs-extra';
+import * as crypto from 'crypto';
 
-import { difference } from 'lodash';
+import { difference, intersection } from 'lodash';
 
-import { isAbsolute, join, relative } from 'path';
-import { Commit } from './commit';
+import {
+  isAbsolute, join, relative, basename,
+} from 'path';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
-import { TreeFile } from './treedir';
+import { DirItem, OSWALK, osWalk } from './io';
+import { FileInfo } from './common';
 
 /**
  * A class representing a list of files that is used to create a new Commit object.
@@ -26,76 +29,135 @@ export class Index {
    */
   odb: Odb;
 
-  constructor(repo: Repository, odb: Odb) {
-    this.repo = repo;
-    this.odb = odb;
-  }
+  /**
+   * Unique id for the index, used in the filename of the index
+   */
+  id: string;
 
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  processed: Map<string, string> = new Map();
+  processed: Map<string, FileInfo> = new Map();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
    */
-  adds: Set<string> = new Set();
+  addRelPaths: Set<string> = new Set();
 
   /**
    * A set of filepaths of new files that will be removed from the new commit.
    */
-  deletes: Set<string> = new Set();
+  deleteRelPaths: Set<string> = new Set();
+
+  constructor(repo: Repository, odb: Odb, id: string = '') {
+    this.repo = repo;
+    this.id = id;
+    this.odb = odb;
+  }
 
   /**
    * Reset the entire index object. Used internally after a commit has been created,
    * or can be useful to discard any added or deleted files from the index object.
    */
-  async reset() {
-    this.adds = new Set();
-    this.deletes = new Set();
-    this.processed.clear();
+  async invalidate() {
+    return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
+      if (exists) { return fse.unlink(this.getAbsPath()); }
+    }).then(() => {
+      this.repo.removeIndex(this);
 
-    const indexPath: string = join(this.repo.commondir(), 'INDEX');
-    return fse.pathExists(indexPath).then((exists: boolean) => {
-      if (exists) return fse.unlink(indexPath);
+      this.addRelPaths = new Set();
+      this.deleteRelPaths = new Set();
+      this.processed.clear();
+      this.id = undefined;
+      this.repo = null;
+      this.odb = null;
     });
   }
 
   /**
-   * Store the index object to disk. Saved to {workdir}/.snow/INDEX.
+   * Ensure the index is valid. After a commit is created, the index file will be
+   * deleted and this object will be invalidated and shouldn't be used anymore
+   *
+   * @throws Throws an exception if Index.invalidate() got called before.
+   */
+  throwIfNotValid() {
+    if (!this.id && this.id !== '') { // an empty string is allowed for the main index
+      // this happens if an index object got commited, it will be deleted and cleared
+      throw new Error('index object is invalid');
+    }
+  }
+
+  /**
+   * Return the absolute path of the index directory
+   *
+   * @returns       Absolute path to the index directory.
+   */
+  static getAbsDir(repo: Repository): string {
+    const indexDir: string = join(repo.commondir(), 'indexes');
+    return indexDir;
+  }
+
+  /**
+   * Return the absolute path of the index file
+   *
+   * @returns       Absolute path to the index file.
+   */
+  getAbsPath(): string {
+    const indexPath: string = join(Index.getAbsDir(this.repo), this.id ? `index.${this.id}` : 'index');
+    return indexPath;
+  }
+
+  /**
+   * Store the index object to disk. Saved to {workdir}/.snow/index/..
    */
   private async save() {
+    this.throwIfNotValid();
+
     const userData: string = JSON.stringify({
-      adds: this.adds,
-      deletes: this.deletes,
-      hashMap: this.processed,
+      adds: this.addRelPaths,
+      deletes: this.deleteRelPaths,
+      processed: this.processed,
     }, (key, value) => {
       if (value instanceof Map) {
         return Array.from(value.entries());
-      } if (value instanceof Set) {
+      }
+      if (value instanceof Set) {
         return Array.from(value);
       }
       return value;
     });
-    return fse.writeFile(join(this.repo.commondir(), 'INDEX'), userData);
+
+    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fse.writeFile(this.getAbsPath(), userData));
   }
 
   /**
-   * Load a saved index object from `{workdir}/.snow/INDEX`.
+   * Load a saved index object from `{workdir}/.snow/index/..`.
    * If the index wasn't saved before, the function does not fail.
    */
-  async load() {
-    const indexPath: string = join(this.repo.commondir(), 'INDEX');
-    return fse.pathExists(indexPath).then((exists: boolean) => {
-      if (exists) {
-        return fse.readFile(indexPath).then((buf: Buffer) => {
-          const content: string = buf.toString();
-          const json: any = JSON.parse(content);
-          this.adds = new Set(json.adds);
-          this.deletes = new Set(json.deletes);
-          this.processed = new Map(json.hashMap);
-        });
+  static async loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
+    return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
+      const readIndexes = [];
+      for (const dirItem of dirItems) {
+        const indexName = basename(dirItem.path);
+        if (indexName.startsWith('index') || indexName === 'index') {
+          readIndexes.push(fse.readFile(dirItem.path).then((buf: Buffer) => [dirItem.path, buf]));
+        }
       }
+      return Promise.all(readIndexes);
+    }).then((promises: [string, Buffer][]) => {
+      const parseIndexes = [];
+      for (const parseIndex of promises) {
+        const indexName = basename(parseIndex[0]); // 'index.abc123'
+        const isMainIndex = indexName === 'index';
+        const index = new Index(repo, odb, isMainIndex ? '' : indexName.substr(6, indexName.length - 6)); // set 'abc123' as index id
+        const content: string = parseIndex[1].toString();
+        const json: any = JSON.parse(content);
+        index.addRelPaths = new Set(json.adds);
+        index.deleteRelPaths = new Set(json.deletes);
+        index.processed = new Map(json.processed);
+        parseIndexes.push(index);
+      }
+      return parseIndexes;
     });
   }
 
@@ -104,13 +166,15 @@ export class Index {
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
   addFiles(filepaths: string[]) {
+    this.throwIfNotValid();
+
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
       if (!this.processed.has(relPath)) {
-        this.adds.add(relPath);
+        this.addRelPaths.add(relPath);
       }
     }
   }
@@ -120,11 +184,13 @@ export class Index {
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
   deleteFiles(filepaths: string[]) {
+    this.throwIfNotValid();
+
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
       if (!this.processed.has(relPath)) {
-        this.deletes.add(relPath);
+        this.deleteRelPaths.add(relPath);
       }
     }
 
@@ -134,7 +200,9 @@ export class Index {
   /**
    * Hashes of files. Filled after [[Index.writeFiles]] has been called.
    */
-  getHashedIndexMap(): Map<string, string> {
+  getProcessedMap(): Map<string, FileInfo> {
+    this.throwIfNotValid();
+
     return this.processed;
   }
 
@@ -142,62 +210,35 @@ export class Index {
    * Write files to object database. Needed before a commit can be made.
    */
   async writeFiles(): Promise<void> {
+    this.throwIfNotValid();
+
     const ioContext = new IoContext();
 
     return ioContext.init()
       .then(() => {
         const promises = [];
-        for (const filepath of Array.from(this.deletes)) {
-          const filepathAbs: string = isAbsolute(filepath) ? filepath : join(this.repo.repoWorkDir, filepath);
-          if (!filepathAbs.startsWith(this.repo.workdir())) {
-            throw new Error(`file or directory not in workdir: ${filepath}`);
-          }
-          promises.push(IoContext.putToTrash(filepathAbs));
-        }
-        return promises;
-      })
-      .then(() => {
-        const promises = [];
 
-        const adds: string[] = difference(Array.from(this.adds), Array.from(this.deletes));
+        const adds: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
 
-        for (const filepath of adds) {
-          const filepathAbs: string = isAbsolute(filepath) ? filepath : join(this.repo.repoWorkDir, filepath);
-          if (!filepathAbs.startsWith(this.repo.workdir())) {
-            throw new Error(`file or directory not in workdir: ${filepath}`);
+        for (const relFilePath of adds) {
+          if (!this.processed.has(relFilePath)) {
+            const filepathAbs: string = isAbsolute(relFilePath) ? relFilePath : join(this.repo.repoWorkDir, relFilePath);
+            if (!filepathAbs.startsWith(this.repo.workdir())) {
+              throw new Error(`file or directory not in workdir: ${relFilePath}`);
+            }
+            promises.push(this.odb.writeObject(filepathAbs, ioContext));
           }
-          promises.push(this.odb.writeObject(filepathAbs, ioContext));
         }
 
         return Promise.all(promises);
       })
-      .then((value: {file: string, hash: string}[]) => {
+      .then((value: {file: string, fileinfo: FileInfo}[]) => {
         ioContext.invalidate();
 
-        let hashMap: Map<string, string>;
-
-        // the first commit doesn't have a hash at head
-        if (this.repo.getHead().hash) {
-          const checkedOutCommit: Commit = this.repo.getCommitByHead();
-          const currentFiles = checkedOutCommit.root.getAllTreeFiles({
-            entireHierarchy: true,
-            includeDirs: false,
-          }) as Map<string, TreeFile>;
-
-          hashMap = new Map();
-          currentFiles.forEach((file: TreeFile) => {
-            hashMap.set(file.path, file.hash);
-          });
-        } else {
-          hashMap = new Map();
-        }
-
-        // add/overwrite the hashes for the new added files
+        // TODO: (Seb) Handle deleted files as well here
         for (const r of value) {
-          hashMap.set(r.file.replace(/\\/g, '/'), r.hash);
+          this.processed.set(r.file.replace(/\\/g, '/'), r.fileinfo);
         }
-
-        this.processed = hashMap;
         return this.save();
       });
   }
