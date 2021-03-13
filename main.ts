@@ -10,7 +10,7 @@ import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
-  StatusEntry, FILTER, Repository, RESET,
+  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
@@ -476,25 +476,12 @@ program
     try {
       const repo = await Repository.open(process.cwd());
 
-      const commits: Commit[] = repo.getAllCommits();
-      commits.sort((a: Commit, b: Commit) => {
-        const aDate = a.date.getTime();
-        const bDate = b.date.getTime();
-        if (aDate > bDate) {
-          return 1;
-        }
-        if (aDate < bDate) {
-          return -1;
-        }
-        return 0;
-      });
-
+      const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST);
       const refs: Reference[] = repo.getAllReferences();
       const headHash: string = repo.getHead().hash;
       const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        commits.reverse();
         const o = { commits, refs, head: headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
@@ -531,7 +518,6 @@ program
           return value;
         }, opts.output === 'json-pretty' ? '   ' : ''));
       } else {
-        commits.reverse();
         for (const commit of commits) {
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 

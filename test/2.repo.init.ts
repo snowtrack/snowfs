@@ -8,7 +8,7 @@ import { join } from 'path';
 import { Commit } from '../src/commit';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
-import { Repository } from '../src/repository';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 
 function createRepoPath(): string {
   while (true) {
@@ -78,7 +78,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
 
       // Commit checks
       const commit: Commit = repo.getCommitByHead();
-      t.is(repo.getAllCommits().length, 1, 'repo has 1 default commit');
+      t.is(repo.getAllCommits(COMMIT_ORDER.UNDEFINED).length, 1, 'repo has 1 default commit');
       t.is(commit.message, 'Created Project');
     });
 }
@@ -103,7 +103,7 @@ export async function testRepoCommondirInside(t, repo: Repository) {
 
     // Commit checks
     const commit: Commit = repo.getCommitByHead();
-    t.is(repo.getAllCommits().length, 1, 'repo has 1 default commit');
+    t.is(repo.getAllCommits(COMMIT_ORDER.UNDEFINED).length, 1, 'repo has 1 default commit');
     t.is(commit.message, 'Created Project');
   });
 }

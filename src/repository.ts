@@ -19,6 +19,12 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
+export enum COMMIT_ORDER {
+  UNDEFINED = 1,
+  NEWEST_FIRST = 2,
+  OLDEST_FIRST = 3
+}
+
 /**
  * Initialize a new [[Repository]].
  */
@@ -336,8 +342,40 @@ export class Repository {
   /**
    * Return an array of all commit clones of the repository. The order is undefined.
    */
-  getAllCommits(): Commit[] {
-    return this.commits.map((c: Commit) => c.clone());
+  getAllCommits(order: COMMIT_ORDER): Commit[] {
+    const commits = this.commits.map((c: Commit) => c.clone());
+    switch (order) {
+      case COMMIT_ORDER.OLDEST_FIRST:
+        commits.sort((a: Commit, b: Commit) => {
+          const aDate = a.date.getTime();
+          const bDate = b.date.getTime();
+          if (aDate < bDate) {
+            return -1;
+          }
+          if (aDate > bDate) {
+            return 1;
+          }
+          return 0;
+        });
+        break;
+      case COMMIT_ORDER.NEWEST_FIRST:
+        commits.sort((a: Commit, b: Commit) => {
+          const aDate = a.date.getTime();
+          const bDate = b.date.getTime();
+          if (aDate > bDate) {
+            return -1;
+          }
+          if (aDate < bDate) {
+            return 1;
+          }
+          return 0;
+        });
+        break;
+      case COMMIT_ORDER.UNDEFINED:
+      default:
+        break;
+    }
+    return commits;
   }
 
   /**

@@ -11,7 +11,7 @@ import { calculateFileHash, HashBlock } from '../src/common';
 import { Index } from '../src/index';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
-import { Repository } from '../src/repository';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 
 function getRandomPath(): string {
   // eslint-disable-next-line no-constant-condition
@@ -137,7 +137,7 @@ async function repoTest(t, commondirInside: boolean) {
 
       // Commit checks
       const commit: Commit = repo.getCommitByHead();
-      t.is(repo.getAllCommits().length, 2);
+      t.is(repo.getAllCommits(COMMIT_ORDER.UNDEFINED).length, 2);
       t.is(commit.message, firstCommitMessage);
 
       return osWalk(join(repo.commondir(), 'versions'), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
@@ -227,7 +227,7 @@ test('custom-commit-data', async (t) => {
     });
 
   await Repository.open(repoPath).then((repo: Repository) => {
-    const lastCommit = repo.getAllCommits().sort((a: Commit, b: Commit) => (a.date.getTime() < b.date.getTime() ? 1 : -1))[0];
+    const lastCommit = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST)[0];
     t.is(lastCommit.userData.hello, 'world');
     t.is(lastCommit.userData.foo, 'bar');
     t.is(lastCommit.userData.bas, 3);

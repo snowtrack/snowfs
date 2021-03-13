@@ -6,7 +6,7 @@ import * as fse from 'fs-extra';
 
 import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
-import { Repository } from '../src/repository';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 
 enum EXEC_OPTIONS {
   RETURN_STDOUT = 1,
@@ -488,7 +488,7 @@ test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
   fse.writeFileSync(join(snowWorkdir, 'dontcommit-e.txt'), 'dontcommit-e');
 
   const repo = await Repository.open(snowWorkdir);
-  const allCommits = repo.getAllCommits();
+  const allCommits = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
 
   t.is(allCommits.length, 3, 'all 3 commits'); // Dummy commit 'Created Project' + 'commit a.txt' + 'commit b.txt'
   t.is(allCommits[1].message, 'commit a.txt');
