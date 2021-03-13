@@ -5,6 +5,7 @@
 [![release](https://img.shields.io/badge/Download%20CLI%20Alpha-0.8.51-red)](https://github.com/Snowtrack/SnowFS/releases/tag/0.8.51)
 [![Coverage Status](https://coveralls.io/repos/github/Snowtrack/SnowFS/badge.svg)](https://coveralls.io/github/Snowtrack/SnowFS)
 [![Build and Test](https://github.com/Snowtrack/SnowFS/workflows/Build%20and%20Test/badge.svg)](https://github.com/snowtrack/SnowFS/actions)
+[![MIT Licence](https://badges.frapsoft.com/os/mit/mit.png?v=102)](https://opensource.org/licenses/mit-license.php)
 
 ## Overview
 
@@ -103,7 +104,7 @@ snow add texture.psd: 4596ms
 git rm texture.psd: 575ms
 snow rm texture.psd: 111ms
 git checkout HEAD~1: 9739ms
-snow checkout HEAD~1: 1ms
+snow checkout HEAD~1: 1ms <-- Yeap!
 ```
 
 ## Examples
