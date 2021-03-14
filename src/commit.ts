@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import { Repository } from './repository';
 import { TreeDir } from './treedir';
+import { jsonCompliant } from './common';
 
 /**
  * A class that represents the commits of a repository.
@@ -39,7 +40,7 @@ export class Commit {
     this.tags = [];
     this.userData = {};
     this.repo = repo;
-    this.message = message;
+    this.message = jsonCompliant(message);
     this.date = creationDate;
     this.root = root;
     this.parent = parent;
@@ -92,17 +93,7 @@ export class Commit {
       return;
     }
 
-    // replace JSON invalid symbols
-    tag = tag
-      .replace(/\\n/g, '\\n')
-      .replace(/\\'/g, "\\'")
-      .replace(/\\"/g, '\\"')
-      .replace(/\\&/g, '\\&')
-      .replace(/\\r/g, '\\r')
-      .replace(/\\t/g, '\\t')
-      .replace(/\\b/g, '\\b')
-      .replace(/\\f/g, '\\f');
-
+    tag = jsonCompliant(tag);
     this.tags.push(tag);
   }
 
