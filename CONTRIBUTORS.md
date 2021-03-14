@@ -1,4 +1,4 @@
-- Sebastian Rath <sebastian@snowtrack.io>
+- Sebastian Rath <https://github.com/seb-mtl>
 - Daniel Lanner <https://github.com/daniellanner>
 - halninekilo <https://github.com/halninekilo>
 - Timothy Sanders <unqueued@gmail.com>
