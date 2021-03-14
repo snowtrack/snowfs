@@ -40,6 +40,7 @@ export class Log {
   async writeLog(message: string) {
     const now = new Date();
     const logMessage = `${now.getTime()} ${getZOffset(now)} $> ${message}\n`;
-    return fse.appendFile(join(this.getAbsLogDirPath(), 'mainlog'), logMessage);
+    return fse.appendFile(join(this.getAbsLogDirPath(), 'mainlog'), logMessage)
+      .catch(() => { /* do nothing, logs are second-class citizens here */ });
   }
 }
