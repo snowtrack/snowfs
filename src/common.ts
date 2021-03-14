@@ -234,3 +234,19 @@ export async function getRepoDetails(repoPath: string): Promise<{state : LOADING
       });
     });
 }
+/**
+ * Escape string from hazardous characters which interfere with json parsing.
+ * @param s       The input string to be treated
+ * @returns       The string with escaped characters
+ */
+export function jsonCompliant(s : string) : string {
+  return s
+    .replace(/\\n/g, '\\n')
+    .replace(/\\'/g, "\\'")
+    .replace(/\\"/g, '\\"')
+    .replace(/\\&/g, '\\&')
+    .replace(/\\r/g, '\\r')
+    .replace(/\\t/g, '\\t')
+    .replace(/\\b/g, '\\b')
+    .replace(/\\f/g, '\\f');
+}
