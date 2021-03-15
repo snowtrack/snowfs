@@ -503,7 +503,7 @@ export class Repository {
    *
    * @param name  Name of the new reference
    * @param hash  Commit hash of the new reference.
-   * @param start Set commit hash of the start of the reference.
+   * @param start Set commit hash of the start of the reference. If null, 'hash' becomes the starting point
    */
   async createNewReference(type: REFERENCE_TYPE, name: string, hash: string, start?: string|null, userData?: {}): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
