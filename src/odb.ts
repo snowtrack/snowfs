@@ -8,7 +8,7 @@ import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
 
-import { Repository, RepositoryInitOptions } from './repository';
+import { REFERENCE_TYPE, Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import { calculateFileHash, FileInfo, HashBlock } from './common';
@@ -141,7 +141,7 @@ export class Odb {
           start: ret.content.start,
           userData: ret.content.userData,
         };
-        return new Reference(basename(ret.ref.path), this.repo, opts);
+        return new Reference(ret.content.type, basename(ret.ref.path), this.repo, opts);
       }))
       .then((refsResult: Reference[]) => refsResult);
   }
@@ -187,6 +187,7 @@ export class Odb {
 
     return fse.writeFile(refPath, JSON.stringify({
       hash: ref.hash,
+      type: ref.type,
       start: ref.start ? ref.start : undefined,
       userData: ref.userData ?? {},
     }));

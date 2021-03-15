@@ -1,4 +1,4 @@
-import { Repository } from './repository';
+import { REFERENCE_TYPE, Repository } from './repository';
 
 /**
  * A class currently representing a branch. A reference points to an existing commit through the hash (aka `target`).
@@ -16,12 +16,15 @@ export class Reference {
 
     start: string;
 
-    constructor(refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
+    type: REFERENCE_TYPE;
+
+    constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
       this.hash = c.hash;
       this.userData = c.userData ?? {};
       this.start = c.start;
       this.refName = refName;
       this.repo = repo;
+      this.type = type;
     }
 
     getName(): string {
@@ -30,6 +33,10 @@ export class Reference {
 
     setName(name: string) {
       this.refName = name;
+    }
+
+    getType(): REFERENCE_TYPE {
+      return this.type;
     }
 
     owner(): Repository {
@@ -45,7 +52,7 @@ export class Reference {
     }
 
     clone(): Reference {
-      const ref = new Reference(this.refName, this.repo,
+      const ref = new Reference(this.type, this.refName, this.repo,
         {
           hash: this.hash,
           start: this.start,

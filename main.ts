@@ -10,7 +10,7 @@ import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
-  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER,
+  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
@@ -230,7 +230,7 @@ program
         }
       }
 
-      await repo.createNewReference(branchName, startPoint, startPoint, data);
+      await repo.createNewReference(REFERENCE_TYPE.BRANCH, branchName, startPoint, startPoint, data);
     } catch (error) {
       if (opts.debug) {
         throw error;
@@ -290,7 +290,7 @@ program
           }
         }
 
-        await repo.createNewReference(opts.branch, repo.getHead().hash, repo.getHead().hash, data);
+        await repo.createNewReference(REFERENCE_TYPE.BRANCH, opts.branch, repo.getHead().hash, repo.getHead().hash, data);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
         if (opts.reset) {

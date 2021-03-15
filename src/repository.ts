@@ -27,6 +27,13 @@ export enum COMMIT_ORDER {
 }
 
 /**
+ * Reference type, introduced to support TAGS in the future.
+ */
+export enum REFERENCE_TYPE {
+  BRANCH = 0
+}
+
+/**
  * Initialize a new [[Repository]].
  */
 export class RepositoryInitOptions {
@@ -236,7 +243,7 @@ export class Repository {
   options: RepositoryInitOptions;
 
   /** HEAD reference to the currently checked out commit */
-  readonly head: Reference = new Reference('HEAD', this, { hash: undefined, start: null });
+  readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: undefined, start: null });
 
   /** Array of all commits of the repository. The order is undefined. */
   commits: Commit[] = [];
@@ -498,7 +505,7 @@ export class Repository {
    * @param hash  Commit hash of the new reference.
    * @param start Set commit hash of the start of the reference.
    */
-  async createNewReference(name: string, hash: string, start?: string|null, userData?: {}): Promise<Reference> {
+  async createNewReference(type: REFERENCE_TYPE, name: string, hash: string, start?: string|null, userData?: {}): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
       throw new Error('ref already exists');
@@ -512,7 +519,7 @@ export class Repository {
       throw new Error('hash for new ref is not a known commit');
     }
 
-    const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash, userData });
+    const newRef: Reference = new Reference(type, name, this, { hash, start: start ?? hash, userData });
 
     this.references.push(newRef);
     return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${hash}`)).then(() => newRef);
@@ -857,7 +864,7 @@ export class Repository {
         } else {
           this.head.setName('Main');
           this.head.hash = commit.hash;
-          this.references.push(new Reference(this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
+          this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
         }
 
         return this.repoOdb.writeCommit(commit);
@@ -953,7 +960,7 @@ export class Repository {
         }
 
         if (!headRef) {
-          headRef = new Reference('HEAD', repo, { hash: hashOrRefName, start: hashOrRefName });
+          headRef = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', repo, { hash: hashOrRefName, start: hashOrRefName });
         }
 
         repo.head.setName(headRef.getName());
