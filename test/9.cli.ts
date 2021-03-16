@@ -147,7 +147,13 @@ test.only('snow branch foo-branch', async (t) => {
   // Try to delete the HEAD branch which must fail
   error = await t.throwsAsync(async () =>
     exec(t, snow, ['branch', '--delete', checkedOutBranch], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
-  t.true(error.message.includes(`Cannot delete branch '${checkedOutBranch}' checked out at '${repoAfter2.workdir()}'`));
+
+  if (process.platform === 'darwin') {
+    // on macOS 'process.cwd()' in the branch command returns /private/var/...
+    t.true(error.message.includes(`Cannot delete branch '${checkedOutBranch}' checked out at '/private${repoAfter2.workdir()}'`));
+  } else {
+    t.true(error.message.includes(`Cannot delete branch '${checkedOutBranch}' checked out at '${repoAfter2.workdir()}'`));
+  }
 });
 
 test('snow add .', async (t) => {
