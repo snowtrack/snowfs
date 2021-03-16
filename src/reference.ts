@@ -14,14 +14,14 @@ export class Reference {
 
     repo: Repository;
 
-    start: string;
+    startHash: string;
 
     type: REFERENCE_TYPE;
 
     constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
       this.hash = c.hash;
       this.userData = c.userData ?? {};
-      this.start = c.start;
+      this.startHash = c.start;
       this.refName = refName;
       this.repo = repo;
       this.type = type;
@@ -51,11 +51,15 @@ export class Reference {
       return this.hash;
     }
 
+    start(): string {
+      return this.startHash;
+    }
+
     clone(): Reference {
       const ref = new Reference(this.type, this.refName, this.repo,
         {
           hash: this.hash,
-          start: this.start,
+          start: this.startHash,
         });
 
       ref.userData = {};

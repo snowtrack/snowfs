@@ -146,7 +146,7 @@ export class Odb {
       .then((refsResult: Reference[]) => refsResult);
   }
 
-  async deleteHeadReference(ref: Reference) {
+  async deleteReference(ref: Reference) {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(refsDir, ref.getName()));
@@ -188,7 +188,7 @@ export class Odb {
     return fse.writeFile(refPath, JSON.stringify({
       hash: ref.hash,
       type: ref.type,
-      start: ref.start ? ref.start : undefined,
+      start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
     }));
   }
