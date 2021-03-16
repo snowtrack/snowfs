@@ -19,6 +19,7 @@ if NOT DEFINED SUPPRESS_BANNER (
   echo To download a production build, visit the release page at: https://github.com/Snowtrack/SnowFS/releases
 )
 
+set TS_NODE_TRANSPILE_ONLY=true
 "%_prog%" -r "%dp0%..\node_modules\ts-node\register\index.js" "%dp0%..\main.ts" %* 
 ENDLOCAL 
 EXIT /b %errorlevel% 
