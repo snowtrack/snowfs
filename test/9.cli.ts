@@ -86,7 +86,7 @@ test('snow add/commit/log', async (t) => {
   t.is(true, true);
 });
 
-test.only('snow branch foo-branch', async (t) => {
+test('snow branch foo-branch', async (t) => {
   t.timeout(180000);
 
   let out: string | void;
