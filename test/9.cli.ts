@@ -6,7 +6,8 @@ import * as fse from 'fs-extra';
 
 import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
-import { COMMIT_ORDER, Repository } from '../src/repository';
+import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
+import { Reference } from '../src/reference';
 
 enum EXEC_OPTIONS {
   RETURN_STDOUT = 1,
@@ -83,6 +84,76 @@ test('snow add/commit/log', async (t) => {
   }
 
   t.is(true, true);
+});
+
+test('snow branch foo-branch', async (t) => {
+  t.timeout(180000);
+
+  let out: string | void;
+  let error;
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  // Create branch succesfully
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  await exec(t, snow, ['add', '.'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'First user-commit'], { cwd: snowWorkdir });
+
+  const repoBefore = await Repository.open(snowWorkdir);
+  const headHash = repoBefore.getHead().hash;
+  const allCommits = repoBefore.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
+  const firstCommit = allCommits[0];
+  const secondCommit = allCommits[1];
+  t.log(`HEAD now at ${headHash}`);
+
+  // snow branch foo-branch
+  out = await exec(t, snow, ['branch', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  t.true((out as String).includes("A branch 'foo-branch' got created."));
+
+  // the hash of 'foo-branch' must match the hash
+  const repoAfter = await Repository.open(snowWorkdir);
+  t.is(headHash, repoAfter.findReferenceByName(REFERENCE_TYPE.BRANCH, 'foo-branch').target());
+
+  // Don't create a branch twice
+  // snow branch foo-branch
+  error = await t.throwsAsync(async () => exec(t, snow, ['branch', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
+  t.true(error.message.includes("A branch named 'foo-branch' already exists."));
+
+  // Create a branch with a different starting point
+  // snow branch bar-branch 768FF3AA8273DFEB81E7A111572C823EA0850499
+  out = await exec(t, snow, ['branch', 'bar-branch', firstCommit.hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  t.true((out as String).includes("A branch 'bar-branch' got created."));
+
+  // verify the target() and start() point are equal (in this case the
+  // start-point and target are still the same since the branch didn't move forward)
+  const repoAfter2 = await Repository.open(snowWorkdir);
+  const checkedOutBranch: string = repoAfter2.getHead().getName();
+  const fooBranch: Reference = repoAfter2.findReferenceByName(REFERENCE_TYPE.BRANCH, 'foo-branch');
+  t.is(secondCommit.hash, fooBranch.target());
+  t.is(secondCommit.hash, fooBranch.start());
+
+  const barBranch: Reference = repoAfter2.findReferenceByName(REFERENCE_TYPE.BRANCH, 'bar-branch');
+  t.is(firstCommit.hash, barBranch.target());
+  t.is(firstCommit.hash, barBranch.start());
+
+  // Delete foo-branch and bar branch
+  out = await exec(t, snow, ['branch', '--delete', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  t.true((out as String).includes(`Deleted branch 'foo-branch' (was ${fooBranch.target()})`));
+  out = await exec(t, snow, ['branch', '--delete', 'bar-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  t.true((out as String).includes(`Deleted branch 'bar-branch' (was ${barBranch.target()})`));
+
+  // Try to delete the HEAD branch which must fail
+  error = await t.throwsAsync(async () =>
+    exec(t, snow, ['branch', '--delete', checkedOutBranch], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
+
+  if (process.platform === 'darwin') {
+    // on macOS 'process.cwd()' in the branch command returns /private/var/...
+    t.true(error.message.includes(`Cannot delete branch '${checkedOutBranch}' checked out at '/private${repoAfter2.workdir()}'`));
+  } else {
+    t.true(error.message.includes(`Cannot delete branch '${checkedOutBranch}' checked out at '${repoAfter2.workdir()}'`));
+  }
 });
 
 test('snow add .', async (t) => {

@@ -10,7 +10,7 @@ import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
-  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER,
+  StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
@@ -207,6 +207,7 @@ program
 program
   .command('branch [branch-name] [start-point]')
   .option('--debug', 'add more debug information on errors')
+  .option('--delete', 'delete a branch')
   .option('--no-color')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
@@ -219,18 +220,27 @@ program
     try {
       const repo = await Repository.open(process.cwd());
 
-      opts = await parseOptions(opts);
-
-      let data = {};
-      if (opts.userData) {
-        try {
-          data = JSON.parse(opts.userData);
-        } catch (e) {
-          throw new Error(`invalid user-data: ${e}`);
+      if (opts.delete) {
+        if (startPoint) {
+          throw new Error('start-point must be empty');
         }
-      }
+        const oldTarget: string = await repo.deleteReference(REFERENCE_TYPE.BRANCH, branchName);
+        console.log(`Deleted branch '${branchName}' (was ${oldTarget})`);
+      } else {
+        opts = await parseOptions(opts);
 
-      await repo.createNewReference(branchName, startPoint, startPoint, data);
+        let data = {};
+        if (opts.userData) {
+          try {
+            data = JSON.parse(opts.userData);
+          } catch (e) {
+            throw new Error(`invalid user-data: ${e}`);
+          }
+        }
+
+        await repo.createNewReference(REFERENCE_TYPE.BRANCH, branchName, startPoint, data);
+        console.log(`A branch '${branchName}' got created.`);
+      }
     } catch (error) {
       if (opts.debug) {
         throw error;
@@ -290,7 +300,7 @@ program
           }
         }
 
-        await repo.createNewReference(opts.branch, repo.getHead().hash, repo.getHead().hash, data);
+        await repo.createNewReference(REFERENCE_TYPE.BRANCH, opts.branch, repo.getHead().hash, data);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
         if (opts.reset) {
@@ -511,7 +521,7 @@ program
             return {
               name: value.getName(),
               hash: value.hash,
-              start: value.start,
+              start: value.startHash,
               userData: value.userData ? JSON.parse(JSON.stringify(value.userData)) : {},
             };
           }

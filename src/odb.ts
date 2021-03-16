@@ -8,7 +8,7 @@ import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
 
-import { Repository, RepositoryInitOptions } from './repository';
+import { REFERENCE_TYPE, Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import { calculateFileHash, FileInfo, HashBlock } from './common';
@@ -141,12 +141,12 @@ export class Odb {
           start: ret.content.start,
           userData: ret.content.userData,
         };
-        return new Reference(basename(ret.ref.path), this.repo, opts);
+        return new Reference(ret.content.type, basename(ret.ref.path), this.repo, opts);
       }))
       .then((refsResult: Reference[]) => refsResult);
   }
 
-  async deleteHeadReference(ref: Reference) {
+  async deleteReference(ref: Reference) {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(refsDir, ref.getName()));
@@ -187,7 +187,8 @@ export class Odb {
 
     return fse.writeFile(refPath, JSON.stringify({
       hash: ref.hash,
-      start: ref.start ? ref.start : undefined,
+      type: ref.type,
+      start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
     }));
   }

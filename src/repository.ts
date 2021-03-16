@@ -27,6 +27,13 @@ export enum COMMIT_ORDER {
 }
 
 /**
+ * Reference type, introduced to support TAGS in the future.
+ */
+export enum REFERENCE_TYPE {
+  BRANCH = 0
+}
+
+/**
  * Initialize a new [[Repository]].
  */
 export class RepositoryInitOptions {
@@ -236,7 +243,7 @@ export class Repository {
   options: RepositoryInitOptions;
 
   /** HEAD reference to the currently checked out commit */
-  readonly head: Reference = new Reference('HEAD', this, { hash: undefined, start: null });
+  readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: undefined, start: null });
 
   /** Array of all commits of the repository. The order is undefined. */
   commits: Commit[] = [];
@@ -410,8 +417,8 @@ export class Repository {
    * Find and return the reference by a given name.
    * The reference names can be acquired by [[Repository.getAllReferences]].
    */
-  findReferenceByName(refName: string): Reference|null {
-    const ref: Reference = this.references.find((r: Reference) => r.getName() === refName);
+  findReferenceByName(type: REFERENCE_TYPE, refName: string): Reference|null {
+    const ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
     return ref?.clone();
   }
 
@@ -474,14 +481,24 @@ export class Repository {
   }
 
   /**
-   * Deletes the current branch. If the passed Reference is the HEAD reference, it is ignored.
+   * Deletes the passed reference. If the passed Reference is the HEAD reference, it is ignored.
    */
-  async deleteBranch(ref: Reference) {
-    const index = this.references.findIndex((r: Reference) => r.getName() === ref.getName());
+  async deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
+    if (this.getHead().getName() === branchName) {
+      throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
+    }
+
+    let ref: Reference;
+    const index = this.references.findIndex((r: Reference) => r.getName() === branchName && r.getType() === type);
     if (index > -1) {
+      ref = this.references[index];
       this.references.splice(index, 1);
     }
-    return this.repoOdb.deleteHeadReference(ref);
+    return this.repoOdb.deleteReference(ref).then(() =>
+      // delete the sha the reference was pointing to
+      (ref ? ref.target() : null)).catch(() =>
+      // delete the sha the reference was pointing to
+      (ref ? ref.target() : null));
   }
 
   /**
@@ -495,27 +512,29 @@ export class Repository {
    * Create a new reference.
    *
    * @param name  Name of the new reference
-   * @param hash  Commit hash of the new reference.
-   * @param start Set commit hash of the start of the reference.
+   * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  async createNewReference(name: string, hash: string, start?: string|null, userData?: {}): Promise<Reference> {
+  async createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: {}): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
-      throw new Error('ref already exists');
+      if (type === REFERENCE_TYPE.BRANCH) {
+        throw new Error(`A branch named '${name}' already exists.`);
+      } else {
+        throw new Error(`A reference named '${name}' already exists.`);
+      }
     }
 
-    if (start && !this.commitMap.has(start)) {
-      throw new Error('start-point for new ref is not a known commit');
+    // if null HEAD is used
+    startPoint = startPoint ?? this.getHead().hash;
+
+    if (!this.commitMap.has(startPoint)) {
+      throw new Error(`Not a valid start point: '${startPoint}'`);
     }
 
-    if (!this.commitMap.has(hash)) {
-      throw new Error('hash for new ref is not a known commit');
-    }
-
-    const newRef: Reference = new Reference(name, this, { hash, start: start ?? hash, userData });
+    const newRef: Reference = new Reference(type, name, this, { hash: startPoint, start: startPoint, userData });
 
     this.references.push(newRef);
-    return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${hash}`)).then(() => newRef);
+    return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${startPoint}`)).then(() => newRef);
   }
 
   /**
@@ -560,7 +579,7 @@ export class Repository {
     let targetCommit: Commit;
     if (typeof target === 'string') {
       // check first if target is a reference name...
-      const ref: Reference = this.findReferenceByName(target);
+      const ref: Reference = this.findReferenceByName(REFERENCE_TYPE.BRANCH, target);
       if (ref) {
         targetRef = ref;
         targetCommit = this.getCommitByHash(ref.target());
@@ -857,7 +876,7 @@ export class Repository {
         } else {
           this.head.setName('Main');
           this.head.hash = commit.hash;
-          this.references.push(new Reference(this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
+          this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
         }
 
         return this.repoOdb.writeCommit(commit);
@@ -953,7 +972,7 @@ export class Repository {
         }
 
         if (!headRef) {
-          headRef = new Reference('HEAD', repo, { hash: hashOrRefName, start: hashOrRefName });
+          headRef = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', repo, { hash: hashOrRefName, start: hashOrRefName });
         }
 
         repo.head.setName(headRef.getName());
