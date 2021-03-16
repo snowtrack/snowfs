@@ -17,4 +17,5 @@ if [[ -z "${SUPPRESS_BANNER}" ]]; then
     echo "                For production build visit https://github.com/Snowtrack/SnowFS/releases"
 fi
 
+export TS_NODE_TRANSPILE_ONLY=true
 $node_executable -r $0/../../node_modules/ts-node/register $0/../../main.ts "$@"
