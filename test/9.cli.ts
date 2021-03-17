@@ -170,7 +170,7 @@ test.only('snow switch', async (t) => {
   t.true(dirPaths.includes('abc0.txt'));
 
   t.log('Switch back to branch-2 and go from there');
-  await exec(t, snow, ['switch', 'branch-2', '--discard-changes'], { cwd: snowWorkdir });
+  await exec(t, snow, ['switch', 'branch-2'], { cwd: snowWorkdir });
 
   t.log('Make some changes again to the working directory');
   t.log('  Update abc0.txt');
