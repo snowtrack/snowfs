@@ -162,12 +162,15 @@ test.only('snow switch', async (t) => {
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
   t.true(lines.includes("fatal: You have local changes to 'branch-0'; not switching branches."));
 
-  // switch and discard the local changes
+  t.log('Switch and discard the local changes');
   await exec(t, snow, ['switch', 'branch-0', '--discard-changes'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
   dirPaths = dirItems.map((d) => basename(d.path));
   t.is(dirItems.length, 1);
   t.true(dirPaths.includes('abc0.txt'));
+
+  t.log('Switch back to branch-2 and go from there');
+  await exec(t, snow, ['switch', 'branch-2', '--discard-changes'], { cwd: snowWorkdir });
 
   t.log('Make some changes again to the working directory');
   t.log('  Update abc0.txt');
