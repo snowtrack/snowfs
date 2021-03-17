@@ -676,14 +676,17 @@ export class Repository {
         // Files which existed before, and still do, but check if they were modified
 
         const promises = [];
-        const existingFiles = intersection(currentFiles, oldFilePaths);
-        for (const existingFile of existingFiles) {
-          const tfile: TreeFile = oldFilesMap.get(existingFile);
-          if (!tfile) {
-            throw new Error(`File '${tfile.path}' not found during last-modified-check`);
-          }
 
-          promises.push(tfile.isFileModified(this));
+        if (reset & RESET.DELETE_MODIFIED_FILES) {
+          const existingFiles = intersection(currentFiles, oldFilePaths);
+          for (const existingFile of existingFiles) {
+            const tfile: TreeFile = oldFilesMap.get(existingFile);
+            if (!tfile) {
+              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+            }
+
+            promises.push(tfile.isFileModified(this));
+          }
         }
 
         return Promise.all(promises);
