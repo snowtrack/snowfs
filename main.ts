@@ -212,7 +212,7 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('create a new branch')
-  .action(async (branchName: string | undefined, startPoint: string, opts: any) => {
+  .action(async (branchName: string, startPoint: string, opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -224,7 +224,8 @@ program
         if (startPoint) {
           throw new Error('start-point must be empty');
         }
-        const oldTarget: string = await repo.deleteReference(REFERENCE_TYPE.BRANCH, branchName);
+
+        const oldTarget = await repo.deleteReference(REFERENCE_TYPE.BRANCH, branchName);
         console.log(`Deleted branch '${branchName}' (was ${oldTarget})`);
       } else {
         opts = await parseOptions(opts);
@@ -303,13 +304,10 @@ program
         await repo.createNewReference(REFERENCE_TYPE.BRANCH, opts.branch, repo.getHead().hash, data);
       } else if (target) { // snow checkout [hash]
         let reset: RESET = RESET.NONE;
-        if (opts.reset) {
-          reset |= RESET.DEFAULT;
-        }
         if (opts.detach) {
           reset |= RESET.DETACH;
         }
-        await repo.restore(target, reset);
+        await repo.checkout(target, reset);
       }
     } catch (error) {
       if (opts.debug) {
@@ -323,7 +321,7 @@ program
 
 program
   .command('index [command]')
-  .action(async (command, opts: any) => {
+  .action(async (command: any, opts: any) => {
     try {
       const repo = await Repository.open(process.cwd());
       if (command === 'create') {
@@ -610,6 +608,75 @@ program
   .action(async (opts: any) => {
     const drives = await drivelist.list();
     console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
+  });
+
+const switchDesc = `switch a commit, or create a branch
+  
+  ${chalk.bold('Examples')}
+  
+      switch to a branch
+        $ snow switch branch-name`;
+
+program
+  .command('switch [branch-name]')
+  .option('--discard-changes', 'force switch and discard changes in workdir')
+  .option('-k, --keep-changes', "don't reset files in the workdir")
+  .option('-d, --detach', 'detach the branch')
+  .option('--debug', 'add more debug information on errors')
+  .option('--no-color')
+  .option('--user-data', 'open standard input to apply user data for commit')
+  .option('--input <type>', "type can be 'stdin' or {filepath}")
+  .description(switchDesc)
+  .action(async (branchName: string | undefined, opts: any) => {
+    if (opts.noColor) {
+      chalk.level = 0;
+    }
+
+    try {
+      const repo = await Repository.open(process.cwd());
+
+      if (branchName) {
+        const targetCommit = repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, branchName);
+        if (!targetCommit) {
+          throw new Error(`cannot find branch '${branchName}'`);
+        }
+
+        if (opts.discardChanges && opts.keepChanges) {
+          throw new Error('either --discard-changes or --keep-changes can be used, not both');
+        } else if (!opts.discardChanges && !opts.keepChanges) {
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          for (const statusFile of statusFiles) {
+            if (statusFile.isModified()) {
+              process.stdout.write(`M ${statusFile.path}\n`);
+            } else if (statusFile.isNew()) {
+              process.stdout.write(`A ${statusFile.path}\n`);
+            } else if (statusFile.isDeleted()) {
+              process.stdout.write(`D ${statusFile.path}\n`);
+            }
+          }
+          if (statusFiles.length > 0) {
+            throw new Error(`You have local changes to '${branchName}'; not switching branches.`);
+          }
+        }
+
+        let reset: RESET = RESET.NONE;
+        if (!opts.keepChanges) {
+          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+        }
+        if (opts.detach) {
+          reset |= RESET.DETACH;
+        }
+
+        await repo.checkout(branchName, reset);
+      }
+    } catch (error) {
+      if (opts.debug) {
+        throw error;
+      } else {
+        process.stderr.write(`fatal: ${error.message}\n`);
+        process.exit(-1);
+      }
+    }
   });
 
 program.parse(process.argv.filter((x) => x !== '--'));

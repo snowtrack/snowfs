@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
 import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';
+import { DirItem, OSWALK, osWalk } from '../src/io';
 
 enum EXEC_OPTIONS {
   RETURN_STDOUT = 1,
@@ -19,27 +20,26 @@ async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, 
 
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
   return new Promise((resolve, reject) => {
-    let stdout: string = '';
-    let stderr: string = '';
+    let std: string = '';
     if (stdiopts & EXEC_OPTIONS.WRITE_STDIN) {
       p0.stdin.write(`${stdin}\n`);
       p0.stdin.end(); /// this call seems necessary, at least with plain node.js executable
     }
     p0.stdout.on('data', (data) => {
       if (stdiopts & EXEC_OPTIONS.RETURN_STDOUT) {
-        stdout += data.toString();
+        std += data.toString();
       } else {
         t.log(data.toString());
       }
     });
     p0.stderr.on('data', (data) => {
-      stderr += data.toString();
+      std += data.toString();
     });
     p0.on('exit', (code) => {
       if (code === 0) {
-        resolve(stdout ?? undefined);
+        resolve(std ?? undefined);
       } else {
-        reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${stderr}`));
+        reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${std}`));
       }
     });
   });
@@ -86,11 +86,106 @@ test('snow add/commit/log', async (t) => {
   t.is(true, true);
 });
 
+test.only('snow switch', async (t) => {
+  t.timeout(180000);
+
+  let out: string | void;
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  // Create branch succesfully
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  for (let i = 0; i < 3; ++i) {
+    t.log(`Write abc${i}.txt`);
+    fse.writeFileSync(join(snowWorkdir, `abc${i}.txt`), `Hello World ${i}`);
+    // eslint-disable-next-line no-await-in-loop
+    await exec(t, snow, ['add', '.'], { cwd: snowWorkdir });
+    // eslint-disable-next-line no-await-in-loop
+    await exec(t, snow, ['commit', '-m', `add hello-world ${i}`], { cwd: snowWorkdir });
+
+    // eslint-disable-next-line no-await-in-loop
+    out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+    t.true((out as String).includes(`A branch 'branch-${i}' got created.`));
+  }
+
+  await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
+
+  let dirItems: DirItem[];
+  let dirPaths: string[];
+
+  // switch to all branches while no modifications are present in the working dir
+
+  t.log('Switch to branch-0');
+  await exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 1);
+  t.true(dirPaths.includes('abc0.txt'));
+
+  t.log('Switch to branch-1');
+  await exec(t, snow, ['switch', 'branch-1'], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 2);
+  t.true(dirPaths.includes('abc0.txt'));
+  t.true(dirPaths.includes('abc1.txt'));
+
+  t.log('Switch to branch-2');
+  await exec(t, snow, ['switch', 'branch-2'], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 3);
+  t.true(dirPaths.includes('abc0.txt'));
+  t.true(dirPaths.includes('abc1.txt'));
+  t.true(dirPaths.includes('abc2.txt'));
+
+  let lines: string[];
+
+  t.log('Make some changes to the working directory');
+  t.log('  Update abc0.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc0.txt'), 'Hello World Fooooo');
+  t.log('  Write abc3.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc3.txt'), 'Hello World 3');
+  fse.removeSync(join(snowWorkdir, 'abc1.txt'));
+
+  // switch to branches while...
+  // ... one is modified (abc0.txt)
+  // ... one deleted (abc1.txt)
+  // ... one file is untouched (abc2.txt)
+  // ... and one added (abc.txt)
+
+  const error = await t.throwsAsync(async () => exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
+  lines = error.message.split('\n');
+  t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
+  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
+  t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  t.true(lines.includes("fatal: You have local changes to 'branch-0'; not switching branches."));
+
+  // switch and discard the local changes
+  await exec(t, snow, ['switch', 'branch-0', '--discard-changes'], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 1);
+  t.true(dirPaths.includes('abc0.txt'));
+
+  t.log('Make some changes again to the working directory');
+  t.log('  Update abc0.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc0.txt'), 'Hello World Fooooo');
+  t.log('  Write abc3.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc3.txt'), 'Hello World 3');
+  fse.removeSync(join(snowWorkdir, 'abc1.txt'));
+
+  // switch back to branch-3 so we can switch back to branch-0 but this time we keep our working directory changes
+  await exec(t, snow, ['switch', 'branch-0', '--keep-changes'], { cwd: snowWorkdir });
+  console.log('foo');
+});
+
 test('snow branch foo-branch', async (t) => {
   t.timeout(180000);
 
   let out: string | void;
-  let error;
+  let error: any;
   const snow: string = getSnowexec(t);
   const snowWorkdir = generateUniqueTmpDirName();
 
