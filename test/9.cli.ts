@@ -140,8 +140,6 @@ test.only('snow switch', async (t) => {
   t.true(dirPaths.includes('abc1.txt'));
   t.true(dirPaths.includes('abc2.txt'));
 
-  let lines: string[];
-
   t.log('Make some changes to the working directory');
   t.log('  Update abc0.txt');
   fse.writeFileSync(join(snowWorkdir, 'abc0.txt'), 'Hello World Fooooo');
@@ -156,7 +154,7 @@ test.only('snow switch', async (t) => {
   // ... and one added (abc.txt)
 
   const error = await t.throwsAsync(async () => exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
-  lines = error.message.split('\n');
+  const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
   t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
@@ -179,9 +177,14 @@ test.only('snow switch', async (t) => {
   fse.writeFileSync(join(snowWorkdir, 'abc3.txt'), 'Hello World 3');
   fse.removeSync(join(snowWorkdir, 'abc1.txt'));
 
-  // switch back to branch-3 so we can switch back to branch-0 but this time we keep our working directory changes
+  // switch back to branch-0 and keep all changes
   await exec(t, snow, ['switch', 'branch-0', '--keep-changes'], { cwd: snowWorkdir });
-  console.log('foo');
+
+  // carried over the changes
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc0.txt')).toString(), 'Hello World Fooooo');
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc2.txt')).toString(), 'Hello World 2');
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc3.txt')).toString(), 'Hello World 3');
+  t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
 });
 
 test('snow branch foo-branch', async (t) => {
