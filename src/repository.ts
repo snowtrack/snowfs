@@ -394,10 +394,10 @@ export class Repository {
    * The reference names can be acquired by [[Repository.getAllReferences]].
    * `name` can also be `HEAD`.
    */
-  findCommitByReferenceName(name: string): Commit|null {
-    let ref: Reference = this.references.find((ref: Reference) => ref.getName() === name);
+  findCommitByReferenceName(type: REFERENCE_TYPE, refName: string): Commit|null {
+    let ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
     if (!ref) {
-      ref = (name === 'HEAD') ? this.head : null;
+      ref = (refName === 'HEAD') ? this.head : null;
     }
     if (!ref) {
       return null;
@@ -570,7 +570,7 @@ export class Repository {
    * @param target    Reference, commit or commit hash.
    * @param reset     Options for the restore operation.
    */
-  async restore(target: string|Reference|Commit, reset: RESET): Promise<void> {
+  async checkout(target: string|Reference|Commit, reset: RESET): Promise<void> {
     let oldFilePaths: string[];
     let oldFilesMap: Map<string, TreeFile>;
     const currentFiles: string[] = [];
@@ -676,14 +676,17 @@ export class Repository {
         // Files which existed before, and still do, but check if they were modified
 
         const promises = [];
-        const existingFiles = intersection(currentFiles, oldFilePaths);
-        for (const existingFile of existingFiles) {
-          const tfile: TreeFile = oldFilesMap.get(existingFile);
-          if (!tfile) {
-            throw new Error(`File '${tfile.path}' not found during last-modified-check`);
-          }
 
-          promises.push(tfile.isFileModified(this));
+        if (reset & RESET.DELETE_MODIFIED_FILES) {
+          const existingFiles = intersection(currentFiles, oldFilePaths);
+          for (const existingFile of existingFiles) {
+            const tfile: TreeFile = oldFilesMap.get(existingFile);
+            if (!tfile) {
+              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+            }
+
+            promises.push(tfile.isFileModified(this));
+          }
         }
 
         return Promise.all(promises);
@@ -707,7 +710,7 @@ export class Repository {
    * controlled by the passed filter.
    * @param filter  Defines which entries the function returns
    */
-  async getStatus(filter?: FILTER): Promise<StatusEntry[]> {
+  async getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
     let oldFilesMap: Map<string, TreeFile>;
     let oldFilePaths: string[];
     const statusResult: StatusEntry[] = [];
