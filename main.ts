@@ -600,6 +600,13 @@ program
     console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
   });
 
+const switchDesc = `switch a commit, or create a branch
+  
+  ${chalk.bold('Examples')}
+  
+      switch to a branch
+        $ snow switch branch-name`;
+
 program
   .command('switch [branch-name]')
   .option('--discard-changes', 'force switch and discard changes in workdir')
