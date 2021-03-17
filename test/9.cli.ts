@@ -187,6 +187,112 @@ test('snow switch', async (t) => {
   t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
 });
 
+test.only('snow checkout', async (t) => {
+  let out: string | void;
+  const snow: string = getSnowexec(t);
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  // Create branch succesfully
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  for (let i = 0; i < 3; ++i) {
+    t.log(`Write abc${i}.txt`);
+    fse.writeFileSync(join(snowWorkdir, `abc${i}.txt`), `Hello World ${i}`);
+    // eslint-disable-next-line no-await-in-loop
+    await exec(t, snow, ['add', '.'], { cwd: snowWorkdir });
+    // eslint-disable-next-line no-await-in-loop
+    await exec(t, snow, ['commit', '-m', `add hello-world ${i}`], { cwd: snowWorkdir });
+
+    // eslint-disable-next-line no-await-in-loop
+    out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+    t.true((out as String).includes(`A branch 'branch-${i}' got created.`));
+  }
+
+  await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
+
+  let dirItems: DirItem[];
+  let dirPaths: string[];
+
+  const repo = await Repository.open(snowWorkdir);
+  const allCommits = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
+
+  // switch to all branches while no modifications are present in the working dir
+  t.log(`Switch to ${allCommits[1]}`);
+  await exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 1);
+  t.true(dirPaths.includes('abc0.txt'));
+
+  // We can now delete the Main branch
+  // For this unit-test, delete Main so we don't have two references for the same commit
+  // otherwise checking out the latest commit is ambigious
+  await exec(t, snow, ['branch', '--delete', 'Main'], { cwd: snowWorkdir });
+
+  t.log(`Switch to ${allCommits[2]}`);
+  await exec(t, snow, ['checkout', allCommits[2].hash], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 2);
+  t.true(dirPaths.includes('abc0.txt'));
+  t.true(dirPaths.includes('abc1.txt'));
+
+  t.log(`Switch to ${allCommits[3]}`);
+  await exec(t, snow, ['checkout', allCommits[3].hash], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 3);
+  t.true(dirPaths.includes('abc0.txt'));
+  t.true(dirPaths.includes('abc1.txt'));
+  t.true(dirPaths.includes('abc2.txt'));
+
+  t.log('Make some changes to the working directory');
+  t.log('  Update abc0.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc0.txt'), 'Hello World Fooooo');
+  t.log('  Write abc3.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc3.txt'), 'Hello World 3');
+  fse.removeSync(join(snowWorkdir, 'abc1.txt'));
+
+  // switch to branches while...
+  // ... one is modified (abc0.txt)
+  // ... one deleted (abc1.txt)
+  // ... one file is untouched (abc2.txt)
+  // ... and one added (abc.txt)
+
+  const error = await t.throwsAsync(async () => exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
+  const lines = error.message.split('\n');
+  t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
+  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
+  t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  t.true(lines.includes(`fatal: You have local changes to '${allCommits[1].hash}'; not switching branches.`));
+
+  t.log('Switch and discard the local changes');
+  await exec(t, snow, ['checkout', allCommits[1].hash, '--discard-changes'], { cwd: snowWorkdir });
+  dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
+  dirPaths = dirItems.map((d) => basename(d.path));
+  t.is(dirItems.length, 1);
+  t.true(dirPaths.includes('abc0.txt'));
+
+  t.log(`Switch back to ${allCommits[3].hash} and go from there`);
+  await exec(t, snow, ['checkout', allCommits[3].hash], { cwd: snowWorkdir });
+
+  t.log('Make some changes again to the working directory');
+  t.log('  Update abc0.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc0.txt'), 'Hello World Fooooo');
+  t.log('  Write abc3.txt');
+  fse.writeFileSync(join(snowWorkdir, 'abc3.txt'), 'Hello World 3');
+  fse.removeSync(join(snowWorkdir, 'abc1.txt'));
+
+  // switch back to branch-0 and keep all changes
+  await exec(t, snow, ['checkout', allCommits[1].hash, '--keep-changes'], { cwd: snowWorkdir });
+
+  // carried over the changes
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc0.txt')).toString(), 'Hello World Fooooo');
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc2.txt')).toString(), 'Hello World 2');
+  t.is(fse.readFileSync(join(snowWorkdir, 'abc3.txt')).toString(), 'Hello World 3');
+  t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
+});
+
 test('snow branch foo-branch', async (t) => {
   t.timeout(180000);
 
