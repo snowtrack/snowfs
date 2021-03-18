@@ -187,7 +187,7 @@ test('snow switch', async (t) => {
   t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
 });
 
-test.only('snow checkout', async (t) => {
+test('snow checkout', async (t) => {
   let out: string | void;
   const snow: string = getSnowexec(t);
   const snowWorkdir = generateUniqueTmpDirName();
