@@ -218,6 +218,7 @@ program
     }
 
     try {
+      opts = await parseOptions(opts);
       const repo = await Repository.open(process.cwd());
 
       if (opts.delete) {
@@ -228,8 +229,6 @@ program
         const oldTarget = await repo.deleteReference(REFERENCE_TYPE.BRANCH, branchName);
         console.log(`Deleted branch '${branchName}' (was ${oldTarget})`);
       } else {
-        opts = await parseOptions(opts);
-
         let data = {};
         if (opts.userData) {
           try {
@@ -252,61 +251,55 @@ program
     }
   });
 
-const checkoutDesc = `checkout a commit, or create a branch
-
-${chalk.bold('Examples')}
-
-    Checkout a commit
-      $ snow checkout 75f4d24726ce95dde1376c19a1ce16e53e7b1db7ffcb508f8abf57026784c040
-
-      - If there is only one reference pointing to '75f4d24..' then the reference is checked out.
-        If you still need to be in a detached head after the command, pass '-d'.
-
-      - If there is more than one reference pointing to '75f4d24..' an error is raised.
-
-      - If no reference is pointing to '75f4d24..', then the commit is checked out.
-
-    Create a new branch
-      $ snow checkout -b <branch-name> <start-point>
-      
-      - The branch must not exist yet, otherwise an error is raised`;
-
 program
   .command('checkout [target]')
-  .option('-b, --branch <branch-name>')
-  .option('-d, --detach', 'detach the branch')
-  .option('-n, --no-reset', "don't modify the worktree")
+  .option('--discard-changes', 'force switch and discard changes in workdir')
+  .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
-  .description(checkoutDesc)
+  .description('checkout a commit')
   .action(async (target: string | undefined, opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
 
     try {
+      opts = await parseOptions(opts);
       const repo = await Repository.open(process.cwd());
+      const targetCommit = repo.getCommitByHash(target);
+      if (!targetCommit) {
+        if (repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, target)) {
+          throw new Error(`target ${target} seems to be a branch and must be checked out via 'snow switch'`);
+        }
+        throw new Error(`cannot find commit '${target}'`);
+      }
 
-      if (opts.branch) { // snow checkout -b branch-name
-        opts = await parseOptions(opts);
-
-        let data = {};
-        if (opts.userData) {
-          try {
-            data = JSON.parse(opts.userData);
-          } catch (e) {
-            throw new Error(`invalid user-data: ${e}`);
+      if (target) {
+        if (opts.discardChanges && opts.keepChanges) {
+          throw new Error('either --discard-changes or --keep-changes can be used, not both');
+        } else if (!opts.discardChanges && !opts.keepChanges) {
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          for (const statusFile of statusFiles) {
+            if (statusFile.isModified()) {
+              process.stdout.write(`M ${statusFile.path}\n`);
+            } else if (statusFile.isNew()) {
+              process.stdout.write(`A ${statusFile.path}\n`);
+            } else if (statusFile.isDeleted()) {
+              process.stdout.write(`D ${statusFile.path}\n`);
+            }
+          }
+          if (statusFiles.length > 0) {
+            throw new Error(`You have local changes to '${target}'; not switching branches.`);
           }
         }
 
-        await repo.createNewReference(REFERENCE_TYPE.BRANCH, opts.branch, repo.getHead().hash, data);
-      } else if (target) { // snow checkout [hash]
-        let reset: RESET = RESET.NONE;
-        if (opts.detach) {
-          reset |= RESET.DETACH;
+        let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
+        if (!opts.keepChanges) {
+          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
         }
+
         await repo.checkout(target, reset);
       }
     } catch (error) {
@@ -626,18 +619,22 @@ program
   .option('--no-color')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
-  .description(switchDesc)
+  .description('switch a commit')
   .action(async (branchName: string | undefined, opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
 
     try {
+      opts = await parseOptions(opts);
       const repo = await Repository.open(process.cwd());
 
       if (branchName) {
         const targetCommit = repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, branchName);
         if (!targetCommit) {
+          if (repo.getCommitByHash(branchName)) {
+            throw new Error(`target ${branchName} seems to be a commit and must be checked out via 'snow checkout'`);
+          }
           throw new Error(`cannot find branch '${branchName}'`);
         }
 
