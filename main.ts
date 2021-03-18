@@ -252,15 +252,14 @@ program
   });
 
 program
-  .command('checkout [branch-name]')
+  .command('checkout [target]')
   .option('--discard-changes', 'force switch and discard changes in workdir')
   .option('-k, --keep-changes', "don't reset files in the workdir")
-  .option('-d, --detach', 'detach the branch')
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
-  .description('checkout a branch or commit')
+  .description('checkout a commit')
   .action(async (target: string | undefined, opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
@@ -269,6 +268,10 @@ program
     try {
       opts = await parseOptions(opts);
       const repo = await Repository.open(process.cwd());
+      const targetCommit = repo.getCommitByHash(target);
+      if (!targetCommit) {
+        throw new Error(`cannot find commit '${target}'`);
+      }
 
       if (target) {
         if (opts.discardChanges && opts.keepChanges) {
@@ -289,12 +292,9 @@ program
           }
         }
 
-        let reset: RESET = RESET.NONE;
+        let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
         if (!opts.keepChanges) {
           reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
-        }
-        if (opts.detach) {
-          reset |= RESET.DETACH;
         }
 
         await repo.checkout(target, reset);
