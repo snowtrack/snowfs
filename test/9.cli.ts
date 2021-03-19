@@ -683,7 +683,7 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   await exec(t, snow,
-    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
     `--user-data:${JSON.stringify(uData)}`);
 
@@ -720,7 +720,7 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
   const error = await t.throwsAsync(async () => exec(t, snow,
-    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
 
   const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
