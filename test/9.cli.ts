@@ -37,6 +37,9 @@ async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, 
     });
     p0.on('exit', (code) => {
       if (code === 0) {
+        // if used in Visual Studio these are some debug outputs added to the output
+        std = std.replace(/Debugger attached./, '').trimLeft();
+        std = std.replace(/Waiting for the debugger to disconnect.../, '').trimRight();
         resolve(std ?? undefined);
       } else {
         reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${std}`));
