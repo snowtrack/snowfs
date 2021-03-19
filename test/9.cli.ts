@@ -37,6 +37,9 @@ async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, 
     });
     p0.on('exit', (code) => {
       if (code === 0) {
+        // if used in Visual Studio these are some debug outputs added to the output
+        std = std.replace(/Debugger attached./, '').trimLeft();
+        std = std.replace(/Waiting for the debugger to disconnect.../, '').trimRight();
         resolve(std ?? undefined);
       } else {
         reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${std}`));
@@ -680,7 +683,7 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
   await exec(t, snow,
-    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
     `--user-data:${JSON.stringify(uData)}`);
 
@@ -717,7 +720,7 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
   const error = await t.throwsAsync(async () => exec(t, snow,
-    ['checkout', '-b', branchName, '--input=stdin'], { cwd: snowWorkdir },
+    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
 
   const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
