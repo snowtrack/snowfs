@@ -576,6 +576,7 @@ test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
     `--user-data: ${JSON.stringify(uData)}`);
 
   const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  console.log(out);
   const c: any = JSON.parse(String(out));
 
   let identical = false;
