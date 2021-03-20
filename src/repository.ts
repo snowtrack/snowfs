@@ -463,9 +463,34 @@ export class Repository {
 
   /**
    * Return the commit by a given commit hash.
+   * @param hash      Requested hash, or `HEAD~n`.
+   * @throws          Throws an exception if 'hash' is of invalid syntax, e.g. HEAD~non-number.
+   * @returns         Requested commit, or null if not found.
    */
-  getCommitByHash(hash: string): Commit {
-    return this.commitMap.get(hash);
+  getCommitByHash(hash: string): Commit | null {
+    let commit: Commit = null;
+    for (const idx of hash.split('~')) {
+      if (idx === 'HEAD') {
+        commit = this.commitMap.get(this.getHead().hash);
+      } else if (commit) {
+        const iteration: number = parseInt(idx, 10);
+        if (Number.isNaN(iteration)) {
+          throw Error(`invalid commit-hash '${hash}'`);
+        }
+        for (let i = 0; i < iteration; ++i) {
+          if (!commit.parent || commit.parent.length === 0) {
+            throw new Error(`commit ${commit.hash} has no parent`);
+          }
+          commit = this.commitMap.get(commit.parent[0]);
+          if (!commit) {
+            throw new Error(`commit hash '${hash}' out of history`);
+          }
+        }
+      } else {
+        throw new Error("commit hash must begin with 'HEAD'");
+      }
+    }
+    return (commit === undefined) ? null : commit;
   }
 
   /**
