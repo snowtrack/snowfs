@@ -486,8 +486,6 @@ export class Repository {
             throw new Error(`commit hash '${hash}' out of history`);
           }
         }
-      } else {
-        throw new Error("commit hash must begin with 'HEAD'");
       }
     }
     return (commit === undefined) ? null : commit;

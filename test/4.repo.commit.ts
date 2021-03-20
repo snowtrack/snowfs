@@ -297,8 +297,4 @@ test('HEAD~n --- ERROR INPUTS', async (t) => {
   t.log('Test HEAD~6 for failure');
   const error1 = t.throws(() => repo.findCommitByHash('HEAD~6'));
   t.is(error1.message, "commit hash 'HEAD~6' out of history");
-
-  t.log('Test HEADXYZKHKJSFhKJHKJGHDKJHGKDJHG for failure');
-  const error2 = t.throws(() => repo.findCommitByHash('HEADXYZKHKJSFhKJHKJGHDKJHGKDJHG'));
-  t.is(error2.message, "commit hash must begin with 'HEAD'");
 });
