@@ -469,24 +469,29 @@ export class Repository {
    */
   findCommitByHash(hash: string): Commit | null {
     let commit: Commit = null;
-    for (const idx of hash.split('~')) {
-      if (idx === 'HEAD') {
-        commit = this.commitMap.get(this.getHead().hash);
-      } else if (commit) {
-        const iteration: number = parseInt(idx, 10);
-        if (Number.isNaN(iteration)) {
-          throw Error(`invalid commit-hash '${hash}'`);
-        }
-        for (let i = 0; i < iteration; ++i) {
-          if (!commit.parent || commit.parent.length === 0) {
-            throw new Error(`commit ${commit.hash} has no parent`);
+    const hashSplit = hash.split('~');
+    if (hashSplit.length > 1) {
+      for (const idx of hash.split('~')) {
+        if (idx === 'HEAD') {
+          commit = this.commitMap.get(this.getHead().hash);
+        } else if (commit) {
+          const iteration: number = parseInt(idx, 10);
+          if (Number.isNaN(iteration)) {
+            throw Error(`invalid commit-hash '${hash}'`);
           }
-          commit = this.commitMap.get(commit.parent[0]);
-          if (!commit) {
-            throw new Error(`commit hash '${hash}' out of history`);
+          for (let i = 0; i < iteration; ++i) {
+            if (!commit.parent || commit.parent.length === 0) {
+              throw new Error(`commit ${commit.hash} has no parent`);
+            }
+            commit = this.commitMap.get(commit.parent[0]);
+            if (!commit) {
+              throw new Error(`commit hash '${hash}' out of history`);
+            }
           }
         }
       }
+    } else {
+      commit = this.commitMap.get(hash);
     }
     return (commit === undefined) ? null : commit;
   }
