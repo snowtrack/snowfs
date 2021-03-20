@@ -467,7 +467,7 @@ export class Repository {
    * @throws          Throws an exception if 'hash' is of invalid syntax, e.g. HEAD~non-number.
    * @returns         Requested commit, or null if not found.
    */
-  getCommitByHash(hash: string): Commit | null {
+  findCommitByHash(hash: string): Commit | null {
     let commit: Commit = null;
     for (const idx of hash.split('~')) {
       if (idx === 'HEAD') {
@@ -607,7 +607,7 @@ export class Repository {
       const ref: Reference = this.findReferenceByName(REFERENCE_TYPE.BRANCH, target);
       if (ref) {
         targetRef = ref;
-        targetCommit = this.getCommitByHash(ref.target());
+        targetCommit = this.findCommitByHash(ref.target());
       } else {
         // ... otherwise check if its a hash
         const refs: Reference[] = this.filterReferenceByHash(target);
@@ -616,17 +616,17 @@ export class Repository {
         if (refs.length === 0) {
           // if no reference was found by name, nor a reference that points
           // to the commit hash, try if the target is a commit hash
-          targetCommit = this.getCommitByHash(target);
+          targetCommit = this.findCommitByHash(target);
         } else if (refs.length > 1) {
           throw new Error(`more than one ref found for ${target}`);
         } else {
           targetRef = refs[0];
-          targetCommit = this.getCommitByHash(refs[0].target());
+          targetCommit = this.findCommitByHash(refs[0].target());
         }
       }
     } else if (target instanceof Reference) {
       targetRef = target;
-      targetCommit = this.getCommitByHash((target as Reference).hash);
+      targetCommit = this.findCommitByHash((target as Reference).hash);
     } else if (target instanceof Commit) {
       const refs: Reference[] = this.filterReferenceByHash(target.hash);
       // if more than one ref is available we end up in a detached HEAD

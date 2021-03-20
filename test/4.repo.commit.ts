@@ -258,31 +258,31 @@ test('HEAD~n', async (t) => {
   let res: Commit;
 
   t.log('Test HEAD~0');
-  res = repo.getCommitByHash('HEAD~0');
+  res = repo.findCommitByHash('HEAD~0');
   t.is(res.hash, commit5.hash);
 
   t.log('Test HEAD~1');
-  res = repo.getCommitByHash('HEAD~1');
+  res = repo.findCommitByHash('HEAD~1');
   t.is(res.hash, commit4.hash);
 
   t.log('Test HEAD~2');
-  res = repo.getCommitByHash('HEAD~2');
+  res = repo.findCommitByHash('HEAD~2');
   t.is(res.hash, commit3.hash);
 
   t.log('Test HEAD~3');
-  res = repo.getCommitByHash('HEAD~3');
+  res = repo.findCommitByHash('HEAD~3');
   t.is(res.hash, commit2.hash);
 
   t.log('Test HEAD~4');
-  res = repo.getCommitByHash('HEAD~4');
+  res = repo.findCommitByHash('HEAD~4');
   t.is(res.hash, commit1.hash);
 
   t.log('Test HEAD~1~2');
-  res = repo.getCommitByHash('HEAD~1~2'); // ~1~2 ==> 3 commits back from HEAD
+  res = repo.findCommitByHash('HEAD~1~2'); // ~1~2 ==> 3 commits back from HEAD
   t.is(res.hash, commit2.hash);
 
   t.log('Test HEAD~1~1~1~1');
-  res = repo.getCommitByHash('HEAD~1~1~1~1'); // ~1~1~1~1 ==> 4 commits back from HEAD
+  res = repo.findCommitByHash('HEAD~1~1~1~1'); // ~1~1~1~1 ==> 4 commits back from HEAD
   t.is(res.hash, commit1.hash);
 });
 
@@ -291,14 +291,14 @@ test('HEAD~n --- ERROR INPUTS', async (t) => {
   const repo = await Repository.initExt(repoPath);
 
   t.log('Test HEAD~A for failure');
-  const error0 = t.throws(() => repo.getCommitByHash('HEAD~A'));
+  const error0 = t.throws(() => repo.findCommitByHash('HEAD~A'));
   t.is(error0.message, "invalid commit-hash 'HEAD~A'");
 
   t.log('Test HEAD~6 for failure');
-  const error1 = t.throws(() => repo.getCommitByHash('HEAD~6'));
+  const error1 = t.throws(() => repo.findCommitByHash('HEAD~6'));
   t.is(error1.message, "commit hash 'HEAD~6' out of history");
 
   t.log('Test HEADXYZKHKJSFhKJHKJGHDKJHGKDJHG for failure');
-  const error2 = t.throws(() => repo.getCommitByHash('HEADXYZKHKJSFhKJHKJGHDKJHGKDJHG'));
+  const error2 = t.throws(() => repo.findCommitByHash('HEADXYZKHKJSFhKJHKJGHDKJHGKDJHG'));
   t.is(error2.message, "commit hash must begin with 'HEAD'");
 });
