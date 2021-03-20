@@ -233,3 +233,68 @@ test('custom-commit-data', async (t) => {
     t.is(lastCommit.userData.bas, 3);
   });
 });
+
+async function makeCommit(repo: Repository, message: string): Promise<Commit> {
+  return fse.writeFile(join(repo.workdir(), 'foo.txt'), message)
+    .then(() => {
+      const index = repo.ensureMainIndex();
+      index.addFiles(['foo.txt']);
+      return index.writeFiles();
+    }).then(() => {
+      const index = repo.getFirstIndex();
+      return repo.createCommit(index, message);
+    });
+}
+
+test('HEAD~n', async (t) => {
+  const repoPath = getRandomPath();
+  const repo = await Repository.initExt(repoPath);
+  const commit1: Commit = await makeCommit(repo, '1st-commit');
+  const commit2: Commit = await makeCommit(repo, '2nd-commit');
+  const commit3: Commit = await makeCommit(repo, '3rd-commit');
+  const commit4: Commit = await makeCommit(repo, '4th-commit');
+  const commit5: Commit = await makeCommit(repo, '5th-commit');
+
+  let res: Commit;
+
+  t.log('Test HEAD~0');
+  res = repo.findCommitByHash('HEAD~0');
+  t.is(res.hash, commit5.hash);
+
+  t.log('Test HEAD~1');
+  res = repo.findCommitByHash('HEAD~1');
+  t.is(res.hash, commit4.hash);
+
+  t.log('Test HEAD~2');
+  res = repo.findCommitByHash('HEAD~2');
+  t.is(res.hash, commit3.hash);
+
+  t.log('Test HEAD~3');
+  res = repo.findCommitByHash('HEAD~3');
+  t.is(res.hash, commit2.hash);
+
+  t.log('Test HEAD~4');
+  res = repo.findCommitByHash('HEAD~4');
+  t.is(res.hash, commit1.hash);
+
+  t.log('Test HEAD~1~2');
+  res = repo.findCommitByHash('HEAD~1~2'); // ~1~2 ==> 3 commits back from HEAD
+  t.is(res.hash, commit2.hash);
+
+  t.log('Test HEAD~1~1~1~1');
+  res = repo.findCommitByHash('HEAD~1~1~1~1'); // ~1~1~1~1 ==> 4 commits back from HEAD
+  t.is(res.hash, commit1.hash);
+});
+
+test('HEAD~n --- ERROR INPUTS', async (t) => {
+  const repoPath = getRandomPath();
+  const repo = await Repository.initExt(repoPath);
+
+  t.log('Test HEAD~A for failure');
+  const error0 = t.throws(() => repo.findCommitByHash('HEAD~A'));
+  t.is(error0.message, "invalid commit-hash 'HEAD~A'");
+
+  t.log('Test HEAD~6 for failure');
+  const error1 = t.throws(() => repo.findCommitByHash('HEAD~6'));
+  t.is(error1.message, "commit hash 'HEAD~6' out of history");
+});

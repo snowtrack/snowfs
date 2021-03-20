@@ -268,7 +268,7 @@ program
     try {
       opts = await parseOptions(opts);
       const repo = await Repository.open(process.cwd());
-      const targetCommit = repo.getCommitByHash(target);
+      const targetCommit = repo.findCommitByHash(target);
       if (!targetCommit) {
         if (repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, target)) {
           throw new Error(`target ${target} seems to be a branch and must be checked out via 'snow switch'`);
@@ -632,7 +632,7 @@ program
       if (branchName) {
         const targetCommit = repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, branchName);
         if (!targetCommit) {
-          if (repo.getCommitByHash(branchName)) {
+          if (repo.findCommitByHash(branchName)) {
             throw new Error(`target ${branchName} seems to be a commit and must be checked out via 'snow checkout'`);
           }
           throw new Error(`cannot find branch '${branchName}'`);
