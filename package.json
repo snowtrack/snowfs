@@ -9,7 +9,8 @@
     "snowfs": "node -r ts-node/register main.ts",
     "benchmarks": "NODE_ENV=benchmark node --require ts-node/register benchmarks/snowfs-vs-git.ts",
     "ava": "nyc --reporter=html --reporter=lcov --reporter=text ava --timeout 900s --verbose --serial --fail-fast --color true",
-    "docs": "typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default"
+    "docs": "typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default",
+    "test": "ava"
   },
   "ava": {
     "extensions": [
@@ -28,7 +29,8 @@
       "test/3.repo.open.ts",
       "test/4.repo.commit.ts",
       "test/8.iocontext.ts",
-      "test/9.cli.ts"
+      "test/9.cli.ts",
+      "test/11.ignore.ts"
     ]
   },
   "keywords": [],
