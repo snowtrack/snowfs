@@ -168,11 +168,11 @@ test('Ignore nested subdirectory', async (t) => {
     t.true(files.includes('file3.txt'));
     t.true(files.includes('file4.txt'));
     t.true(files.includes('file5.txt'));
-    t.true(files.includes(join('subdir', 'file1.txt')));
-    t.true(files.includes(join('subdir', 'file2.txt')));
-    t.true(files.includes(join('subdir', 'file3.txt')));
-    t.true(files.includes(join('subdir', 'file4.txt')));
-    t.true(files.includes(join('subdir', 'file5.txt')));
+    t.true(files.includes('subdir/file1.txt'));
+    t.true(files.includes('subdir/file2.txt'));
+    t.true(files.includes('subdir/file3.txt'));
+    t.true(files.includes('subdir/file4.txt'));
+    t.true(files.includes('subdir/file5.txt'));
   });
 });
 
@@ -214,11 +214,11 @@ test('Ignore comments in ignore', async (t) => {
     t.true(files.includes('file3.txt'));
     t.true(files.includes('file4.txt'));
     t.true(files.includes('file5.txt'));
-    t.true(files.includes(join('subdir', 'file1.txt')));
-    t.true(files.includes(join('subdir', 'file2.txt')));
-    t.true(files.includes(join('subdir', 'file3.txt')));
-    t.true(files.includes(join('subdir', 'file4.txt')));
-    t.true(files.includes(join('subdir', 'file5.txt')));
+    t.true(files.includes('subdir/file1.txt'));
+    t.true(files.includes('subdir/file2.txt'));
+    t.true(files.includes('subdir/file3.txt'));
+    t.true(files.includes('subdir/file4.txt'));
+    t.true(files.includes('subdir/file5.txt'));
   });
 });
 
@@ -296,6 +296,6 @@ test('Ignore inverse', async (t) => {
     t.true(files.includes('file3.txt'));
     t.true(files.includes('file4.txt'));
     t.true(files.includes('file5.txt'));
-    t.true(files.includes(join('subdir/file5.txt')));
+    t.true(files.includes('subdir/file5.txt'));
   });
 });
