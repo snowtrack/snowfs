@@ -122,7 +122,7 @@ export const enum FILTER {
   INCLUDE_DIRECTORIES = 8,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED,
+  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED,
 
   /** TODO: Not implemented yet. */
   SORT_CASE_SENSITIVELY = 512,
@@ -747,7 +747,7 @@ export class Repository {
     let ignore: IgnoreManager;
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, 'snowignore.txt');
+    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
