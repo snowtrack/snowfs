@@ -171,7 +171,7 @@ $ snow log
 $ git clone https://github.com/Snowtrack/snowfs.git
 $ cd snowfs.git
 $ npm install
-$ npm run test
+$ npm run ava
 ```
 
 3. To build a **production build including the CLI**, execute the commands above, and continue with the commands below:
