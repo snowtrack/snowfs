@@ -52,6 +52,8 @@
     "drivelist": "^9.2.4",
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
+    "micromatch": "^4.0.2",
+    "nanomatch": "^1.2.13",
     "ts-node": "^9.1.1"
   },
   "devDependencies": {

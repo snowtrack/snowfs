@@ -1,13 +1,12 @@
 import * as fse from 'fs-extra';
 
-export class IgnoreManager {
-    ignores: RegExp[];
+const nm = require('nanomatch');
 
-    includes: RegExp[];
+export class IgnoreManager {
+    patterns: string[];
 
     async init(filepath: string) {
-      this.ignores = [];
-      this.includes = [];
+      this.patterns = ['**'];
 
       return fse.readFile(filepath).then((value: Buffer) => {
         const lines: string[] = value.toString().split('\n');
@@ -15,34 +14,25 @@ export class IgnoreManager {
           line = line.trim();
           if (line.length > 0 && !line.startsWith('//')) {
             line = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''); // remove /* comment */ or // comment
-            line = line.replace('\\', '/'); // windows dir seperator char
+
+            // Invert ! here.
+            // nanomatch includes every elements, means no ! in snowignore will ignore the file,
+            // whereas ! means to actually include it
             if (line.startsWith('!')) {
-              this.includes.push(new RegExp(line.substr(1, line.length - 1).replace(/\*/, '[\\w/]*')));
+              this.patterns.push(line.substring(1, line.length - 2));
             } else {
-              this.ignores.push(new RegExp(line.replace(/\*/, '[\\w/]*')));
+              this.patterns.push(`!${line}`);
             }
           }
         }
       });
     }
 
-    ignored(filepath: string): boolean {
-      for (const ignore of this.ignores) {
-        if (ignore.exec(filepath)) {
-          let keep: boolean = false;
-          for (const include of this.includes) {
-            if (include.exec(filepath)) {
-              keep = true;
-              break;
-            }
-          }
-          if (keep) {
-            continue;
-          } else {
-            return true;
-          }
-        }
-      }
-      return false;
+    filter(filepaths: string[]): string[] {
+      return nm(filepaths, this.patterns);
+    }
+
+    contains(filepath: string): boolean {
+      return nm.contains(filepath, this.patterns);
     }
 }
