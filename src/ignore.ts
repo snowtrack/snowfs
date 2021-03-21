@@ -14,7 +14,8 @@ export class IgnoreManager {
         for (let line of lines) {
           line = line.trim();
           if (line.length > 0 && !line.startsWith('//')) {
-            line = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+            line = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''); // remove /* comment */ or // comment
+            line = line.replace('\\', '/'); // windows dir seperator char
             if (line.startsWith('!')) {
               this.includes.push(new RegExp(line.substr(1, line.length - 1).replace(/\*/, '[\\w/]*')));
             } else {
