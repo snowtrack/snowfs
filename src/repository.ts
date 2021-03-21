@@ -744,7 +744,7 @@ export class Repository {
     const statusResult: StatusEntry[] = [];
     const currentFiles: string[] = [];
 
-    let ignore: IgnoreManager;
+    let ignore: IgnoreManager | null = null;
 
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
@@ -791,7 +791,9 @@ export class Repository {
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // Files which didn't exist before, but do now
           let newFiles: string[] = difference(currentFiles, oldFilePaths);
-          newFiles = ignore.filter(newFiles);
+          if (ignore) {
+            newFiles = ignore.filter(newFiles);
+          }
           for (const newFile of newFiles) {
             statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
           }
@@ -799,14 +801,18 @@ export class Repository {
 
         // Files which existed before but don't anymore
         let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
-        deletedFiles = ignore.filter(deletedFiles);
+        if (ignore) {
+          deletedFiles = ignore.filter(deletedFiles);
+        }
         for (const deletedFile of deletedFiles) {
           statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
         }
 
         const promises = [];
         let existingFiles = intersection(currentFiles, oldFilePaths);
-        existingFiles = ignore.filter(existingFiles);
+        if (ignore) {
+          existingFiles = ignore.filter(existingFiles);
+        }
         for (const existingFile of existingFiles) {
           const tfile: TreeFile = oldFilesMap.get(existingFile);
           if (!tfile) {

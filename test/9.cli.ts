@@ -1,11 +1,9 @@
 import test from 'ava';
 
-import * as crypto from 'crypto';
-import * as os from 'os';
 import * as fse from 'fs-extra';
 
 import { join, dirname, basename } from 'path';
-import { exec, EXEC_OPTIONS } from './helper';
+import { exec, generateUniqueTmpDirName, EXEC_OPTIONS } from './helper';
 import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -19,11 +17,6 @@ function getSnowexec(t): string {
     default:
       throw new Error('Unsupported Operating System');
   }
-}
-
-function generateUniqueTmpDirName(): string {
-  const id = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-  return join(os.tmpdir(), `snowfs-cli-test-${id}`);
 }
 
 // test doesn't work on the GitHub runners

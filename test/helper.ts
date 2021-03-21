@@ -11,6 +11,11 @@ export enum EXEC_OPTIONS {
     WRITE_STDIN = 2
 }
 
+export function generateUniqueTmpDirName(): string {
+  const id = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
+  return join(os.tmpdir(), `snowfs-cli-test-${id}`);
+}
+
 export function getRandomPath(): string {
   // eslint-disable-next-line no-constant-condition
   while (true) {

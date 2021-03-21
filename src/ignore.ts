@@ -1,13 +1,15 @@
 import * as fse from 'fs-extra';
 
-const nm = require('nanomatch');
+const nm = require('micromatch');
 
 export class IgnoreManager {
     patterns: string[];
 
-    async init(filepath: string) {
-      this.patterns = ['**'];
+    constructor() {
+      this.patterns = ['**', '!.DS_Store', '!thumbs.db', '!._.*'];
+    }
 
+    async init(filepath: string) {
       return fse.readFile(filepath).then((value: Buffer) => {
         const lines: string[] = value.toString().split('\n');
         for (let line of lines) {
@@ -19,9 +21,16 @@ export class IgnoreManager {
             // nanomatch includes every elements, means no ! in snowignore will ignore the file,
             // whereas ! means to actually include it
             if (line.startsWith('!')) {
-              this.patterns.push(line.substring(1, line.length - 2));
+              line = line.substr(1, line.length - 1);
+              this.patterns.push(line);
+              if (!line.endsWith('/')) { // could be a file or directory
+                this.patterns.push(`${line}/**`);
+              }
             } else {
               this.patterns.push(`!${line}`);
+              if (!line.endsWith('/')) { // could be a file or directory
+                this.patterns.push(`!${line}/**`);
+              }
             }
           }
         }
@@ -29,10 +38,10 @@ export class IgnoreManager {
     }
 
     filter(filepaths: string[]): string[] {
-      return nm(filepaths, this.patterns);
+      return nm(filepaths, this.patterns, { dot: true });
     }
 
     contains(filepath: string): boolean {
-      return nm.contains(filepath, this.patterns);
+      return nm.contains(filepath, this.patterns, { dot: true });
     }
 }

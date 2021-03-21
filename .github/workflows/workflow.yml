@@ -43,7 +43,7 @@ jobs:
       - run: npm install
 
       - name: Run Tests
-        run: npm run ava
+        run: npm run test
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
@@ -90,7 +90,7 @@ jobs:
       - run: npm install
 
       - name: Run Tests
-        run: npm run ava
+        run: npm run test
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2

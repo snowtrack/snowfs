@@ -28,9 +28,9 @@
       "test/2.repo.init.ts",
       "test/3.repo.open.ts",
       "test/4.repo.commit.ts",
+      "test/6.ignore.ts",
       "test/8.iocontext.ts",
-      "test/9.cli.ts",
-      "test/11.ignore.ts"
+      "test/9.cli.ts"
     ]
   },
   "keywords": [],
@@ -53,7 +53,6 @@
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
     "micromatch": "^4.0.2",
-    "nanomatch": "^1.2.13",
     "ts-node": "^9.1.1"
   },
   "devDependencies": {
