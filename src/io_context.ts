@@ -213,17 +213,6 @@ export class IoContext {
     return i === j;
   }
 
-  /**
-   * Moves a file or directory, even across devices.
-   * @param src   source filename to move
-   * @param dst   destination filename of the move operation
-   * @param options  overwrite existing file or directory, default is `false`.
-   */
-  async move(src: string, dst: string, options?: fse.MoveOptions): Promise<void> {
-    this.checkIfInitialized();
-    return fse.move(src, dst, options);
-  }
-
   private async copyFileApfs(src: string, dst: string): Promise<void> {
     return fse.stat(src).then((stat: fse.Stats) => {
       // TODO: (Need help)
