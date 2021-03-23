@@ -609,7 +609,7 @@ test('compareFileHash test', async (t) => {
   }
 });
 
-test.only('fss.writeSafeFile test', async (t) => {
+test('fss.writeSafeFile test', async (t) => {
   try {
     const tmpDir = fse.mkdtempSync(join(os.tmpdir(), 'snowtrack-'));
     const tmpFile = join(tmpDir, 'foo.txt');
