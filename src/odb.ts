@@ -7,8 +7,9 @@ import {
 import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
+import * as fss from './fs-safe';
 
-import { REFERENCE_TYPE, Repository, RepositoryInitOptions } from './repository';
+import { Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import { calculateFileHash, FileInfo, HashBlock } from './common';
@@ -155,7 +156,7 @@ export class Odb {
   async writeHeadReference(head: Reference) {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.writeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName());
+    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName());
   }
 
   async readHeadReference(): Promise<string | null> {
@@ -185,7 +186,7 @@ export class Odb {
 
     const refPath = join(refsDir, ref.getName());
 
-    return fse.writeFile(refPath, JSON.stringify({
+    return fss.writeSafeFile(refPath, JSON.stringify({
       hash: ref.hash,
       type: ref.type,
       start: ref.startHash ? ref.startHash : undefined,
@@ -263,7 +264,7 @@ export class Odb {
       .then(() => {
         if (hashBlocks) {
           const content: string = hashBlocks.map((block: HashBlock) => `${block.start};${block.end};${block.hash};`).join('\n');
-          return fse.writeFile(`${dstFile}.hblock`, content);
+          return fss.writeSafeFile(`${dstFile}.hblock`, content);
         }
         return Promise.resolve();
       })
