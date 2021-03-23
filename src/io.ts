@@ -58,7 +58,7 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
       const dirItemsTmp: DirItem[] = [];
 
       for (const entry of entries) {
-        if (ignoreSnowtrack && (entry.startsWith('.snow') || entry.startsWith('.git'))) {
+        if (ignoreSnowtrack && (entry === '.snow' || entry.startsWith('.snow/') || entry.startsWith('.git'))) {
           continue;
         } else if (!returnHidden && entry.startsWith('.')) {
           continue;

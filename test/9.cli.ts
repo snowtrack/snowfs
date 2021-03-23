@@ -1,52 +1,12 @@
 import test from 'ava';
 
-import * as crypto from 'crypto';
-import * as os from 'os';
 import * as fse from 'fs-extra';
 
-import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
+import { exec, generateUniqueTmpDirName, EXEC_OPTIONS } from './helper';
 import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';
 import { DirItem, OSWALK, osWalk } from '../src/io';
-
-enum EXEC_OPTIONS {
-  RETURN_STDOUT = 1,
-  WRITE_STDIN = 2
-}
-
-async function exec(t, command: string, args?: string[], opts?: {cwd?: string}, stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
-  t.log(`Execute ${command} ${args.join(' ')}`);
-
-  const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
-  return new Promise((resolve, reject) => {
-    let std: string = '';
-    if (stdiopts & EXEC_OPTIONS.WRITE_STDIN) {
-      p0.stdin.write(`${stdin}\n`);
-      p0.stdin.end(); /// this call seems necessary, at least with plain node.js executable
-    }
-    p0.stdout.on('data', (data) => {
-      if (stdiopts & EXEC_OPTIONS.RETURN_STDOUT) {
-        std += data.toString();
-      } else {
-        t.log(data.toString());
-      }
-    });
-    p0.stderr.on('data', (data) => {
-      std += data.toString();
-    });
-    p0.on('exit', (code) => {
-      if (code === 0) {
-        // if used in Visual Studio these are some debug outputs added to the output
-        std = std.replace(/Debugger attached./, '').trimLeft();
-        std = std.replace(/Waiting for the debugger to disconnect.../, '').trimRight();
-        resolve(std ?? undefined);
-      } else {
-        reject(Error(`Failed to execute ${command} ${args.join(' ')} with exit-code ${code}\n${std}`));
-      }
-    });
-  });
-}
 
 function getSnowexec(t): string {
   switch (process.platform) {
@@ -57,11 +17,6 @@ function getSnowexec(t): string {
     default:
       throw new Error('Unsupported Operating System');
   }
-}
-
-function generateUniqueTmpDirName(): string {
-  const id = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-  return join(os.tmpdir(), `snowfs-cli-test-${id}`);
 }
 
 // test doesn't work on the GitHub runners

@@ -1,9 +1,7 @@
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import test from 'ava';
-import os from 'os';
 
 import { join } from 'path';
 import { Commit } from '../src/commit';
@@ -12,17 +10,7 @@ import { Index } from '../src/index';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
-
-function getRandomPath(): string {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const name = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-    const repoPath = join(os.tmpdir(), 'snowtrack-repo', name);
-    if (!fse.pathExistsSync(repoPath)) {
-      return repoPath;
-    }
-  }
-}
+import { getRandomPath } from './helper';
 
 async function rmDirRecursive(dir: string): Promise<void> {
   return new Promise((resolve, reject) => {

@@ -122,7 +122,7 @@ export const enum FILTER {
   INCLUDE_DIRECTORIES = 8,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED,
+  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED,
 
   /** TODO: Not implemented yet. */
   SORT_CASE_SENSITIVELY = 512,
@@ -744,10 +744,10 @@ export class Repository {
     const statusResult: StatusEntry[] = [];
     const currentFiles: string[] = [];
 
-    let ignore: IgnoreManager;
+    let ignore: IgnoreManager | null = null;
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, 'ignore');
+    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
@@ -790,24 +790,29 @@ export class Repository {
 
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // Files which didn't exist before, but do now
-          const newFiles: string[] = difference(currentFiles, oldFilePaths);
+          let newFiles: string[] = difference(currentFiles, oldFilePaths);
+          if (ignore) {
+            newFiles = ignore.filter(newFiles);
+          }
           for (const newFile of newFiles) {
-            if (!ignore || !ignore.ignored(newFile)) {
-              statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
-            }
+            statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
           }
         }
 
         // Files which existed before but don't anymore
-        const deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+        let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+        if (ignore) {
+          deletedFiles = ignore.filter(deletedFiles);
+        }
         for (const deletedFile of deletedFiles) {
-          if (!ignore || !ignore.ignored(deletedFile)) {
-            statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
-          }
+          statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
         }
 
         const promises = [];
-        const existingFiles = intersection(currentFiles, oldFilePaths);
+        let existingFiles = intersection(currentFiles, oldFilePaths);
+        if (ignore) {
+          existingFiles = ignore.filter(existingFiles);
+        }
         for (const existingFile of existingFiles) {
           const tfile: TreeFile = oldFilesMap.get(existingFile);
           if (!tfile) {
@@ -822,7 +827,7 @@ export class Repository {
       .then((existingFiles: {file: TreeFile; modified : boolean}[]) => {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
-            if (!ignore || !ignore.ignored(existingFile.file.path)) {
+            if (!ignore || ignore.contains(existingFile.file.path)) {
               statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
             }
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
