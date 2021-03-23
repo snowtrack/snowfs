@@ -1,11 +1,11 @@
 import * as fse from 'fs-extra';
-import * as crypto from 'crypto';
 
 import { difference, intersection } from 'lodash';
 
 import {
   isAbsolute, join, relative, basename,
 } from 'path';
+import * as fss from './fs-safe';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
@@ -126,8 +126,7 @@ export class Index {
       }
       return value;
     });
-
-    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fse.writeFile(this.getAbsPath(), userData));
+    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData));
   }
 
   /**

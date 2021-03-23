@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as fse from 'fs-extra';
 import * as os from 'os';
-import * as fs from 'fs';
 import * as unzipper from 'unzipper';
 
 import test from 'ava';
@@ -9,6 +8,7 @@ import test from 'ava';
 import {
   join, relative, dirname, sep,
 } from 'path';
+import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100, properNormalize,
@@ -337,7 +337,7 @@ async function testGitZip(t, zipname: string): Promise<string> {
       tmpDir = tmpDirResult;
       const gitanddstPath: string = join(__dirname, zipname);
       t.log(`Unzip: ${zipname}`);
-      return unzipper.Open.buffer(fs.readFileSync(gitanddstPath));
+      return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
     .then((d) => d.extract({ path: tmpDir, concurrency: 5 }))
     .then(() =>
@@ -603,6 +603,24 @@ test('compareFileHash test', async (t) => {
       }
       fse.unlinkSync(foo);
     }
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test.only('fss.writeSafeFile test', async (t) => {
+  try {
+    const tmpDir = fse.mkdtempSync(join(os.tmpdir(), 'snowtrack-'));
+    const tmpFile = join(tmpDir, 'foo.txt');
+
+    await fss.writeSafeFile(tmpFile, 'Foo1');
+    t.true(fse.pathExistsSync(tmpFile));
+    t.is(fse.readFileSync(tmpFile).toString(), 'Foo1');
+
+    await fss.writeSafeFile(tmpFile, 'Foo2');
+    t.true(fse.pathExistsSync(tmpFile));
+    t.is(fse.readFileSync(tmpFile).toString(), 'Foo2');
   } catch (error) {
     console.error(error);
     t.fail(error.message);
