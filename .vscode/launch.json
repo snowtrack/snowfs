@@ -50,6 +50,7 @@
         "type": "pwa-node",
         "request": "launch",
         "name": "Launch Benchmark",
+        "env": { "NODE_ENV": "benchmark" },
         "resolveSourceMapLocations": [
           "${workspaceFolder}/**",
           "!**/node_modules/**"
@@ -59,7 +60,7 @@
             "ts-node/register"
         ],
         "args": [
-            "${workspaceFolder}/benchmarks/snowfs-vs-git.ts"
+            "${workspaceFolder}/benchmark/snowfs-vs-git.ts"
         ]
     },
   ]

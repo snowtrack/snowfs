@@ -91,7 +91,7 @@ We have also implemented a comparison benchmark between **SnowFS** vs. **git-lfs
 After executing the [build instructions](#build-instructions) for a development build, the benchmarks can be executed with the following command:
 
 ```bash
-$ npm run benchmarks
+$ npm run benchmark
 ```
 
 Example run on a Macbook Pro (2020) with an APFS formatted SSD to check-in, delete and restore a 4GB Photoshop File.

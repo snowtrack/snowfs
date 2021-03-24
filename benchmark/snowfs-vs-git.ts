@@ -169,6 +169,7 @@ export async function snowFsRmTexture(repoPath: string, t: any = console): Promi
   const index = repo.ensureMainIndex();
 
   const t0 = new Date().getTime();
+  fse.unlinkSync(join(repoPath, 'texture.psd'));
   index.deleteFiles(['texture.psd']);
   await index.writeFiles();
   await repo.createCommit(index, 'Remove texture');
@@ -181,8 +182,8 @@ export async function snowFsRestoreTexture(repoPath: string, t: any = console): 
   const repo = await Repository.open(repoPath);
 
   const t0 = new Date().getTime();
-  const commit = repo.findCommitByHash(repo.getCommitByHead().parent[0]);
-  repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
+  const commit = repo.findCommitByHash('HEAD~1');
+  await repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
   return new Date().getTime() - t0;
 }
 
