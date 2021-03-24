@@ -24,6 +24,28 @@ jobs:
           username: "GitHub Bot"
           message: "A new commit has been pushed."
 
+windows-benchmark:
+  runs-on: windows-latest
+  timeout-minutes: 15
+  steps:
+  
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v1
+      with:
+        lfs: true
+        node-version: 14
+    - name: Checkout LFS objects
+      run: git lfs pull
+    - uses: actions/cache@v2
+      with:
+        path: '**/node_modules'
+        key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
+    - run: npm install
+
+    - name: npm run benchmark
+      run: |
+        npm run benchmark
+
   macos-benchmark:
     runs-on: macos-latest
     timeout-minutes: 15
