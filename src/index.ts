@@ -12,6 +12,30 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
+const { fcntl, constants } = require('fs-ext');
+
+/** WIP */
+async function lock(path: string) {
+  return new Promise<number>((resolve, reject) => fse.open(path, 'r', (err, fd: number) => {
+    if (err) reject(err);
+    resolve(fd);
+  })).then((fd: number) => new Promise<any>((resolve, reject) => {
+    async function release() {
+      return new Promise<void>((resolve, reject) => {
+        fcntl(fd, constants.F_UNLCK, (err: Error) => {
+          if (err) reject(err);
+          resolve();
+        });
+      });
+    }
+
+    fcntl(fd, constants.F_RDLCK, (err: Error) => {
+      if (err) reject(err);
+      resolve(release);
+    });
+  }));
+}
+
 /**
  * A class representing a list of files that is used to create a new Commit object.
  * Every repository contains an individual instance of the Index class which can
@@ -215,18 +239,70 @@ export class Index {
 
     return ioContext.init()
       .then(() => {
-        const promises = [];
-
         const adds: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
+        const absolutePaths: string[] = [];
 
         for (const relFilePath of adds) {
           if (!this.processed.has(relFilePath)) {
-            const filepathAbs: string = isAbsolute(relFilePath) ? relFilePath : join(this.repo.repoWorkDir, relFilePath);
+            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
             if (!filepathAbs.startsWith(this.repo.workdir())) {
               throw new Error(`file or directory not in workdir: ${relFilePath}`);
             }
-            promises.push(this.odb.writeObject(filepathAbs, ioContext));
+            absolutePaths.push(filepathAbs);
           }
+        }
+
+        // Ensure that no file in the index is opened by another process
+        // For more information, or to add comments visit https://github.com/Snowtrack/SnowFS/discussions/110
+        if (process.platform === 'win32') {
+          // On Windows, there is no known way to know if a file is opened by another process.
+          // But renaming a file is current workaround, until `CreateFile` for a read-lock is implemented.
+
+          let atLeastOneFileIsOpenInAnotherProcess: string = null;
+          const renamed: string[] = [];
+
+          // give each file a temporary name...
+          for (const absolutePath of absolutePaths) {
+            try {
+              fse.renameSync(absolutePath, `${absolutePaths}.tmp_rename`);
+              renamed.push(absolutePath);
+            } catch (error) {
+              atLeastOneFileIsOpenInAnotherProcess = absolutePath;
+              continue;
+            }
+          }
+
+          // ...rename each file back.
+          for (const tmp of renamed) {
+            try {
+              fse.renameSync(`${tmp}.tmp_rename`, tmp);
+            } catch (error) {
+              continue;
+            }
+          }
+
+          if (atLeastOneFileIsOpenInAnotherProcess) {
+            throw new Error(`file '${atLeastOneFileIsOpenInAnotherProcess}' is opened by another process.`);
+          }
+        }
+
+        const promises = [];
+        for (const absolutePath of absolutePaths) {
+          promises.push(this.odb.writeObject(absolutePath, ioContext));
+          /*
+          let release: any;
+          promises.push(
+            lock(absolutePath)
+              .then((releaseResult: any) => {
+                release = releaseResult;
+                return this.odb.writeObject(absolutePath, ioContext);
+              }).finally(async () => {
+                if (release) {
+                  release();
+                }
+              }),
+          );
+          */
         }
 
         return Promise.all(promises);
