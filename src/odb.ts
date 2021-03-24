@@ -3,7 +3,7 @@ import * as fse from 'fs-extra';
 
 import {
   basename, join, dirname, relative,
-} from 'path';
+} from './path';
 import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
@@ -12,7 +12,9 @@ import * as fss from './fs-safe';
 import { Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
-import { calculateFileHash, FileInfo, HashBlock } from './common';
+import {
+  calculateFileHash, FileInfo, HashBlock,
+} from './common';
 import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
 

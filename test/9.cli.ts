@@ -2,7 +2,7 @@ import test from 'ava';
 
 import * as fse from 'fs-extra';
 
-import { join, dirname, basename } from 'path';
+import { join, dirname, basename } from '../src/path';
 import { exec, generateUniqueTmpDirName, EXEC_OPTIONS } from './helper';
 import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';

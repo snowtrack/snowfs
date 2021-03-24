@@ -1,6 +1,6 @@
 import test from 'ava';
-import { join, dirname, basename } from 'path';
 import * as fse from 'fs-extra';
+import { join, dirname, basename } from '../src/path';
 import { IoContext, FILESYSTEM } from '../src/io_context';
 import { createRandomFile, createRandomString } from './4.repo.commit';
 

@@ -1,10 +1,10 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 
-import { join } from 'path';
 import { spawn } from 'child_process';
 
 import os from 'os';
+import { join } from '../src/path';
 
 export enum EXEC_OPTIONS {
     RETURN_STDOUT = 1,

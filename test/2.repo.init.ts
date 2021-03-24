@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join } from '../src/path';
 import { Commit } from '../src/commit';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';

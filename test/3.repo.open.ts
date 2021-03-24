@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as fse from 'fs-extra';
 import os from 'os';
-import { join } from 'path';
+import { join } from '../src/path';
 
 import { Repository } from '../src/repository';
 import { testRepoCommondirInside, testRepoCommondirOutside } from './2.repo.init';

@@ -1,19 +1,20 @@
 /* eslint-disable max-len */
 import * as fse from 'fs-extra';
 
-import {
-  isAbsolute, join, resolve, relative,
-} from 'path';
-
 import * as readline from 'readline';
+import {
+  isAbsolute, join, resolve, relative, normalize,
+} from './src/path';
+
 import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
-import { TreeDir, TreeFile } from './src/treedir';
+import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
+import { calculateFileHash } from './src/common';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -142,7 +143,7 @@ program
   .description('Remove files from the working tree and from the index')
   .action(async (path: string, opts?: any) => {
     try {
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
 
@@ -172,11 +173,11 @@ program
   .description('add file contents to the index')
   .action(async (pathPattern: string, opts?: any) => {
     try {
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
 
-      const relCwd = relative(repo.workdir(), process.cwd());
+      const relCwd = relative(repo.workdir(), normalize(process.cwd()));
 
       const index: Index = getIndex(repo, opts.index);
       for (const file of statusFiles) {
@@ -219,7 +220,7 @@ program
 
     try {
       opts = await parseOptions(opts);
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       if (opts.delete) {
         if (startPoint) {
@@ -267,7 +268,7 @@ program
 
     try {
       opts = await parseOptions(opts);
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
       const targetCommit = repo.findCommitByHash(target);
       if (!targetCommit) {
         if (repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, target)) {
@@ -316,7 +317,7 @@ program
   .command('index [command]')
   .action(async (command: any, opts: any) => {
     try {
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
       if (command === 'create') {
         const index = repo.createIndex();
         // the user explicitely asked for an index
@@ -348,7 +349,7 @@ program
     }
 
     try {
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       const files: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_IGNORED | FILTER.INCLUDE_UNTRACKED);
       const newFiles: StatusEntry[] = [];
@@ -432,7 +433,7 @@ program
     try {
       opts = await parseOptions(opts);
 
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
       const index: Index = getIndex(repo, opts.index);
       let data = {};
 
@@ -475,7 +476,7 @@ program
     }
 
     try {
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST);
       const refs: Reference[] = repo.getAllReferences();
@@ -575,9 +576,13 @@ program
 
           if (opts.verbose) {
             const files = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-            for (const file of Array.from(files)) {
-              process.stdout.write(`      ${file[0]}\n`);
-            }
+            files.forEach((value: TreeEntry) => {
+              if (value.isDirectory()) {
+                process.stdout.write(`      [${value.hash}] ${value.path}\n`);
+              } else if (value instanceof TreeFile) {
+                process.stdout.write(`      [${value.hash}] ${value.path} (${value.size}B)\n`);
+              }
+            });
             if (files.size > 0) {
               process.stdout.write('\n');
             }
@@ -627,7 +632,7 @@ program
 
     try {
       opts = await parseOptions(opts);
-      const repo = await Repository.open(process.cwd());
+      const repo = await Repository.open(normalize(process.cwd()));
 
       if (branchName) {
         const targetCommit = repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, branchName);

@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 
-import { sep } from 'path';
+import { normalize } from './path';
 
 export class DirItem {
   path: string;
@@ -34,7 +34,7 @@ export enum OSWALK {
  * @param dirItemRef    Only for internal use, must be not set when called.
  */
 export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirItem): Promise<DirItem[]> {
-  if (dirPath.endsWith(sep)) {
+  if (dirPath.endsWith('/')) {
     // if directory ends with a seperator, we cut it off to ensure
     // we don't return a path like /foo/directory//file.jpg
     dirPath = dirPath.substr(0, dirPath.length - 1);
@@ -51,7 +51,9 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
         reject(error);
         return;
       }
-      resolve(entries);
+
+      // normalize all dir items
+      resolve(entries.map(normalize));
     });
   })
     .then((entries: string[]) => {
@@ -64,7 +66,7 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
           continue;
         }
 
-        const absPath = `${dirPath}${sep}${entry}`;
+        const absPath = `${dirPath}/${entry}`;
         const isDir: boolean = fse.statSync(absPath).isDirectory();
         dirItemsTmp.push({ path: absPath, isdir: isDir, isempty: false });
       }

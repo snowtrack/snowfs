@@ -1,10 +1,10 @@
 import * as fse from 'fs-extra';
 
-import { difference, intersection } from 'lodash';
+import { difference } from 'lodash';
 
 import {
   isAbsolute, join, relative, basename,
-} from 'path';
+} from './path';
 import * as fss from './fs-safe';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
@@ -170,6 +170,7 @@ export class Index {
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
+
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
       if (!this.processed.has(relPath)) {
@@ -188,6 +189,7 @@ export class Index {
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
+
       if (!this.processed.has(relPath)) {
         this.deleteRelPaths.add(relPath);
       }
@@ -236,7 +238,7 @@ export class Index {
 
         // TODO: (Seb) Handle deleted files as well here
         for (const r of value) {
-          this.processed.set(r.file.replace(/\\/g, '/'), r.fileinfo);
+          this.processed.set(r.file, r.fileinfo);
         }
         return this.save();
       });
