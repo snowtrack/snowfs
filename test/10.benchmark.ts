@@ -3,7 +3,7 @@ import * as os from 'os';
 import { join } from '../src/path';
 import {
   snowFsAddTexture, snowFsRestoreTexture, snowFsRmTexture, startBenchmark,
-} from '../benchmarks/snowfs-vs-git';
+} from '../benchmark/snowfs-vs-git';
 import { MB20 } from '../src/common';
 
 test('add texture', async (t) => {
