@@ -169,6 +169,7 @@ export async function snowFsRmTexture(repoPath: string, t: any = console): Promi
   const index = repo.ensureMainIndex();
 
   const t0 = new Date().getTime();
+  fse.unlinkSync(join(repoPath, 'texture.psd'));
   index.deleteFiles(['texture.psd']);
   await index.writeFiles();
   await repo.createCommit(index, 'Remove texture');
