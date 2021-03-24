@@ -64,7 +64,7 @@ export class TreeFile {
       if (this.size !== value.size) {
         return { file: this, modified: true };
       }
-      if (this.mtime < value.mtime.getTime()) {
+      if (this.mtime !== value.mtime.getTime()) {
         // we hash compare every file that is smaller than 20 MB
         // Every file that is bigger than 20MB should better differ
         // in size to reflect a correct modification, otherwise
