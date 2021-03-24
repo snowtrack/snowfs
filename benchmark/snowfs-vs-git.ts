@@ -230,11 +230,11 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
 
   t.log(timeGitAdd, timeSnowFsRm, timeSnowRestore);
   t.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
-  t.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
+  t.log(`snow add texture.psd: ${`${chalk.green.bold(timeSnowFsAdd)}ms`}`);
   t.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
-  t.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
+  t.log(`snow rm texture.psd:  ${`${chalk.green.bold(timeSnowFsRm)}ms`}`);
   t.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
-  t.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 20 ? '<--this is real' : ''}`);
+  t.log(`snow checkout HEAD~1: ${`${chalk.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 300 ? '<-- Yeah!' : ''}`);
 }
 
 if (process.env.NODE_ENV === 'benchmark') {

@@ -104,7 +104,7 @@ snow add texture.psd: 4596ms
 git rm texture.psd: 575ms
 snow rm texture.psd: 111ms
 git checkout HEAD~1: 9739ms
-snow checkout HEAD~1: 1ms <-- Yeap!
+snow checkout HEAD~1: 77ms <-- Yeah!
 ```
 
 ## Examples
