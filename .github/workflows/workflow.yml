@@ -42,7 +42,7 @@ jobs:
           key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
       - run: npm install
 
-      - name: npm run benchmkark
+      - name: npm run benchmark
         run: |
           npm run benchmark
 
