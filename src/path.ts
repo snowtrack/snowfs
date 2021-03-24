@@ -12,6 +12,11 @@ export { sep, basename, isAbsolute } from 'path';
  * @returns    A String, representing the normalized path
  */
 export function normalize(p: string): string {
+  // empty path stays an empty path, otherwise would return '.'
+  if (p === '') {
+    return '';
+  }
+
   p = path.normalize(p);
   if (p.endsWith(path.sep)) {
     p = p.substr(0, p.length - 1);
