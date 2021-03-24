@@ -230,7 +230,7 @@ export async function constructTree(
           continue;
         }
 
-        const absPath = `${dirPath}/{entry}`;
+        const absPath = `${dirPath}/${entry}`;
         promises.push(
           fse.stat(absPath).then(async (stat: fse.Stats) => {
             if (stat.isDirectory()) {
