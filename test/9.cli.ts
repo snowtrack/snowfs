@@ -291,6 +291,11 @@ test('snow branch foo-branch', async (t) => {
   out = await exec(t, snow, ['branch', 'bar-branch', firstCommit.hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   t.true((out as String).includes("A branch 'bar-branch' got created."));
 
+  // Create a branch with the starting point HEAD~1 which in this unit-test is 'Created Project'
+  // snow branch bar-branch HEAD~1
+  out = await exec(t, snow, ['branch', 'first-commit-branch', 'HEAD~1'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+  t.true((out as String).includes("A branch 'first-commit-branch' got created."));
+
   // verify the target() and start() point are equal (in this case the
   // start-point and target are still the same since the branch didn't move forward)
   const repoAfter2 = await Repository.open(snowWorkdir);
@@ -302,6 +307,10 @@ test('snow branch foo-branch', async (t) => {
   const barBranch: Reference = repoAfter2.findReferenceByName(REFERENCE_TYPE.BRANCH, 'bar-branch');
   t.is(firstCommit.hash, barBranch.target());
   t.is(firstCommit.hash, barBranch.start());
+
+  const firstCommitBranch: Reference = repoAfter2.findReferenceByName(REFERENCE_TYPE.BRANCH, 'first-commit-branch');
+  t.is(firstCommit.hash, firstCommitBranch.target());
+  t.is(firstCommit.hash, firstCommitBranch.start());
 
   // Delete foo-branch and bar branch
   out = await exec(t, snow, ['branch', '--delete', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
