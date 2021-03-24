@@ -182,7 +182,7 @@ export async function snowFsRestoreTexture(repoPath: string, t: any = console): 
 
   const t0 = new Date().getTime();
   const commit = repo.findCommitByHash('HEAD~1');
-  repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
+  await repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
   return new Date().getTime() - t0;
 }
 
