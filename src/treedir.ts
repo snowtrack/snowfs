@@ -4,7 +4,7 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 
 import {
-  join, sep, relative, normalize,
+  join, relative, normalize,
 } from './path';
 import { Repository } from './repository';
 import {
@@ -199,7 +199,7 @@ export async function constructTree(
   tree?: TreeDir,
   root?: string,
 ): Promise<TreeDir> {
-  if (dirPath.endsWith(sep)) {
+  if (dirPath.endsWith('/')) {
     // if directory ends with a seperator, we cut it of to ensure
     // we don't return a path like /foo/directory//file.jpg
     dirPath = dirPath.substr(0, dirPath.length - 1);
@@ -230,7 +230,7 @@ export async function constructTree(
           continue;
         }
 
-        const absPath = `${dirPath}${sep}${entry}`;
+        const absPath = `${dirPath}/{entry}`;
         promises.push(
           fse.stat(absPath).then(async (stat: fse.Stats) => {
             if (stat.isDirectory()) {

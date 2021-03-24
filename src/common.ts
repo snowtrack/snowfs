@@ -1,7 +1,7 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 import {
-  join, dirname, normalize, sep,
+  join, dirname,
 } from './path';
 
 import { Repository } from './repository';

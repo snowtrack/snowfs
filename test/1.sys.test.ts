@@ -3,10 +3,9 @@ import * as os from 'os';
 import * as unzipper from 'unzipper';
 
 import test from 'ava';
-import * as path from '../src/path';
 
 import {
-  join, relative, dirname, sep,
+  join, relative, dirname, normalize, normalizeExt, sep,
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -61,7 +60,7 @@ function getUniquePaths(dirSet: string[]): string[] {
   const visitedPaths: Set<string> = new Set();
   for (const dir of dirSet) {
     let sumPath: string = '';
-    for (const p of dir.split(path.sep)) {
+    for (const p of dir.split('/')) {
       sumPath = join(sumPath, p);
       visitedPaths.add(sumPath);
     }
@@ -72,30 +71,31 @@ function getUniquePaths(dirSet: string[]): string[] {
 test('proper normalize', async (t) => {
   let error: any;
 
-  error = await t.throwsAsync(async () => undefined);
+  error = await t.throwsAsync(async () => normalize(undefined));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  error = await t.throwsAsync(async () => null);
+  error = await t.throwsAsync(async () => normalize(null));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  t.is('', '.');
-  t.is('xyz', 'xyz');
+  t.is(normalize(''), '');
+  t.is(normalize('.'), '');
+  t.is(normalize('xyz'), 'xyz');
 
   switch (process.platform) {
     case 'win32':
-      t.is('/xyz', '\\xyz');
-      t.is('xyz/', 'xyz');
-      t.is('/xyz/', '\\xyz');
-      t.is('C:\\Users\\sebastian\\Desktop\\..\\..\\foo', 'C:\\Users\\foo');
-      t.is('C:\\Users\\sebastian\\Desktop\\..\\..\\foo\\', 'C:\\Users\\foo');
+      t.is(normalize('\\xyz'), '/xyz');
+      t.is(normalize('xyz\\'), 'xyz');
+      t.is(normalize('/xyz/'), '/xyz');
+      t.is(normalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo'), 'C:/Users/foo');
+      t.is(normalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo\\'), 'C:/Users/foo');
       break;
     case 'linux':
     case 'darwin':
-      t.is('/xyz', '/xyz');
-      t.is('xyz/', 'xyz');
-      t.is('/xyz/', '/xyz');
-      t.is('/Users/sebastian/Desktop/../../foo/', '/Users/foo');
-      t.is('/Users/sebastian/Desktop/../../foo', '/Users/foo');
+      t.is(normalize('/xyz'), '/xyz');
+      t.is(normalize('xyz/'), 'xyz');
+      t.is(normalize('/xyz/'), '/xyz');
+      t.is(normalize('/Users/sebastian/Desktop/../../foo/'), '/Users/foo');
+      t.is(normalize('/Users/sebastian/Desktop/../../foo'), '/Users/foo');
       break;
     default:
       throw new Error('unsupported operating system');
@@ -150,7 +150,7 @@ test('osWalk test#2a', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     t.log('Create a set of directories and files and verify with osWalk(returnDirs=true, returnFiles=true)');
     /// //////////////////////////////////////////////////////////////////////////
-    const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-')) + path.sep;
+    const tmpDir: string = `${await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'))}/`;
     await createDirs(t, tmpDir, exampleDirs);
     for (let file of exampleFiles) {
       file = join(tmpDir, file);
@@ -339,7 +339,7 @@ async function testGitZip(t, zipname: string): Promise<string> {
       t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: tmpDir, concurrency: 5 }))
+    .then((d) => d.extract({ path: normalizeExt(tmpDir, sep), concurrency: 5 }))
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.

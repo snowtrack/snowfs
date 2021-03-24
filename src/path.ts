@@ -13,15 +13,28 @@ export { sep, basename, isAbsolute } from 'path';
  */
 export function normalize(p: string): string {
   // empty path stays an empty path, otherwise would return '.'
-  if (p === '') {
+  if (p === '' || p === '.') {
+    return '';
+  }
+
+  p = path.normalize(p).replace(/\\/g, '/');
+  if (p.endsWith('/')) {
+    p = p.substr(0, p.length - 1);
+  }
+  return p;
+}
+
+export function normalizeExt(p: string, sep: string): string {
+// empty path stays an empty path, otherwise would return '.'
+  if (p === '' || p === '.') {
     return '';
   }
 
   p = path.normalize(p);
-  if (p.endsWith(path.sep)) {
+  if (p.endsWith('/')) {
     p = p.substr(0, p.length - 1);
   }
-  return p.replace(/\\/g, '/');
+  return p.replace('/', path.sep);
 }
 
 export function join(...paths: string[]) {
