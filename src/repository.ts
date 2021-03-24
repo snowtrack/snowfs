@@ -5,11 +5,11 @@ import * as crypto from 'crypto';
 import { difference, intersection } from 'lodash';
 import {
   resolve, join, dirname, relative,
-} from 'path';
+} from './path';
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo, properNormalize } from './common';
+import { FileInfo } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -770,10 +770,10 @@ export class Repository {
         for (const item of items) {
           if (item.isdir) {
             if (filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.push(new StatusEntry({ path: relative(this.repoWorkDir, item.path).replace(/\\/g, '/') }, true));
+              statusResult.push(new StatusEntry({ path: relative(this.repoWorkDir, item.path) }, true));
             }
           } else {
-            currentFiles.push(relative(this.repoWorkDir, item.path).replace(/\\/g, '/'));
+            currentFiles.push(relative(this.repoWorkDir, item.path));
           }
         }
         const currentCommit: Commit = this.getCommitByHead();
@@ -1037,7 +1037,7 @@ export class Repository {
 
     let commondirOutside: boolean;
     if (opts.commondir) {
-      if (properNormalize(opts.commondir).startsWith(properNormalize(workdir))) {
+      if (opts.commondir.startsWith(workdir)) {
         throw new Error('commondir must be outside repository');
       }
       commondirOutside = true;

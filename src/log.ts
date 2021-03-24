@@ -1,5 +1,5 @@
 import * as fse from 'fs-extra';
-import { join } from 'path';
+import { join } from './path';
 import { Repository } from './repository';
 
 /**

@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 
-import { sep } from 'path';
+import { sep, normalize } from './path';
 
 export class DirItem {
   path: string;
@@ -51,7 +51,9 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
         reject(error);
         return;
       }
-      resolve(entries);
+
+      // normalize all dir items
+      resolve(entries.map(normalize));
     });
   })
     .then((entries: string[]) => {

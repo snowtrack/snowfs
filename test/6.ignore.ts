@@ -4,10 +4,8 @@ import * as crypto from 'crypto';
 import * as os from 'os';
 import * as fse from 'fs-extra';
 
-import { join, dirname, basename } from 'path';
-import {
-  getSnowexec, getRandomPath, exec, EXEC_OPTIONS,
-} from './helper';
+import { join } from '../src/path';
+import { getRandomPath } from './helper';
 import { FILTER, Repository, StatusEntry } from '../src/repository';
 
 function createFiles(workdir : string, ...names : string[]) {

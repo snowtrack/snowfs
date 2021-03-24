@@ -1,10 +1,10 @@
 import { spawn } from 'child_process';
-import { dirname, join, basename } from 'path';
 import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
 import * as tty from 'tty';
+import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
 
 // eslint-disable-next-line import/no-extraneous-dependencies

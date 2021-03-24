@@ -1,11 +1,11 @@
 /* eslint-disable max-len */
 import * as fse from 'fs-extra';
 
+import * as readline from 'readline';
 import {
   isAbsolute, join, resolve, relative,
-} from 'path';
+} from './src/path';
 
-import * as readline from 'readline';
 import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';

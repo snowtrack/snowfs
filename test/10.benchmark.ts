@@ -1,6 +1,6 @@
 import test from 'ava';
-import { join } from 'path';
 import * as os from 'os';
+import { join } from '../src/path';
 import {
   snowFsAddTexture, snowFsRestoreTexture, snowFsRmTexture, startBenchmark,
 } from '../benchmarks/snowfs-vs-git';

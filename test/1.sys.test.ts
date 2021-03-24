@@ -1,17 +1,17 @@
-import * as path from 'path';
 import * as fse from 'fs-extra';
 import * as os from 'os';
 import * as unzipper from 'unzipper';
 
 import test from 'ava';
+import * as path from '../src/path';
 
 import {
   join, relative, dirname, sep,
-} from 'path';
+} from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import {
-  compareFileHash, getRepoDetails, LOADING_STATE, MB100, properNormalize,
+  compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
 
 const exampleDirs = [
@@ -72,30 +72,30 @@ function getUniquePaths(dirSet: string[]): string[] {
 test('proper normalize', async (t) => {
   let error: any;
 
-  error = await t.throwsAsync(async () => properNormalize(undefined));
+  error = await t.throwsAsync(async () => undefined);
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  error = await t.throwsAsync(async () => properNormalize(null));
+  error = await t.throwsAsync(async () => null);
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  t.is(properNormalize(''), '.');
-  t.is(properNormalize('xyz'), 'xyz');
+  t.is('', '.');
+  t.is('xyz', 'xyz');
 
   switch (process.platform) {
     case 'win32':
-      t.is(properNormalize('/xyz'), '\\xyz');
-      t.is(properNormalize('xyz/'), 'xyz');
-      t.is(properNormalize('/xyz/'), '\\xyz');
-      t.is(properNormalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo'), 'C:\\Users\\foo');
-      t.is(properNormalize('C:\\Users\\sebastian\\Desktop\\..\\..\\foo\\'), 'C:\\Users\\foo');
+      t.is('/xyz', '\\xyz');
+      t.is('xyz/', 'xyz');
+      t.is('/xyz/', '\\xyz');
+      t.is('C:\\Users\\sebastian\\Desktop\\..\\..\\foo', 'C:\\Users\\foo');
+      t.is('C:\\Users\\sebastian\\Desktop\\..\\..\\foo\\', 'C:\\Users\\foo');
       break;
     case 'linux':
     case 'darwin':
-      t.is(properNormalize('/xyz'), '/xyz');
-      t.is(properNormalize('xyz/'), 'xyz');
-      t.is(properNormalize('/xyz/'), '/xyz');
-      t.is(properNormalize('/Users/sebastian/Desktop/../../foo/'), '/Users/foo');
-      t.is(properNormalize('/Users/sebastian/Desktop/../../foo'), '/Users/foo');
+      t.is('/xyz', '/xyz');
+      t.is('xyz/', 'xyz');
+      t.is('/xyz/', '/xyz');
+      t.is('/Users/sebastian/Desktop/../../foo/', '/Users/foo');
+      t.is('/Users/sebastian/Desktop/../../foo', '/Users/foo');
       break;
     default:
       throw new Error('unsupported operating system');
@@ -484,9 +484,7 @@ test('getRepoDetails (.git and .snow)', async (t) => {
           }
           t.is(res.state, expect);
 
-          res.commondir = properNormalize(res.commondir);
-
-          t.is(res.commondir, properNormalize(join(tmpDir, '.snow')));
+          t.is(res.commondir, (join(tmpDir, '.snow')));
           t.log(`Found .snow in ${res.commondir}`);
           t.is(res.uuid, undefined);
           t.pass();

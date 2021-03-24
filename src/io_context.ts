@@ -3,7 +3,7 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
-import { join, dirname } from 'path';
+import { join, dirname } from './path';
 import { MB1 } from './common';
 
 const drivelist = require('drivelist');

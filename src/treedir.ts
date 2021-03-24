@@ -1,7 +1,11 @@
+/* eslint-disable no-empty-function */
+/* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 
-import { join, sep, relative } from 'path';
+import {
+  join, sep, relative, normalize,
+} from './path';
 import { Repository } from './repository';
 import {
   FileInfo, getPartHash, HashBlock, MB20,
@@ -24,9 +28,7 @@ export class TreeFile {
     public ctime: number,
     public mtime: number,
     public size: number,
-  ) {
-    path = path.replace(/\\/g, '/');
-  }
+  ) { }
 
   isDirectory() {
     return false;
@@ -48,7 +50,7 @@ export class TreeFile {
     const { ctime } = this;
     const { mtime } = this;
     const { size } = this;
-    const path: string = this.path.replace(/\\/g, '/');
+    const path: string = this.path;
     const output: any = {
       hash, ctime, mtime, size, path,
     };
@@ -88,7 +90,6 @@ export class TreeDir {
   children: (TreeEntry)[] = [];
 
   constructor(public path: string | undefined, public parent: TreeDir = null) {
-    path = path?.replace(/\\/g, '/');
   }
 
   isDirectory() {
@@ -101,7 +102,7 @@ export class TreeDir {
 
   toString(includeChildren?: boolean) {
     const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
-    return `{"hash": "${this.hash.toString()}", "path": "${this.path?.replace(/\\/g, '/') ?? ''}", "children": [${children.join(',')}]}`;
+    return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "children": [${children.join(',')}]}`;
   }
 
   getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
@@ -218,7 +219,7 @@ export async function constructTree(
         reject(error);
         return;
       }
-      resolve(entries);
+      resolve(entries.map(normalize));
     });
   })
     .then((entries: string[]) => {
@@ -240,7 +241,7 @@ export async function constructTree(
               tree.children.push(subtree);
               return constructTree(absPath, processed, subtree, root);
             }
-            const fileinfo: FileInfo | null = processed?.get(relative(root, absPath).replace(/\\/g, '/'));
+            const fileinfo: FileInfo | null = processed?.get(relative(root, absPath));
             if (fileinfo) {
               const path: string = relative(root, absPath);
               const entry: TreeFile = new TreeFile(fileinfo.hash, tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
