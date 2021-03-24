@@ -7,7 +7,7 @@
     "tsc": "tsc",
     "build": "pkg dist/out-tsc/main.js",
     "snowfs": "node -r ts-node/register main.ts",
-    "benchmarks": "NODE_ENV=benchmark node --require ts-node/register benchmarks/snowfs-vs-git.ts",
+    "benchmark": "NODE_ENV=benchmark node --require ts-node/register benchmark/snowfs-vs-git.ts",
     "ava": "nyc --reporter=html --reporter=lcov --reporter=text ava --timeout 900s --verbose --serial --fail-fast --color true",
     "docs": "typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default"
   },
