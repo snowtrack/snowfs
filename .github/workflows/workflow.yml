@@ -24,7 +24,7 @@ jobs:
           username: "GitHub Bot"
           message: "A new commit has been pushed."
 
-  macos:
+  macos-benchmark:
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
