@@ -12,7 +12,7 @@ import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
-import { TreeDir, TreeFile } from './src/treedir';
+import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
 
 const program = require('commander');
@@ -575,9 +575,13 @@ program
 
           if (opts.verbose) {
             const files = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-            for (const file of Array.from(files)) {
-              process.stdout.write(`      ${file[0]}\n`);
-            }
+            files.forEach((value: TreeEntry) => {
+              if (value.isDirectory()) {
+                process.stdout.write(`      [${value.hash}] ${value.path}\n`);
+              } else if (value instanceof TreeFile) {
+                process.stdout.write(`      [${value.hash}] ${value.path} (${value.size}B)\n`);
+              }
+            });
             if (files.size > 0) {
               process.stdout.write('\n');
             }
