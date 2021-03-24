@@ -859,12 +859,14 @@ export class Repository {
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const processedMap: Map<string, FileInfo> = index.getProcessedMap();
+    const processedMap = new Map<string, FileInfo>();
+
     // head is not available when repo is initialized
     if (this.head?.hash) {
       const headCommit = this.getCommitByHead();
       const currentTree: Map<string, TreeEntry> = headCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
 
+      // store the current tree files in the processed map...
       currentTree.forEach((value: TreeFile) => {
         processedMap.set(value.path, {
           hash: value.hash,
@@ -874,6 +876,11 @@ export class Repository {
         });
       });
     }
+
+    // ... and overwrite the items with the new values from the index that just got commited
+    index.getProcessedMap().forEach((value: FileInfo, path: string) => {
+      processedMap.set(path, value);
+    });
 
     return constructTree(this.repoWorkDir, processedMap)
       .then((treeResult: TreeDir) => {
