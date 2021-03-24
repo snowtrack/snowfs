@@ -552,10 +552,17 @@ export class Repository {
       }
     }
 
-    // if null HEAD is used
-    startPoint = startPoint ?? this.getHead().hash;
+    if (startPoint) {
+      const commit: Commit = this.findCommitByHash(startPoint);
+      if (commit) {
+        startPoint = commit.hash;
+      }
+    } else {
+      // if no start-point is set, HEAD is used
+      startPoint = this.getHead().hash;
+    }
 
-    if (!this.commitMap.has(startPoint)) {
+    if (!startPoint || !this.commitMap.has(startPoint)) {
       throw new Error(`Not a valid start point: '${startPoint}'`);
     }
 
