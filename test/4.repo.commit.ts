@@ -56,7 +56,7 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(filenames.includes('subdir'));
       t.true(filenames.includes('subdir/bar'));
 
-      return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
+      return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS);
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
