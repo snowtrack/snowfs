@@ -759,7 +759,7 @@ export class Repository {
         }
       })
       .then(() => {
-        let walk: OSWALK = OSWALK.FILES | OSWALK.IGNORE_REPOS;
+        let walk: OSWALK = OSWALK.FILES;
         walk |= filter & FILTER.INCLUDE_DIRECTORIES ? OSWALK.DIRS : 0;
         walk |= filter & FILTER.INCLUDE_IGNORED ? OSWALK.HIDDEN : 0;
         return osWalk(this.repoWorkDir, walk);
@@ -919,6 +919,11 @@ export class Repository {
 
         if (this.head.hash) {
           this.head.hash = commit.hash;
+          // update the hash of the current head reference as well
+          const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
+          if (curRef) {
+            curRef.hash = commit.hash;
+          }
         } else {
           this.head.setName('Main');
           this.head.hash = commit.hash;

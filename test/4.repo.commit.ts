@@ -1,53 +1,14 @@
-import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import test from 'ava';
 
 import { join, dirname } from '../src/path';
 import { Commit } from '../src/commit';
-import { calculateFileHash, HashBlock } from '../src/common';
 import { Index } from '../src/index';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
-import { getRandomPath } from './helper';
-
-async function rmDirRecursive(dir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    fs.rmdir(dir, { recursive: true }, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
-}
-
-export function createRandomString(length: number) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
-
-export async function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
-  const stream = fse.createWriteStream(dst, { flags: 'w' });
-  for (let i = 0; i < size; ++i) {
-    stream.write(createRandomString(size));
-  }
-
-  return new Promise((resolve, reject) => {
-    stream.on('finish', () => {
-      resolve(dst);
-    });
-    stream.on('error', reject);
-    stream.end();
-  }).then(() => calculateFileHash(dst))
-    .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => ({ filepath: dst, filehash: res.filehash, hashBlocks: res.hashBlocks }));
-}
+import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
 
 async function repoTest(t, commondirInside: boolean) {
   const repoPath = getRandomPath();
@@ -95,7 +56,7 @@ async function repoTest(t, commondirInside: boolean) {
       t.true(filenames.includes('subdir'));
       t.true(filenames.includes('subdir/bar'));
 
-      return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
+      return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS);
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
