@@ -1,10 +1,12 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
+import * as fs from 'fs';
 
 import { spawn } from 'child_process';
 
 import os from 'os';
 import { join } from '../src/path';
+import { calculateFileHash, HashBlock } from '../src/common';
 
 export enum EXEC_OPTIONS {
     RETURN_STDOUT = 1,
@@ -25,6 +27,53 @@ export function getRandomPath(): string {
       return repoPath;
     }
   }
+}
+
+export function createRepoPath(): string {
+  while (true) {
+    const name = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
+    const repoPath = join(os.tmpdir(), 'snowtrack-repo', name);
+    if (!fse.pathExistsSync(repoPath)) {
+      return repoPath;
+    }
+  }
+}
+
+export async function rmDirRecursive(dir: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fs.rmdir(dir, { recursive: true }, (err) => {
+      if (err) {
+        reject(err);
+      }
+      resolve();
+    });
+  });
+}
+
+export function createRandomString(length: number) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
+export async function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
+  const stream = fse.createWriteStream(dst, { flags: 'w' });
+  for (let i = 0; i < size; ++i) {
+    stream.write(createRandomString(size));
+  }
+
+  return new Promise((resolve, reject) => {
+    stream.on('finish', () => {
+      resolve(dst);
+    });
+    stream.on('error', reject);
+    stream.end();
+  }).then(() => calculateFileHash(dst))
+    .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => ({ filepath: dst, filehash: res.filehash, hashBlocks: res.hashBlocks }));
 }
 
 export function getSnowexec(t): string {

@@ -23,8 +23,8 @@ export enum OSWALK {
   /** Return all hidden items. */
   HIDDEN = 4,
 
-  /** Don't travel into Git or SnowFS repositories. */
-  IGNORE_REPOS = 8
+  /** Browse Git and/or SnowFS repositories. */
+  BROWSE_REPOS = 8
 }
 
 /**
@@ -43,7 +43,7 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
   const returnDirs = request & OSWALK.DIRS;
   const returnFiles = request & OSWALK.FILES;
   const returnHidden = request & OSWALK.HIDDEN;
-  const ignoreSnowtrack = request & OSWALK.IGNORE_REPOS;
+  const browseRepo = request & OSWALK.BROWSE_REPOS;
   const dirItems = [];
   return new Promise<string[]>((resolve, reject) => {
     fse.readdir(dirPath, (error, entries: string[]) => {
@@ -60,7 +60,7 @@ export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirI
       const dirItemsTmp: DirItem[] = [];
 
       for (const entry of entries) {
-        if (ignoreSnowtrack && (entry === '.snow' || entry.startsWith('.snow/') || entry.startsWith('.git'))) {
+        if (!browseRepo && (entry === '.snow' || entry.startsWith('.snow/') || entry.startsWith('.git'))) {
           continue;
         } else if (!returnHidden && entry.startsWith('.')) {
           continue;
