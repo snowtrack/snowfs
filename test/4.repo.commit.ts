@@ -261,6 +261,10 @@ test('HEAD~n', async (t) => {
   res = repo.findCommitByHash('HEAD~1');
   t.is(res.hash, commit4.hash);
 
+  t.log('Test Main~1');
+  res = repo.findCommitByHash('Main~1');
+  t.is(res.hash, commit4.hash);
+
   t.log('Test HEAD~2');
   res = repo.findCommitByHash('HEAD~2');
   t.is(res.hash, commit3.hash);

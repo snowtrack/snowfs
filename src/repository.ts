@@ -474,6 +474,9 @@ export class Repository {
       for (const idx of hash.split('~')) {
         if (idx === 'HEAD') {
           commit = this.commitMap.get(this.getHead().hash);
+        } else if (this.references.map((r: Reference) => r.getName()).includes(idx)) {
+          const ref = this.references.find((r: Reference) => r.getName() === idx);
+          commit = this.commitMap.get(ref.target());
         } else if (commit) {
           const iteration: number = parseInt(idx, 10);
           if (Number.isNaN(iteration)) {
