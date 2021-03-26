@@ -284,6 +284,19 @@ export class Repository {
   }
 
   /**
+   * Write a state flag (aka dirty flag) to the common dir. This can be
+   * used to check, if the repository got modified.
+   * @param res     Argument will be tunneled through and returned by the function.
+   * @returns       Value of `res`.
+   */
+  async modified<T>(res?: T): Promise<T> {
+    const state = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
+    return fse.writeFile(join(this.commondir(), 'state'), state)
+      .then(() => res)
+      .catch(() => res); // ignore any errors since it is not crucial for the repo to run
+  }
+
+  /**
    * Ensure the existance of at least 1 repo and return it. If the repo has no
    * index, one will be added. Otherwise the first one is returned.
    * @returns     Return a new or existing index.
