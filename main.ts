@@ -6,14 +6,15 @@ import {
 } from 'path';
 
 import * as readline from 'readline';
-import { Index } from './src/index';
+import { Index, lock } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
 import { TreeDir, TreeFile } from './src/treedir';
-import { IoContext } from './src/io_context';
+import { IoContext, posix } from './src/io_context';
+import { OSWALK, osWalk } from './src/io';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -592,6 +593,14 @@ program
         process.exit(-1);
       }
     }
+  });
+
+program
+  .command('test')
+  .action(async (opts: any) => {
+    const foo = await lock('/Users/sebastian/Desktop/foo/yy.txt');
+    const drives = await posix.whichFilesInDirAreOpen('/Users/sebastian/Desktop/foo');
+    console.log(drives);
   });
 
 program

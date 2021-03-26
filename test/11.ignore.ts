@@ -158,7 +158,7 @@ test('Ignore *.txt --- SUCCEED NOT ADD FILE', async (t) => {
   t.is(true, success);
 });
 
-test('Ignore subdirectory unix seperator --- SUCCEED NOT ADD FILE', async (t) => {
+test('Ignore subdirectory posix seperator --- SUCCEED NOT ADD FILE', async (t) => {
   const snow: string = getSnowexec(t);
   const snowWorkdir = generateUniqueTmpDirName();
 

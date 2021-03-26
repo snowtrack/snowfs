@@ -28,6 +28,93 @@ export class Drive {
     this.filesystem = filesystem;
   }
 }
+export namespace posix {
+
+/**
+ * Possible file lock types on a given file. This are the extracted
+ * information from a `man lsof` converted into an enum.
+ */
+export enum LOCKTYPE {
+  NFS_LOCK = 'N', // for a Solaris NFS lock of unknown type
+  READ_LOCK_FILE_PART = 'r', // for read lock on part of the file
+  READ_LOCK_FILE = 'R', // for a read lock on the entire file
+  WRITE_LOCK_FILE_PART = 'w', // for a write lock on part of the file
+  WRITE_LOCK_FILE = 'W', // for a write lock on the entire file
+  READ_WRITE_LOCK_FILE = 'u', // for a read and write lock of any length
+  UNKNOWN = 'X' // An unknown lock type (U, x or X)
+}
+
+export class FileHandle {
+  /** PID of process which acquired the file handle */
+  pid: string;
+
+  processname: string;
+
+  /** File access information with file lock info */
+  lockType: LOCKTYPE;
+
+  /** Documents filepath */
+  filepath: string;
+}
+
+export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
+  try {
+    const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
+    return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
+      const p = new Map<string, FileHandle[]>();
+      p0.stdout.on('data', (data) => {
+        let lsofEntry: FileHandle = new FileHandle();
+        for (const pline of data.toString().split(/\n/)) {
+          if (pline.startsWith('p')) { // PID of process which acquired the file handle
+            // first item, therefore it creates the file handle
+            lsofEntry = new FileHandle();
+            lsofEntry.pid = pline.substr(1, pline.length - 1);
+          } else if (pline.startsWith('c')) { // Name of process which acquired the file handle
+            lsofEntry.processname = pline.substr(1, pline.length - 1);
+          } else if (pline.startsWith('a')) { // File access information with file lock info
+            // See `LOCKTYPE` for more information
+            if (pline.includes('N')) {
+              lsofEntry.lockType = LOCKTYPE.NFS_LOCK;
+            } else if (pline.includes('r')) {
+              lsofEntry.lockType = LOCKTYPE.READ_LOCK_FILE_PART;
+            } else if (pline.includes('R')) {
+              lsofEntry.lockType = LOCKTYPE.READ_LOCK_FILE;
+            } else if (pline.includes('w')) {
+              lsofEntry.lockType = LOCKTYPE.WRITE_LOCK_FILE_PART;
+            } else if (pline.includes('W')) {
+              lsofEntry.lockType = LOCKTYPE.WRITE_LOCK_FILE;
+            } else if (pline.includes('u')) {
+              lsofEntry.lockType = LOCKTYPE.READ_WRITE_LOCK_FILE;
+            } else {
+              lsofEntry.lockType = LOCKTYPE.UNKNOWN;
+            }
+          } else if (pline.startsWith('n')) { // Documents filepath
+            const filepath = pline.substr(1, pline.length - 1);
+            const q = p.get(filepath);
+            if (q) {
+              // if there was an entry before, add the new entry to the array in the map
+              q.push(lsofEntry);
+            } else {
+              // ..otherwise add a new list with the lsofEntry as the first element
+              p.set(filepath, [lsofEntry]);
+            }
+          }
+        }
+      });
+      p0.on('exit', (code) => {
+        if (code === 1) { // lsof returns 1
+          resolve(p);
+        } else {
+          reject(code);
+        }
+      });
+    });
+  } catch (error) {
+    console.log(error);
+    return new Map();
+  }
+}
+}
 
 async function getFilesystem(drive: any, mountpoint: string) {
   try {

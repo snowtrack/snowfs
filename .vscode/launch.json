@@ -11,6 +11,7 @@
             "${workspaceFolder}/**",
             "!**/node_modules/**"
           ],
+          "cwd": "/Users/sebastian/Desktop/foo/",
           "runtimeArgs": [
               "-r",
               "${workspaceFolder}/node_modules/ts-node/register"
@@ -18,7 +19,7 @@
           "args": [
               "${workspaceFolder}/main.ts",
               "--",
-              "status"
+              "test"
           ]
       },
       {

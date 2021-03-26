@@ -1,21 +1,29 @@
 import * as fse from 'fs-extra';
-
-import { difference, intersection } from 'lodash';
+import { difference } from 'lodash';
 
 import {
   isAbsolute, join, relative, basename,
 } from 'path';
 import * as fss from './fs-safe';
-import { IoContext } from './io_context';
+import { IoContext, posix } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
+// if Node version 15, switch to built-in AggregateError
+const AggregateError = require('aggregate-error');
 const { fcntl, constants } = require('fs-ext');
 
-/** WIP */
-async function lock(path: string) {
+class StacklessError extends Error {
+  constructor(...args) {
+    super(...args);
+    this.name = this.constructor.name;
+    delete this.stack;
+  }
+}
+
+export async function lock(path: string) {
   return new Promise<number>((resolve, reject) => fse.open(path, 'r', (err, fd: number) => {
     if (err) reject(err);
     resolve(fd);
@@ -238,11 +246,11 @@ export class Index {
     const ioContext = new IoContext();
 
     return ioContext.init()
-      .then(() => {
-        const adds: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
+      .then(async () => {
+        const addRelPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
         const absolutePaths: string[] = [];
 
-        for (const relFilePath of adds) {
+        for (const relFilePath of addRelPaths) {
           if (!this.processed.has(relFilePath)) {
             const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
             if (!filepathAbs.startsWith(this.repo.workdir())) {
@@ -284,12 +292,29 @@ export class Index {
           if (atLeastOneFileIsOpenInAnotherProcess) {
             throw new Error(`file '${atLeastOneFileIsOpenInAnotherProcess}' is opened by another process.`);
           }
+        } else {
+          const fileHandles: Map<string, posix.FileHandle[]> = await posix.whichFilesInDirAreOpen(this.repo.workdir());
+          const errors: Error[] = [];
+          for (const absolutePath of absolutePaths) {
+            const fhs: posix.FileHandle[] = fileHandles.get(absolutePath);
+            if (fhs) {
+              for (const fh of fhs) {
+                if (fh.lockType === posix.LOCKTYPE.READ_WRITE_LOCK_FILE
+                  || fh.lockType === posix.LOCKTYPE.WRITE_LOCK_FILE
+                  || fh.lockType === posix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
+                  errors.push(new StacklessError(`File '${relative(this.repo.workdir(), absolutePath)}' is locked by ${fh.processname}`));
+                }
+              }
+            }
+          }
+          if (errors) {
+            throw new AggregateError(errors);
+          }
         }
 
         const promises = [];
         for (const absolutePath of absolutePaths) {
           promises.push(this.odb.writeObject(absolutePath, ioContext));
-          /*
           let release: any;
           promises.push(
             lock(absolutePath)
@@ -302,7 +327,6 @@ export class Index {
                 }
               }),
           );
-          */
         }
 
         return Promise.all(promises);

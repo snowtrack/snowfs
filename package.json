@@ -47,6 +47,7 @@
     "@types/fs-extra": "^9.0.6",
     "@types/lodash": "^4.14.167",
     "@types/npm": "^2.0.31",
+    "aggregate-error": "^3.1.0",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "drivelist": "^9.2.4",
