@@ -6,11 +6,14 @@
       {
           "type": "pwa-node",
           "request": "launch",
+          "console": "internalConsole", 
+          "outputCapture": "std",
           "name": "Launch CLI (main.ts)",
           "resolveSourceMapLocations": [
             "${workspaceFolder}/**",
             "!**/node_modules/**"
           ],
+          "cwd": "C:\\Users\\sebastian\\Desktop\\foo",
           "runtimeArgs": [
               "-r",
               "${workspaceFolder}/node_modules/ts-node/register"
@@ -18,7 +21,8 @@
           "args": [
               "${workspaceFolder}/main.ts",
               "--",
-              "status"
+              "switch",
+              "Main"
           ]
       },
       {
