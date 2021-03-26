@@ -52,3 +52,7 @@ export function resolve(...pathSegments: string[]) {
 export function relative(from: string, to: string) {
   return normalize(path.relative(from, to));
 }
+
+export function extname(p: string) {
+  return path.extname(p);
+}
