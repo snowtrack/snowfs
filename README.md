@@ -91,7 +91,7 @@ We have also implemented a comparison benchmark between **SnowFS** vs. **git-lfs
 After executing the [build instructions](#build-instructions) for a development build, the benchmarks can be executed with the following command:
 
 ```bash
-$ npm run benchmarks
+$ npm run benchmark
 ```
 
 Example run on a Macbook Pro (2020) with an APFS formatted SSD to check-in, delete and restore a 4GB Photoshop File.
@@ -104,7 +104,7 @@ snow add texture.psd: 4596ms
 git rm texture.psd: 575ms
 snow rm texture.psd: 111ms
 git checkout HEAD~1: 9739ms
-snow checkout HEAD~1: 1ms <-- Yeap!
+snow checkout HEAD~1: 77ms <-- Yeah!
 ```
 
 ## Examples

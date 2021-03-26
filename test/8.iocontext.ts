@@ -1,8 +1,8 @@
 import test from 'ava';
-import { join, dirname, basename } from 'path';
 import * as fse from 'fs-extra';
+import { join } from '../src/path';
 import { IoContext, FILESYSTEM } from '../src/io_context';
-import { createRandomFile, createRandomString } from './4.repo.commit';
+import { createRandomFile, createRandomString } from './helper';
 
 async function copyTest(t, searchForFilesystem: FILESYSTEM) {
   const ioContext = new IoContext();

@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join } from '../src/path';
 import { Commit } from '../src/commit';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
@@ -51,7 +51,7 @@ test('repo commondir', async (t) => {
 });
 
 export async function testRepoCommondirOutside(t, repo: Repository) {
-  return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN)
+  return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS)
     .then((dirItems: DirItem[]) => {
       t.is(dirItems.length, 1, 'expect .snow reference in workdir');
 
@@ -85,7 +85,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
 }
 
 export async function testRepoCommondirInside(t, repo: Repository) {
-  return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN).then((dirItems: DirItem[]) => {
+  return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS).then((dirItems: DirItem[]) => {
     t.is(dirItems.length, 11 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 
     t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');

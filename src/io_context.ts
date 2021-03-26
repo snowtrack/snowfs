@@ -3,7 +3,7 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
-import { join, dirname } from 'path';
+import { join, dirname, normalize } from './path';
 import { MB1 } from './common';
 
 const drivelist = require('drivelist');
@@ -250,7 +250,7 @@ export class IoContext {
       for (const drive of drives) {
         for (const mountpoint of drive.mountpoints) {
           if (mountpoint && !mountpoint.path.startsWith('/System/')) {
-            this.mountpoints.add(mountpoint.path);
+            this.mountpoints.add(normalize(mountpoint.path));
           }
         }
       }
@@ -259,8 +259,8 @@ export class IoContext {
 
       for (const drive of drives) {
         for (const mountpoint of drive.mountpoints) {
-          promises.push(getFilesystem(drive, mountpoint.path));
-          tmpDrives.push([mountpoint.path, mountpoint.label]);
+          promises.push(getFilesystem(drive, normalize(mountpoint.path)));
+          tmpDrives.push([normalize(mountpoint.path), mountpoint.label]);
         }
       }
       return Promise.all(promises);

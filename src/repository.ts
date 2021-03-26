@@ -5,11 +5,11 @@ import * as crypto from 'crypto';
 import { difference, intersection } from 'lodash';
 import {
   resolve, join, dirname, relative,
-} from 'path';
+} from './path';
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo, properNormalize } from './common';
+import { FileInfo } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -122,7 +122,7 @@ export const enum FILTER {
   INCLUDE_DIRECTORIES = 8,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED,
+  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED,
 
   /** TODO: Not implemented yet. */
   SORT_CASE_SENSITIVELY = 512,
@@ -474,6 +474,9 @@ export class Repository {
       for (const idx of hash.split('~')) {
         if (idx === 'HEAD') {
           commit = this.commitMap.get(this.getHead().hash);
+        } else if (this.references.map((r: Reference) => r.getName()).includes(idx)) {
+          const ref = this.references.find((r: Reference) => r.getName() === idx);
+          commit = this.commitMap.get(ref.target());
         } else if (commit) {
           const iteration: number = parseInt(idx, 10);
           if (Number.isNaN(iteration)) {
@@ -744,10 +747,10 @@ export class Repository {
     const statusResult: StatusEntry[] = [];
     const currentFiles: string[] = [];
 
-    let ignore: IgnoreManager;
+    let ignore: IgnoreManager | null = null;
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, 'ignore');
+    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
@@ -756,7 +759,7 @@ export class Repository {
         }
       })
       .then(() => {
-        let walk: OSWALK = OSWALK.FILES | OSWALK.IGNORE_REPOS;
+        let walk: OSWALK = OSWALK.FILES;
         walk |= filter & FILTER.INCLUDE_DIRECTORIES ? OSWALK.DIRS : 0;
         walk |= filter & FILTER.INCLUDE_IGNORED ? OSWALK.HIDDEN : 0;
         return osWalk(this.repoWorkDir, walk);
@@ -770,10 +773,10 @@ export class Repository {
         for (const item of items) {
           if (item.isdir) {
             if (filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.push(new StatusEntry({ path: relative(this.repoWorkDir, item.path).replace(/\\/g, '/') }, true));
+              statusResult.push(new StatusEntry({ path: relative(this.repoWorkDir, item.path) }, true));
             }
           } else {
-            currentFiles.push(relative(this.repoWorkDir, item.path).replace(/\\/g, '/'));
+            currentFiles.push(relative(this.repoWorkDir, item.path));
           }
         }
         const currentCommit: Commit = this.getCommitByHead();
@@ -790,24 +793,29 @@ export class Repository {
 
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // Files which didn't exist before, but do now
-          const newFiles: string[] = difference(currentFiles, oldFilePaths);
+          let newFiles: string[] = difference(currentFiles, oldFilePaths);
+          if (ignore) {
+            newFiles = ignore.filter(newFiles);
+          }
           for (const newFile of newFiles) {
-            if (!ignore || !ignore.ignored(newFile)) {
-              statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
-            }
+            statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
           }
         }
 
         // Files which existed before but don't anymore
-        const deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+        let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+        if (ignore) {
+          deletedFiles = ignore.filter(deletedFiles);
+        }
         for (const deletedFile of deletedFiles) {
-          if (!ignore || !ignore.ignored(deletedFile)) {
-            statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
-          }
+          statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
         }
 
         const promises = [];
-        const existingFiles = intersection(currentFiles, oldFilePaths);
+        let existingFiles = intersection(currentFiles, oldFilePaths);
+        if (ignore) {
+          existingFiles = ignore.filter(existingFiles);
+        }
         for (const existingFile of existingFiles) {
           const tfile: TreeFile = oldFilesMap.get(existingFile);
           if (!tfile) {
@@ -822,7 +830,7 @@ export class Repository {
       .then((existingFiles: {file: TreeFile; modified : boolean}[]) => {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
-            if (!ignore || !ignore.ignored(existingFile.file.path)) {
+            if (!ignore || ignore.contains(existingFile.file.path)) {
               statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
             }
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
@@ -854,12 +862,14 @@ export class Repository {
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const processedMap: Map<string, FileInfo> = index.getProcessedMap();
+    const processedMap = new Map<string, FileInfo>();
+
     // head is not available when repo is initialized
     if (this.head?.hash) {
       const headCommit = this.getCommitByHead();
       const currentTree: Map<string, TreeEntry> = headCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
 
+      // store the current tree files in the processed map...
       currentTree.forEach((value: TreeFile) => {
         processedMap.set(value.path, {
           hash: value.hash,
@@ -869,6 +879,11 @@ export class Repository {
         });
       });
     }
+
+    // ... and overwrite the items with the new values from the index that just got commited
+    index.getProcessedMap().forEach((value: FileInfo, path: string) => {
+      processedMap.set(path, value);
+    });
 
     return constructTree(this.repoWorkDir, processedMap)
       .then((treeResult: TreeDir) => {
@@ -904,6 +919,11 @@ export class Repository {
 
         if (this.head.hash) {
           this.head.hash = commit.hash;
+          // update the hash of the current head reference as well
+          const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
+          if (curRef) {
+            curRef.hash = commit.hash;
+          }
         } else {
           this.head.setName('Main');
           this.head.hash = commit.hash;
@@ -1032,7 +1052,7 @@ export class Repository {
 
     let commondirOutside: boolean;
     if (opts.commondir) {
-      if (properNormalize(opts.commondir).startsWith(properNormalize(workdir))) {
+      if (opts.commondir.startsWith(workdir)) {
         throw new Error('commondir must be outside repository');
       }
       commondirOutside = true;

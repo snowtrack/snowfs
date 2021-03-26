@@ -1,10 +1,10 @@
 import { spawn } from 'child_process';
-import { dirname, join, basename } from 'path';
 import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
 import * as tty from 'tty';
+import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -169,6 +169,7 @@ export async function snowFsRmTexture(repoPath: string, t: any = console): Promi
   const index = repo.ensureMainIndex();
 
   const t0 = new Date().getTime();
+  fse.unlinkSync(join(repoPath, 'texture.psd'));
   index.deleteFiles(['texture.psd']);
   await index.writeFiles();
   await repo.createCommit(index, 'Remove texture');
@@ -181,8 +182,8 @@ export async function snowFsRestoreTexture(repoPath: string, t: any = console): 
   const repo = await Repository.open(repoPath);
 
   const t0 = new Date().getTime();
-  const commit = repo.findCommitByHash(repo.getCommitByHead().parent[0]);
-  repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
+  const commit = repo.findCommitByHash('HEAD~1');
+  await repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
   return new Date().getTime() - t0;
 }
 
@@ -229,11 +230,11 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
 
   t.log(timeGitAdd, timeSnowFsRm, timeSnowRestore);
   t.log(`git add texture.psd:  ${`${chalk.red.bold(timeGitAdd)}ms`}`);
-  t.log(`snow add texture.psd: ${`${chalk.bgWhite.green.bold(timeSnowFsAdd)}ms`}`);
+  t.log(`snow add texture.psd: ${`${chalk.green.bold(timeSnowFsAdd)}ms`}`);
   t.log(`git rm texture.psd:   ${`${chalk.red.bold(timeGitRm)}ms`}`);
-  t.log(`snow rm texture.psd:  ${`${chalk.bgWhite.green.bold(timeSnowFsRm)}ms`}`);
+  t.log(`snow rm texture.psd:  ${`${chalk.green.bold(timeSnowFsRm)}ms`}`);
   t.log(`git checkout HEAD~1:  ${`${chalk.red.bold(timeGitRestore)}ms`}`);
-  t.log(`snow checkout HEAD~1: ${`${chalk.bgWhite.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 20 ? '<--this is real' : ''}`);
+  t.log(`snow checkout HEAD~1: ${`${chalk.green.bold(timeSnowRestore)}ms`}  ${timeSnowRestore < 300 ? '<-- Yeah!' : ''}`);
 }
 
 if (process.env.NODE_ENV === 'benchmark') {

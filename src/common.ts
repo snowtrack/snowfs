@@ -1,8 +1,8 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 import {
-  join, dirname, normalize, sep,
-} from 'path';
+  join, dirname,
+} from './path';
 
 import { Repository } from './repository';
 
@@ -39,23 +39,6 @@ export enum LOADING_STATE {
 
   /** The directory is a SnowFS repo. */
   SNOW = 4,
-}
-
-/**
- * Normalizes a path by using `path.normalize()` internally, and discarding a trailing directory delimiter.
- *
- * Input: /Users/snowtrack/Desktop/../foo/
- * Output: /Users/snowtrack/foo
- *
- * @param path Required. A string. The path you want to normalize.
- * @returns    A String, representing the normalized path
- */
-export function properNormalize(path: string): string {
-  let p = normalize(path);
-  if (p.endsWith(sep)) {
-    p = p.substr(0, p.length - 1);
-  }
-  return p;
 }
 
 export interface HashBlock {
