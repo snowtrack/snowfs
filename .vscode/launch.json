@@ -13,7 +13,6 @@
             "${workspaceFolder}/**",
             "!**/node_modules/**"
           ],
-          "cwd": "C:\\Users\\sebastian\\Desktop\\foo",
           "runtimeArgs": [
               "-r",
               "${workspaceFolder}/node_modules/ts-node/register"
