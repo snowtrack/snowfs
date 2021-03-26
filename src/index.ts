@@ -1,7 +1,6 @@
 import * as fse from 'fs-extra';
-import { difference } from 'lodash';
 
-import { difference, intersection } from 'lodash';
+import { difference } from 'lodash';
 
 import {
   isAbsolute, join, relative, basename,
