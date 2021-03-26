@@ -281,7 +281,7 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED);
           for (const statusFile of statusFiles) {
             if (statusFile.isModified()) {
               process.stdout.write(`M ${statusFile.path}\n`);
@@ -298,7 +298,7 @@ program
 
         let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
         if (!opts.keepChanges) {
-          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
         }
 
         await repo.checkout(target, reset);
@@ -646,7 +646,7 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED);
           for (const statusFile of statusFiles) {
             if (statusFile.isModified()) {
               process.stdout.write(`M ${statusFile.path}\n`);
@@ -663,7 +663,7 @@ program
 
         let reset: RESET = RESET.NONE;
         if (!opts.keepChanges) {
-          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
         }
         if (opts.detach) {
           reset |= RESET.DETACH;
