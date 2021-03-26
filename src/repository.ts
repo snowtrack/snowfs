@@ -84,8 +84,8 @@ export const enum STATUS {
 export const enum RESET {
   NONE = 0,
 
-  /** Delete files from the worktree, if they are modified. The affected files will be deleted. */
-  DELETE_MODIFIED_FILES = 1,
+  /** Restore modified files. */
+  RESTORE_MODIFIED_FILES = 1,
 
   /** Delete files from the worktree, if they are untracked/new. The affected files will be deleted. */
   DELETE_NEW_FILES = 2,
@@ -101,7 +101,7 @@ export const enum RESET {
   DETACH = 8,
 
   /** Default flag passed to [[Repository.restoreVersion]] */
-  DEFAULT = DELETE_MODIFIED_FILES | DELETE_NEW_FILES | RESTORE_DELETED_FILES
+  DEFAULT = RESTORE_MODIFIED_FILES | DELETE_NEW_FILES | RESTORE_DELETED_FILES
 }
 
 /**
@@ -121,8 +121,14 @@ export const enum FILTER {
   /** Return all directories - in such case [[StatusEntry.isDirectory]] returns true */
   INCLUDE_DIRECTORIES = 8,
 
+  /** Return all deleted files */
+  INCLUDE_DELETED = 16,
+
+  /** Return all modified files */
+  INCLUDE_MODIFIED = 32,
+
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED,
+  ALL = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED | INCLUDE_DELETED,
 
   /** TODO: Not implemented yet. */
   SORT_CASE_SENSITIVELY = 512,
@@ -671,6 +677,13 @@ export class Repository {
         items = itemsResult;
 
         oldFilesMap = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false }) as Map<string, TreeFile>;
+        if (oldFilesMap) {
+          oldFilePaths = Array.from(oldFilesMap.values()).map((f: TreeFile) => f.path);
+        } else {
+          // no files map is available directly after getStatus is called if no commit made yet
+          oldFilesMap = new Map();
+          oldFilePaths = [];
+        }
 
         // After we received the target commit, we update the commit and reference
         // because any following error needs to be resolved by a user operation
@@ -687,10 +700,8 @@ export class Repository {
           currentFiles.push(relative(this.repoWorkDir, item.path));
         }
 
-        // Contains all files that are registered by the Commit object
-        oldFilePaths = Array.from(oldFilesMap.values()).map((f: TreeFile) => f.path);
+        const promises = [];
 
-        const promises: Promise<void>[] = [];
         if (reset & RESET.DELETE_NEW_FILES) {
           // Delete files which didn't exist before, but do now
           let newFiles: string[] = difference(currentFiles, oldFilePaths);
@@ -729,7 +740,7 @@ export class Repository {
 
         const promises = [];
 
-        if (reset & RESET.DELETE_MODIFIED_FILES) {
+        if (reset & RESET.RESTORE_MODIFIED_FILES) {
           let existingFiles = intersection(currentFiles, oldFilePaths);
 
           if (ignore) {
@@ -767,7 +778,7 @@ export class Repository {
    * controlled by the passed filter.
    * @param filter  Defines which entries the function returns
    */
-  async getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
+  async getStatus(filter?: FILTER): Promise<StatusEntry[]> {
     let oldFilesMap: Map<string, TreeFile>;
     let oldFilePaths: string[];
     const statusResult: StatusEntry[] = [];
@@ -817,6 +828,8 @@ export class Repository {
           oldFilePaths = [];
         }
 
+        const promises = [];
+
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // Files which didn't exist before, but do now
           let newFiles: string[] = difference(currentFiles, oldFilePaths);
@@ -829,26 +842,33 @@ export class Repository {
         }
 
         // Files which existed before but don't anymore
-        let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
-        if (ignore) {
-          deletedFiles = ignore.filter(deletedFiles);
-        }
-        for (const deletedFile of deletedFiles) {
-          statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
-        }
+        if (filter & FILTER.INCLUDE_DELETED) {
+          let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
 
-        const promises = [];
-        let existingFiles = intersection(currentFiles, oldFilePaths);
-        if (ignore) {
-          existingFiles = ignore.filter(existingFiles);
-        }
-        for (const existingFile of existingFiles) {
-          const tfile: TreeFile = oldFilesMap.get(existingFile);
-          if (!tfile) {
-            throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+          if (ignore) {
+            deletedFiles = ignore.filter(deletedFiles);
           }
 
-          promises.push(tfile.isFileModified(this));
+          for (const deletedFile of deletedFiles) {
+            statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
+          }
+        }
+
+        if (filter & FILTER.INCLUDE_MODIFIED) {
+          let existingFiles = intersection(currentFiles, oldFilePaths);
+
+          if (ignore) {
+            existingFiles = ignore.filter(existingFiles);
+          }
+
+          for (const existingFile of existingFiles) {
+            const tfile: TreeFile = oldFilesMap.get(existingFile);
+            if (!tfile) {
+              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+            }
+
+            promises.push(tfile.isFileModified(this));
+          }
         }
 
         return Promise.all(promises);
@@ -856,9 +876,7 @@ export class Repository {
       .then((existingFiles: {file: TreeFile; modified : boolean}[]) => {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
-            if (!ignore || ignore.contains(existingFile.file.path)) {
-              statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
-            }
+            statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
           }

@@ -129,6 +129,7 @@ export async function main() {
       return fse.copyFile("/path/to/texture.psd", join(repoPath, "texture.psd"));
     })
     .then(() => {
+      index = repo.ensureMainIndex();
       index.addFiles(["texture.psd"]);
       return index.writeFiles();
     })
