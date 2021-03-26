@@ -152,20 +152,22 @@ export class Odb {
   async deleteReference(ref: Reference) {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.unlink(join(refsDir, ref.getName()));
+    return fse.unlink(join(refsDir, ref.getName()))
+      .then(() => this.repo.modified());
   }
 
   async writeHeadReference(head: Reference) {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName());
+    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName())
+      .then(() => this.repo.modified());
   }
 
   async readHeadReference(): Promise<string | null> {
     const refsDir: string = this.repo.options.commondir;
     return fse.readFile(join(refsDir, 'HEAD')).then((buf: Buffer) => buf.toString()).catch((error) => {
       console.log('No HEAD found');
-      return undefined;
+      return null;
     });
   }
 
@@ -193,7 +195,7 @@ export class Odb {
       type: ref.type,
       start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
-    }));
+    })).then(() => this.repo.modified());
   }
 
   async writeCommit(commit: Commit): Promise<void> {
@@ -227,7 +229,7 @@ export class Odb {
       stream.on('finish', resolve);
       stream.on('error', reject);
       stream.end();
-    });
+    }).then(() => this.repo.modified());
   }
 
   async writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
@@ -282,7 +284,8 @@ export class Odb {
               ctime: stat.ctime.getTime(),
             },
           },
-        })));
+        })))
+      .then((res) => this.repo.modified(res));
   }
 
   async readObject(hash: string, dst: string, ioContext: IoContext): Promise<void> {

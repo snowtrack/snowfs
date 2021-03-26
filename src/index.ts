@@ -110,7 +110,7 @@ export class Index {
   /**
    * Store the index object to disk. Saved to {workdir}/.snow/index/..
    */
-  private async save() {
+  private async save(): Promise<void> {
     this.throwIfNotValid();
 
     const userData: string = JSON.stringify({
@@ -126,7 +126,8 @@ export class Index {
       }
       return value;
     });
-    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData));
+    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData))
+      .then(() => this.repo.modified());
   }
 
   /**
