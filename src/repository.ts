@@ -647,9 +647,20 @@ export class Repository {
 
     let items: DirItem[];
 
+    let ignore: IgnoreManager | null = null;
+
     const ioContext = new IoContext();
+    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
+
     // First iterate over all files and get their file stats
     return ioContext.init()
+      .then(() => fse.pathExists(snowtrackIgnoreDefault))
+      .then(async (exists: boolean) => {
+        if (exists) {
+          ignore = new IgnoreManager();
+          return ignore.init(snowtrackIgnoreDefault);
+        }
+      })
       .then(() => osWalk(this.repoWorkDir, OSWALK.FILES))
       .then((itemsResult: DirItem[]) => {
         // head hash is null before first commit is made
@@ -682,7 +693,12 @@ export class Repository {
         const promises: Promise<void>[] = [];
         if (reset & RESET.DELETE_NEW_FILES) {
           // Delete files which didn't exist before, but do now
-          const newFiles: string[] = difference(currentFiles, oldFilePaths);
+          let newFiles: string[] = difference(currentFiles, oldFilePaths);
+
+          if (ignore) {
+            newFiles = ignore.filter(newFiles);
+          }
+
           for (const newFile of newFiles) {
             promises.push(IoContext.putToTrash(join(this.repoWorkDir, newFile)));
           }
@@ -690,7 +706,12 @@ export class Repository {
 
         // Files which existed before but don't anymore
         if (reset & RESET.RESTORE_DELETED_FILES) {
-          const deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+          let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+
+          if (ignore) {
+            deletedFiles = ignore.filter(deletedFiles);
+          }
+
           for (const deletedFile of deletedFiles) {
             const file: TreeFile = oldFilesMap.get(deletedFile);
             if (file) {
@@ -709,7 +730,12 @@ export class Repository {
         const promises = [];
 
         if (reset & RESET.DELETE_MODIFIED_FILES) {
-          const existingFiles = intersection(currentFiles, oldFilePaths);
+          let existingFiles = intersection(currentFiles, oldFilePaths);
+
+          if (ignore) {
+            existingFiles = ignore.filter(existingFiles);
+          }
+
           for (const existingFile of existingFiles) {
             const tfile: TreeFile = oldFilesMap.get(existingFile);
             if (!tfile) {
