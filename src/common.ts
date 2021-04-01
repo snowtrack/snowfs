@@ -6,11 +6,11 @@ import {
 
 import { Repository } from './repository';
 
-export const MB100: number = 100000000;
-export const MB20: number = 20000000;
-export const MB10: number = 10000000;
-export const MB2: number = 2000000;
-export const MB1: number = 1000000;
+export const MB100 = 100000000;
+export const MB20 = 20000000;
+export const MB10 = 10000000;
+export const MB2 = 2000000;
+export const MB1 = 1000000;
 
 /**
  * A commonly used class which contains a hash and

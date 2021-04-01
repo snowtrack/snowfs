@@ -241,7 +241,7 @@ export class IoContext {
         return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       }
 
-      let cloneFileViaBlockClonePs1: string = 'Clone-FileViaBlockClone.ps1';
+      let cloneFileViaBlockClonePs1 = 'Clone-FileViaBlockClone.ps1';
       if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1))) {
         cloneFileViaBlockClonePs1 = join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1);
       } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1))) {
