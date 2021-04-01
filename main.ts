@@ -175,7 +175,7 @@ program
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
-      const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+      const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED);
 
       const relCwd = relative(repo.workdir(), normalize(process.cwd()));
 
