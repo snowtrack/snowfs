@@ -204,7 +204,7 @@ export class Odb {
     const dstFile: string = join(objectsDir, commitSha256);
 
     const stream = fse.createWriteStream(dstFile, { flags: 'w' });
-    const parent: string = `"${commit.parent.join('","')}"`;
+    const parent = `"${commit.parent.join('","')}"`;
     stream.write('{');
     stream.write(`"hash": "${commit.hash}",
                   "message": "${commit.message}",

@@ -17,7 +17,7 @@ import * as crypto from 'crypto';
  */
 export async function writeSafeFile(path: string, data: any, options?: string | fse.WriteFileOptions) {
   const tmp = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-  const tmpPath: string = `${path}.${tmp}.tmp`;
+  const tmpPath = `${path}.${tmp}.tmp`;
 
   return fse.writeFile(tmpPath, data, options)
     .then(() => fse.rename(tmpPath, path))

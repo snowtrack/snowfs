@@ -49,7 +49,7 @@ export class Index {
    */
   deleteRelPaths: Set<string> = new Set();
 
-  constructor(repo: Repository, odb: Odb, id: string = '') {
+  constructor(repo: Repository, odb: Odb, id = '') {
     this.repo = repo;
     this.id = id;
     this.odb = odb;
