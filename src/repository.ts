@@ -37,6 +37,10 @@ export enum REFERENCE_TYPE {
  * Initialize a new [[Repository]].
  */
 export class RepositoryInitOptions {
+  defaultBranchName?: string;
+
+  defaultCommitMessage?: string;
+
   commondir?: string;
 
   compress?: boolean;
@@ -982,7 +986,7 @@ export class Repository {
             curRef.hash = commit.hash;
           }
         } else {
-          this.head.setName('Main');
+          this.head.setName(this.options.defaultBranchName ?? 'Main');
           this.head.hash = commit.hash;
           this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
         }
@@ -1136,7 +1140,7 @@ export class Repository {
         return repo.repoLog.init();
       })
       .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
-      .then(() => repo.createCommit(repo.getFirstIndex(), 'Created Project', { allowEmpty: true }))
+      .then(() => repo.createCommit(repo.getFirstIndex(), repo.options.defaultCommitMessage ?? 'Created Project', { allowEmpty: true }))
       .then(() => repo);
   }
 }
