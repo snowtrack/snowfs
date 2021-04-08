@@ -160,65 +160,69 @@ export interface StatusFileOptionsCustom {
  * Used toinitialize a new repository.
  */
 export class StatusEntry {
-  /** Internal data object which contains meta information about the file */
-  data: StatusFileOptionsCustom;
+  /** Relative path of the file to the workdir root. */
+  path?: string;
+
+  /** Flags, which define the attributes of the file. */
+  status?: STATUS;
 
   /** True if the "file" is actually a directory. */
   isdir: boolean;
 
   constructor(data: StatusFileOptionsCustom, isdir: boolean) {
-    this.data = data;
+    this.path = data.path;
+    this.status = data.status;
     this.isdir = isdir;
   }
 
   /** Return true if the object is new. */
   isNew(): boolean {
-    return Boolean(this.data.status & STATUS.WT_NEW);
+    return Boolean(this.status & STATUS.WT_NEW);
   }
 
   /** Return true if the object is modified. */
   isModified(): boolean {
-    return Boolean(this.data.status & STATUS.WT_MODIFIED);
+    return Boolean(this.status & STATUS.WT_MODIFIED);
   }
 
   /** Return true if the object got deleted. */
   isDeleted(): boolean {
-    return Boolean(this.data.status & STATUS.WT_DELETED);
+    return Boolean(this.status & STATUS.WT_DELETED);
   }
 
   /** Return true if the object is ignored by [[IgnoreManager]]. */
   isIgnored(): boolean {
-    return Boolean(this.data.status & STATUS.IGNORED);
+    return Boolean(this.status & STATUS.IGNORED);
   }
 
   /** Return true if the object got renamed. */
   isRenamed(): boolean {
-    return Boolean(this.data.status & STATUS.WT_RENAMED);
+    return Boolean(this.status & STATUS.WT_RENAMED);
   }
 
   /** Return true if the meta info got changed. For more information, please see [[STATUS.WT_TYPECHANGE]]. */
   isTypechange(): boolean {
-    return Boolean(this.data.status & STATUS.WT_TYPECHANGE);
-  }
-
-  // Return the path of the object.
-  get path(): string {
-    return this.data.path;
+    return Boolean(this.status & STATUS.WT_TYPECHANGE);
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
   public setStatusBit(status: STATUS) {
-    this.data.status = status;
+    this.status = status;
   }
 
   /** Return all status bits of the object. */
   statusBit(): STATUS {
-    return this.data.status;
+    return this.status;
   }
 
   /** Return true if the object represents a directory. */
   isDirectory(): boolean {
     return this.isdir;
+  }
+
+  /** Return true if the object represents a file. */
+  isFile(): boolean {
+    return !this.isdir;
   }
 }
 
