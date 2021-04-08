@@ -6,18 +6,17 @@ export class IgnoreManager {
     patterns: string[];
 
     constructor() {
-      this.patterns = ['.DS_Store', 'thumbs.db', '._.*'];
+      this.patterns = ['.DS_Store', 'thumbs.db', '._.*', '.snowignore'];
     }
 
     async init(filepath: string) {
       return fse.readFile(filepath).then((value: Buffer) => {
         const lines: string[] = value.toString().split('\n');
         for (let line of lines) {
-          line = line.trim();
-          if (line.length > 0 && !line.startsWith('//')) {
-            line = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''); // remove /* comment */ or // comment
-
+          line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''); // remove /* comment */ or // comment
+          if (line.length > 0) {
             this.patterns.push(line);
+
             if (!line.endsWith('/')) { // could be a file or directory
               this.patterns.push(`${line}/**`);
             }
