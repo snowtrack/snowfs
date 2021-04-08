@@ -113,9 +113,7 @@ test('osWalk test#1', async (t) => {
     const items: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS);
 
     const res1: string[] = getUniquePaths(exampleDirs);
-    const res2: string[] = getUniquePaths(
-      items.map((value: DirItem) => relative(tmpDir, value.path)),
-    );
+    const res2: string[] = getUniquePaths(items.map((value: DirItem) => value.relPath));
 
     t.log(
       `Expected ${res1.length} directories, got ${res2.length}: `,
@@ -128,13 +126,13 @@ test('osWalk test#1', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     for (const item of items) {
       /// //////////////////////////////////////////////////////////////////////////
-      t.log(`  ${item.path}`);
+      t.log(`  ${item.relPath}`);
       /// //////////////////////////////////////////////////////////////////////////
-      t.false(item.path.endsWith(sep));
+      t.false(item.relPath.endsWith(sep));
 
-      t.true(item.path.search(/\/\//) === -1); // search for //
-      t.true(item.path.search(/\\\//) === -1); // search for \\/
-      t.true(item.path.search(/\/\\/) === -1); // search for /\\
+      t.true(item.relPath.search(/\/\//) === -1); // search for //
+      t.true(item.relPath.search(/\\\//) === -1); // search for \\/
+      t.true(item.relPath.search(/\/\\/) === -1); // search for /\\
     }
 
     fse.rmdirSync(tmpDir, { recursive: true });
@@ -161,9 +159,7 @@ test('osWalk test#2a', async (t) => {
     const items: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
 
     const res1: string[] = getUniquePaths(exampleFiles.concat(exampleDirs));
-    const res2: string[] = items
-      .map((value: DirItem) => relative(tmpDir, value.path))
-      .sort();
+    const res2: string[] = items.map((value: DirItem) => value.relPath).sort();
 
     t.log(
       `Expected ${res1.length} directories, got ${res2.length}: `,
@@ -176,13 +172,13 @@ test('osWalk test#2a', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     for (const item of items) {
       /// //////////////////////////////////////////////////////////////////////////
-      t.log(`  ${item.path}`);
+      t.log(`  ${item.relPath}`);
       /// //////////////////////////////////////////////////////////////////////////
-      t.false(item.path.endsWith(sep));
+      t.false(item.relPath.endsWith(sep));
 
-      t.true(item.path.search(/\/\//) === -1); // search for //
-      t.true(item.path.search(/\\\//) === -1); // search for \\/
-      t.true(item.path.search(/\/\\/) === -1); // search for /\\
+      t.true(item.relPath.search(/\/\//) === -1); // search for //
+      t.true(item.relPath.search(/\\\//) === -1); // search for \\/
+      t.true(item.relPath.search(/\/\\/) === -1); // search for /\\
     }
 
     fse.rmdirSync(tmpDir, { recursive: true });
@@ -208,9 +204,7 @@ test('osWalk test#2', async (t) => {
     const items: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
 
     const res1: string[] = getUniquePaths(exampleFiles.concat(exampleDirs));
-    const res2: string[] = items
-      .map((value: DirItem) => relative(tmpDir, value.path))
-      .sort();
+    const res2: string[] = items.map((value: DirItem) => value.relPath).sort();
 
     t.log(
       `Expected ${res1.length} directories, got ${res2.length}: `,
@@ -223,9 +217,9 @@ test('osWalk test#2', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     for (const item of items) {
       /// //////////////////////////////////////////////////////////////////////////
-      t.log(`  ${item.path}`);
+      t.log(`  ${item.relPath}`);
       /// //////////////////////////////////////////////////////////////////////////
-      t.false(item.path.endsWith(sep));
+      t.false(item.relPath.endsWith(sep));
     }
 
     fse.rmdirSync(tmpDir, { recursive: true });
@@ -251,9 +245,7 @@ test('osWalk test#3', async (t) => {
     const items: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.HIDDEN);
 
     const res1: string[] = getUniquePaths(exampleDirs);
-    const res2: string[] = items
-      .map((value: DirItem) => relative(tmpDir, value.path))
-      .sort();
+    const res2: string[] = items.map((value: DirItem) => value.relPath).sort();
 
     t.log(
       `Expected ${res1.length} directories, got ${res2.length}: `,
@@ -266,9 +258,9 @@ test('osWalk test#3', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     for (const item of items) {
       /// //////////////////////////////////////////////////////////////////////////
-      t.log(`  ${item.path}`);
+      t.log(`  ${item.relPath}`);
       /// //////////////////////////////////////////////////////////////////////////
-      t.false(item.path.endsWith(sep));
+      t.false(item.relPath.endsWith(sep));
     }
 
     fse.rmdirSync(tmpDir, { recursive: true });

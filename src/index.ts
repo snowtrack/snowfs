@@ -138,9 +138,9 @@ export class Index {
     return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
       const readIndexes = [];
       for (const dirItem of dirItems) {
-        const indexName = basename(dirItem.path);
+        const indexName = basename(dirItem.absPath);
         if (indexName.startsWith('index') || indexName === 'index') {
-          readIndexes.push(fse.readFile(dirItem.path).then((buf: Buffer) => [dirItem.path, buf]));
+          readIndexes.push(fse.readFile(dirItem.absPath).then((buf: Buffer) => [dirItem.absPath, buf]));
         }
       }
       return Promise.all(readIndexes);

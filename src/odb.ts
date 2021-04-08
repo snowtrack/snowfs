@@ -76,7 +76,7 @@ export class Odb {
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
-          promises.push(fse.readFile(ref.path).then((buf: Buffer) => JSON.parse(buf.toString())));
+          promises.push(fse.readFile(ref.absPath).then((buf: Buffer) => JSON.parse(buf.toString())));
         }
         return Promise.all(promises);
       })
@@ -113,7 +113,7 @@ export class Odb {
   }
 
   async readReference(ref: DirItem) {
-    const refPath = ref.path;
+    const refPath = ref.absPath;
     return fse.readFile(refPath)
       .then((buf: Buffer) => {
         try {
@@ -144,9 +144,16 @@ export class Odb {
           start: ret.content.start,
           userData: ret.content.userData,
         };
-        return new Reference(ret.content.type, basename(ret.ref.path), this.repo, opts);
+        return new Reference(ret.content.type, basename(ret.ref.absPath), this.repo, opts);
       }))
       .then((refsResult: Reference[]) => refsResult);
+  }
+
+  async deleteCommit(commit: Commit) {
+    const objectsDir: string = join(this.repo.options.commondir, 'versions');
+    // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
+    return fse.unlink(join(objectsDir, commit.hash))
+      .then(() => this.repo.modified());
   }
 
   async deleteReference(ref: Reference) {

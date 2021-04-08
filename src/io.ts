@@ -5,7 +5,7 @@ import { normalize } from './path';
 
 export class DirItem {
   /** Absolute path of dir item */
-  path: string;
+  absPath: string;
 
   /** Relative path of dir item */
   relPath: string;
@@ -75,7 +75,7 @@ export async function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[
           const absPath = `${dirPath}/${entry}`;
           const isDir: boolean = fse.statSync(absPath).isDirectory();
           dirItemsTmp.push({
-            path: absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
+            absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
           });
         }
 
@@ -90,7 +90,7 @@ export async function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[
           }
 
           if (dirItem.isdir) {
-            promises.push(internalOsWalk(dirItem.path, request, dirItem.relPath, dirItem));
+            promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
 
