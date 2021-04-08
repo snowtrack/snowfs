@@ -384,28 +384,28 @@ program
       } else {
         console.log(`On branch ${repo.getHead().getName()}`);
         console.log('Changes not staged for commit:');
-        console.log('use "snow add <file>..." to update what will be committed');
+        console.log('use "snow add <rel-path>..." to update what will be committed');
         // console.log(`use "snow restore <file>..." to discard changes in working directory`);
-        for (const modifiedFile of modifiedFiles) {
+        for (const modifiedFile of modified) {
           console.log(modifiedFile.path);
         }
         process.stdout.write('\n');
-        if (deletedFiles.length > 0) {
-          console.log('Deleted files:');
-          for (const deleteFile of deletedFiles) {
-            console.log(deleteFile.path);
+        if (deleted.length > 0) {
+          console.log('Deleted:');
+          for (const del of deleted) {
+            console.log(del.path);
           }
         } else {
           console.log('no deleted changes added to commit (use "snow rm")');
         }
         process.stdout.write('\n');
-        if (newFiles.length > 0) {
-          console.log('New files:');
-          for (const newFile of newFiles) {
-            if (index.addRelPaths.has(relative(repo.workdir(), newFile.path))) {
+        if (newe.length > 0) {
+          console.log('New:');
+          for (const n of newe) {
+            if (index.addRelPaths.has(n.path)) {
               process.stdout.write(chalk.red('+ '));
             }
-            console.log(newFile.path);
+            console.log(n.path);
           }
         } else {
           console.log('no changes added to commit (use "snow add"');
