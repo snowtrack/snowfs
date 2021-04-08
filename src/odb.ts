@@ -288,7 +288,7 @@ export class Odb {
       .then((res) => this.repo.modified(res));
   }
 
-  async readObject(hash: string, dst: string, ioContext: IoContext): Promise<void> {
+  async readObject(hash: string, dstAbsPath: string, ioContext: IoContext): Promise<void> {
     const objectFile: string = join(this.repo.options.commondir, 'objects', hash.substr(0, 2), hash.substr(2, 2), hash.toString());
 
     return fse.pathExists(objectFile).then((exists: boolean) => {
@@ -296,7 +296,7 @@ export class Odb {
         throw new Error(`object ${hash} not found`);
       }
 
-      return fse.ensureDir(dirname(dst)).then(() => ioContext.copyFile(objectFile, dst));
+      return fse.ensureDir(dirname(dstAbsPath)).then(() => ioContext.copyFile(objectFile, dstAbsPath));
     });
   }
 }
