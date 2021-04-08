@@ -14,7 +14,6 @@ import {
 } from './src/repository';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
-import { calculateFileHash } from './src/common';
 
 const program = require('commander');
 const chalk = require('chalk');
