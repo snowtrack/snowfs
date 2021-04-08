@@ -26,10 +26,6 @@ export class IgnoreManager {
       });
     }
 
-    filter(filepaths): string[] {
-      return nm(filepaths, this.patterns, { dot: true });
-    }
-
     ignored(filepath: string): boolean {
       return nm.match(filepath, this.patterns, { dot: true }).length > 0;
     }
