@@ -74,7 +74,7 @@ export class Odb {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     return osWalk(objectsDir, OSWALK.FILES)
       .then((value: DirItem[]) => {
-        const promises: Promise<Commit>[] = [];
+        const promises = [];
         for (const ref of value) {
           promises.push(fse.readFile(ref.path).then((buf: Buffer) => JSON.parse(buf.toString())));
         }
