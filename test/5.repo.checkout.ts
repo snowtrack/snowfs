@@ -25,7 +25,7 @@ test('checkout test', async (t) => {
 
   // a file that gets another file on each commit
   const snowignore = join(repo.workdir(), '.snowignore');
-  fse.writeFileSync(snowignore, '.snowignore\nsubdir/dont-touch-me');
+  fse.writeFileSync(snowignore, 'subdir/dont-touch-me');
 
   // a file that gets another file on each commit
   const newFile = join(repo.workdir(), 'subdir', 'new-file-0');
@@ -187,23 +187,20 @@ test('checkout test', async (t) => {
 
     const dirItems = await osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     if (i === 0) {
-      const items = dirItems.map((v: DirItem) => relative(repo.workdir(), v.path));
+      const items = dirItems.map((v: DirItem) => v.relPath);
 
       const diffs = difference(items, [
-        '.snowignore',
         'subdir',
         'subdir/dont-touch-me',
       ]);
       t.is(diffs.length, 0);
     } else {
-      const filecount = dirItems.length - 1;
-      t.is(filecount, 15);
+      t.is(dirItems.length, 16); // 14 files in subdir + subdir directory + .snowignore
 
-      const items = dirItems.map((v: DirItem) => relative(repo.workdir(), v.path));
+      const items = dirItems.map((v: DirItem) => v.relPath);
 
       if (i === 1) {
         const diffs = difference(items, [
-          '.snowignore',
           'subdir',
           'subdir/dont-touch-me',
           'subdir/base-file-1',
