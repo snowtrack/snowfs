@@ -190,6 +190,7 @@ test('checkout test', async (t) => {
       const items = dirItems.map((v: DirItem) => v.relPath);
 
       const diffs = difference(items, [
+        '.snowignore',
         'subdir',
         'subdir/dont-touch-me',
       ]);
@@ -201,6 +202,7 @@ test('checkout test', async (t) => {
 
       if (i === 1) {
         const diffs = difference(items, [
+          '.snowignore',
           'subdir',
           'subdir/dont-touch-me',
           'subdir/base-file-1',
