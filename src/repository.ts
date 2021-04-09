@@ -2,9 +2,8 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { difference, intersection } from 'lodash';
 import {
-  resolve, join, dirname, relative,
+  resolve, join, dirname,
 } from './path';
 
 import { Log } from './log';
@@ -679,7 +678,7 @@ export class Repository {
         const promises = [];
 
         // Items which existed before but don't anymore
-        statuses.forEach((status: StatusEntry, index: number, array: StatusEntry[]) => {
+        statuses.forEach((status: StatusEntry) => {
           if (status.isDeleted() && reset & RESET.RESTORE_DELETED_FILES) {
             const dst: string = join(this.repoWorkDir, status.path);
 
