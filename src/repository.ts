@@ -551,7 +551,7 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: {}): Promise<Reference> {
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: any): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
