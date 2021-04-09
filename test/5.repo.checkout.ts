@@ -9,6 +9,7 @@ import { join, relative } from '../src/path';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { COMMIT_ORDER, Repository, RESET } from '../src/repository';
 import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { Commit } from '../src/commit';
 
 test('checkout test', async (t) => {
   const repoPath = getRandomPath();
@@ -56,21 +57,25 @@ test('checkout test', async (t) => {
     // each commit modify the 'modify-file-' file
     const modifiedFile = join(repo.workdir(), 'subdir', `modify-file-${i}`);
     fse.writeFileSync(modifiedFile, `modify-file-${i}`);
+    t.log(`Add modified: ${modifiedFile}`);
     index.addFiles([modifiedFile]);
 
     // each commit add a new file 'new-file'
     const newFile = join(repo.workdir(), 'subdir', `new-file-${i}`);
     fse.writeFileSync(newFile, `new-file-${i}`);
+    t.log(`Add new file: ${newFile}`);
     index.addFiles([newFile]);
 
     // remove an initial foo file
     const delfile = join(repo.workdir(), 'subdir', `delete-file-${i}`);
     fse.unlinkSync(delfile);
+    t.log(`Delete file: ${delfile}`);
     index.deleteFiles([delfile]);
 
     await index.writeFiles();
 
-    await repo.createCommit(index, `Commit ${i}`);
+    const commit: Commit = await repo.createCommit(index, `Commit ${i}`);
+    t.log(`Created commit: ${commit.hash}`);
   }
 
   // $ snow log --verbose
@@ -183,6 +188,7 @@ test('checkout test', async (t) => {
 
   for (let i = 0; i < 5; ++i) {
     const commit = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST)[i];
+    t.log(`Checkout ${commit.hash}, run ${i}`);
     await repo.checkout(commit, RESET.DEFAULT);
 
     const dirItems = await osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
