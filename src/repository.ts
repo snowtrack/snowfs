@@ -786,15 +786,14 @@ export class Repository {
   async getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
     const statusResult: Map<string, StatusEntry> = new Map();
 
-    let ignore: IgnoreManager | null = null;
+    const ignore = new IgnoreManager();
 
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
-          ignore = new IgnoreManager();
-          return ignore.init(snowtrackIgnoreDefault);
+          return ignore.loadFile(snowtrackIgnoreDefault);
         }
       })
       .then(() => {

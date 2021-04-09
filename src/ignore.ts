@@ -9,7 +9,7 @@ export class IgnoreManager {
       this.patterns = ['.DS_Store', 'thumbs.db', '._.*', '.snowignore'];
     }
 
-    async init(filepath: string) {
+    async loadFile(filepath: string) {
       return fse.readFile(filepath).then((value: Buffer) => {
         const lines: string[] = value.toString().split('\n');
         for (let line of lines) {
