@@ -541,7 +541,7 @@ export class Repository {
   /**
    * Stores the HEAD reference to disk, inside the commondir.
    */
-  writeHeadRefToDisk() {
+  writeHeadRefToDisk(): Promise<void> {
     return this.repoOdb.writeHeadReference(this.head);
   }
 

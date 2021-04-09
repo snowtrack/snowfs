@@ -115,7 +115,7 @@ function darwinZip(src: string, dst: string): Promise<void> {
   });
 }
 
-export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}) {
+export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): Promise<void> {
   if (!dst.endsWith('.zip')) {
     throw new Error('destination must be a zip');
   }

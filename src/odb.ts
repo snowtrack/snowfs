@@ -112,7 +112,7 @@ export class Odb {
       });
   }
 
-  readReference(ref: DirItem) {
+  readReference(ref: DirItem): Promise<{ref: DirItem, content: string}> {
     const refPath = ref.absPath;
     return fse.readFile(refPath)
       .then((buf: Buffer) => {
@@ -149,21 +149,21 @@ export class Odb {
       .then((refsResult: Reference[]) => refsResult);
   }
 
-  deleteCommit(commit: Commit) {
+  deleteCommit(commit: Commit): Promise<void> {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(objectsDir, commit.hash))
       .then(() => this.repo.modified());
   }
 
-  deleteReference(ref: Reference) {
+  deleteReference(ref: Reference): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(refsDir, ref.getName()))
       .then(() => this.repo.modified());
   }
 
-  writeHeadReference(head: Reference) {
+  writeHeadReference(head: Reference): Promise<void> {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName())

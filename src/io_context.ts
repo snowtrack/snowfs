@@ -153,7 +153,7 @@ export class IoContext {
     IoContext.trashExecPath = execPath;
   }
 
-  init() {
+  init(): Promise<void> {
     const tmpDrives = [];
     return drivelist.list().then((drives: any) => {
       this.origDrives = drives;
