@@ -156,6 +156,13 @@ export class Odb {
       .then(() => this.repo.modified());
   }
 
+  deleteCommit(commit: Commit): Promise<void> {
+    const objectsDir: string = join(this.repo.options.commondir, 'versions');
+    // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
+    return fse.unlink(join(objectsDir, commit.hash))
+      .then(() => this.repo.modified());
+  }
+
   writeHeadReference(head: Reference): Promise<void> {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached

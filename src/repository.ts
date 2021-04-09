@@ -601,6 +601,61 @@ export class Repository {
     this.head.setName('HEAD');
   }
 
+  async setCommitMessage(commitHash: string, message: string) {
+    if (!message) {
+      throw new Error('commit message cannot be empty');
+    }
+
+    const commit: Commit = this.commitMap.get(commitHash);
+    commit.message = message;
+    return this.repoOdb.writeCommit(commit).then(() => {
+      return this.modified();
+    });
+  }
+
+  async deleteCommit(commitHash: string) {
+    const commit: Commit = this.findCommitByHash(commitHash);
+    if (!commit) {
+      throw new Error('cannot find commit');
+    }
+
+    const parentOfDeletedCommit = commit.parent;
+
+    const updateCommits = [];
+    this.commitMap.forEach((c: Commit) => {
+      if (c.parent.includes(commitHash)) {
+        c.parent = parentOfDeletedCommit;
+        updateCommits.push(this.repoOdb.writeCommit(c));
+      }
+    });
+
+    this.commitMap.delete(commitHash);
+
+    let promise: Promise<unknown>;
+    if (this.head.hash === commitHash) {
+      this.head.hash = commit.parent[0];
+      promise = this.repoOdb.writeHeadReference(this.head);
+    } else {
+      promise = Promise.resolve();
+    }
+
+    return promise
+      .then(() => {
+        const promises = [];
+        for (const ref of this.references) {
+          if (ref.hash === commitHash) {
+            ref.hash = commit.parent[0];
+            promises.push(this.repoOdb.writeReference(ref));
+          }
+        }
+        return Promise.all(promises);
+      }).then(() => {
+        return this.repoOdb.deleteCommit(commit);
+      }).then(() => {
+        return Promise.all(updateCommits);
+      });
+  }
+
   /**
    * Restore to a commit by a given reference, commit or commit hash.
    *
