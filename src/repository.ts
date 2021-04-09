@@ -754,7 +754,7 @@ export class Repository {
       .then(() => {
         const promises = [];
 
-        deleteCandidates.forEach((candidate: StatusEntry, relPath: string, map: Map<string, StatusEntry>) => {
+        deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
           if (candidate.isDirectory()) {
             if (!deleteRevokeDirs.has(relPath)) {
