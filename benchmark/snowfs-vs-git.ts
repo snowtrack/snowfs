@@ -31,7 +31,7 @@ async function input(question: string): Promise<string> {
   });
 }
 
-async function exec(command: string, args?: string[], t = console, opts?: {cwd?: string}): Promise<void> {
+function exec(command: string, args?: string[], t = console, opts?: {cwd?: string}): Promise<void> {
   t.log(`$ ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.' });
   return new Promise((resolve, reject) => {
@@ -99,6 +99,7 @@ async function createFile(dst: string, size: number, t = console) {
     stream.end();
   });
 }
+
 async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
   fse.rmdirSync(repoPath, { recursive: true });
 

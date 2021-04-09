@@ -57,9 +57,9 @@ export class TreeFile {
     return JSON.stringify(output);
   }
 
-  async isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean}> {
+  isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean}> {
     const filepath = join(repo.workdir(), this.path);
-    return fse.stat(filepath).then(async (value: fse.Stats) => {
+    return fse.stat(filepath).then((value: fse.Stats) => {
       // first we check for for modification time and file size
       if (this.size !== value.size) {
         return { file: this, modified: true };
@@ -193,7 +193,7 @@ export class TreeDir {
   }
 }
 // This function has the same basic functioanlity as io.osWalk(..) but works with Tree
-export async function constructTree(
+export function constructTree(
   dirPath: string,
   processed: Map<string, FileInfo>,
   tree?: TreeDir,
@@ -232,7 +232,7 @@ export async function constructTree(
 
         const absPath = `${dirPath}/${entry}`;
         promises.push(
-          fse.stat(absPath).then(async (stat: fse.Stats) => {
+          fse.stat(absPath).then((stat: fse.Stats) => {
             if (stat.isDirectory()) {
               const subtree: TreeDir = new TreeDir(
                 relative(root, absPath),

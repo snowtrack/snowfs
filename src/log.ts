@@ -29,7 +29,7 @@ export class Log {
     return join(this.repo.commondir(), 'logs');
   }
 
-  async init() {
+  init() {
     return fse.ensureDir(this.getAbsLogDirPath());
   }
 
@@ -37,7 +37,7 @@ export class Log {
    * Writes a log message to .snow/logs/mainlog. The message is recommended to be a one-liner.
    * @param message:          One-line message, e.g.  "commit: foo"
    */
-  async writeLog(message: string) {
+  writeLog(message: string) {
     const now = new Date();
     const logMessage = `${now.getTime()} ${getZOffset(now)} $> ${message}\n`;
     return fse.appendFile(join(this.getAbsLogDirPath(), 'mainlog'), logMessage)

@@ -122,7 +122,7 @@ import { join } from "path";
 import { Index } from "./src";
 import { Repository } from "./src/repository";
 
-export async function main() {
+export function main() {
   let repo: Repository;
   let index: Index;
   const repoPath = "/path/to/a/non/existing/directory";

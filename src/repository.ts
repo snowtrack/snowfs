@@ -206,7 +206,7 @@ export class StatusEntry {
   }
 }
 
-async function getSnowFSRepo(path: string): Promise<string | null> {
+function getSnowFSRepo(path: string): Promise<string | null> {
   const snowInit: string = join(path, '.snow');
   return fse.pathExists(snowInit).then((exists: boolean) => {
     if (exists) {
@@ -277,7 +277,7 @@ export class Repository {
    * @param res     Argument will be tunneled through and returned by the function.
    * @returns       Value of `res`.
    */
-  async modified<T>(res?: T): Promise<T> {
+  modified<T>(res?: T): Promise<T> {
     const state = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     return fse.writeFile(join(this.commondir(), 'state'), state)
       .then(() => res)
@@ -521,7 +521,7 @@ export class Repository {
   /**
    * Deletes the passed reference. If the passed Reference is the HEAD reference, it is ignored.
    */
-  async deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
+  deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
     if (this.getHead().getName() === branchName) {
       throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
     }
@@ -542,7 +542,7 @@ export class Repository {
   /**
    * Stores the HEAD reference to disk, inside the commondir.
    */
-  async writeHeadRefToDisk() {
+  writeHeadRefToDisk() {
     return this.repoOdb.writeHeadReference(this.head);
   }
 
@@ -552,7 +552,7 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  async createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: {}): Promise<Reference> {
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: {}): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
@@ -650,7 +650,7 @@ export class Repository {
 
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-    let statuses: StatusEntry[];
+    let statuses: StatusEntry[] = [];
     const deleteCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
 
@@ -783,7 +783,7 @@ export class Repository {
    * controlled by the passed filter.
    * @param filter  Defines which entries the function returns
    */
-  async getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
+  getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
     const statusResult: Map<string, StatusEntry> = new Map();
 
     const ignore = new IgnoreManager();
@@ -998,7 +998,7 @@ export class Repository {
    * @param workdir     The path at which the directory is located.
    * @returns           The new repository object.
    */
-  static async open(workdir: string): Promise<Repository> {
+  static open(workdir: string): Promise<Repository> {
     const repo = new Repository();
 
     let odb: Odb;
@@ -1012,7 +1012,7 @@ export class Repository {
       commondirInside = join(workdir, '.snow');
       return fse.stat(commondirInside);
     })
-      .then(async (stat: fse.Stats) => {
+      .then((stat: fse.Stats) => {
         if (stat.isFile()) {
           return fse.readFile(commondirInside).then((buf: Buffer) => buf.toString());
         }
@@ -1091,7 +1091,7 @@ export class Repository {
    * @param opts        Additional options for the new repository.
    * @returns           The new repository object.
    */
-  static async initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
+  static initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
     const repo = new Repository();
 
     if (!opts) {
@@ -1112,7 +1112,7 @@ export class Repository {
     }
 
     return fse.ensureDir(workdir)
-      .then(async () => {
+      .then(() => {
         if (commondirOutside) {
           const snowtrackFile: string = join(workdir, '.snow');
           return fse.writeFile(snowtrackFile, opts.commondir);

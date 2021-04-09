@@ -39,7 +39,7 @@ export class Odb {
     this.repo = repo;
   }
 
-  static async open(repo: Repository): Promise<Odb> {
+  static open(repo: Repository): Promise<Odb> {
     const odb: Odb = new Odb(repo);
     return fse.readFile(join(repo.commondir(), 'config')).then((buf: Buffer) => {
       odb.config = JSON.parse(buf.toString());
@@ -50,7 +50,7 @@ export class Odb {
     });
   }
 
-  static async create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
+  static create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
     const odb: Odb = new Odb(repo);
     return fse.pathExists(options.commondir)
       .then((exists: boolean) => {
@@ -70,7 +70,7 @@ export class Odb {
       .then(() => odb);
   }
 
-  async readCommits(): Promise<Commit[]> {
+  readCommits(): Promise<Commit[]> {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     return osWalk(objectsDir, OSWALK.FILES)
       .then((value: DirItem[]) => {
@@ -112,7 +112,7 @@ export class Odb {
       });
   }
 
-  async readReference(ref: DirItem) {
+  readReference(ref: DirItem) {
     const refPath = ref.absPath;
     return fse.readFile(refPath)
       .then((buf: Buffer) => {
@@ -125,7 +125,7 @@ export class Odb {
       });
   }
 
-  async readReferences(): Promise<Reference[]> {
+  readReferences(): Promise<Reference[]> {
     type DirItemAndReference = { ref: DirItem; content : any };
 
     const refsDir: string = join(this.repo.options.commondir, 'refs');
@@ -149,28 +149,28 @@ export class Odb {
       .then((refsResult: Reference[]) => refsResult);
   }
 
-  async deleteCommit(commit: Commit) {
+  deleteCommit(commit: Commit) {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(objectsDir, commit.hash))
       .then(() => this.repo.modified());
   }
 
-  async deleteReference(ref: Reference) {
+  deleteReference(ref: Reference) {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fse.unlink(join(refsDir, ref.getName()))
       .then(() => this.repo.modified());
   }
 
-  async writeHeadReference(head: Reference) {
+  writeHeadReference(head: Reference) {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
     return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName())
       .then(() => this.repo.modified());
   }
 
-  async readHeadReference(): Promise<string | null> {
+  readHeadReference(): Promise<string | null> {
     const refsDir: string = this.repo.options.commondir;
     return fse.readFile(join(refsDir, 'HEAD')).then((buf: Buffer) => buf.toString()).catch((error) => {
       console.log('No HEAD found');
@@ -183,7 +183,7 @@ export class Odb {
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString());
   }
 
-  async writeReference(ref: Reference): Promise<void> {
+  writeReference(ref: Reference): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
 
     if (ref.isDetached()) {
@@ -205,7 +205,7 @@ export class Odb {
     })).then(() => this.repo.modified());
   }
 
-  async writeCommit(commit: Commit): Promise<void> {
+  writeCommit(commit: Commit): Promise<void> {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     const commitSha256: string = commit.hash;
     const dstFile: string = join(objectsDir, commitSha256);
@@ -239,7 +239,7 @@ export class Odb {
     }).then(() => this.repo.modified());
   }
 
-  async writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
+  writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
     const tmpFilename: string = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     const objects: string = join(this.repo.options.commondir, 'objects');
     const tmpDir: string = join(this.repo.options.commondir, 'tmp');
@@ -295,7 +295,7 @@ export class Odb {
       .then((res) => this.repo.modified(res));
   }
 
-  async readObject(hash: string, dstAbsPath: string, ioContext: IoContext): Promise<void> {
+  readObject(hash: string, dstAbsPath: string, ioContext: IoContext): Promise<void> {
     const objectFile: string = join(this.repo.options.commondir, 'objects', hash.substr(0, 2), hash.substr(2, 2), hash.toString());
 
     return fse.pathExists(objectFile).then((exists: boolean) => {

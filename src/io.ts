@@ -37,13 +37,13 @@ export enum OSWALK {
  * @param request       Specify which elements are of interest.
  * @param dirItemRef    Only for internal use, must be not set when called.
  */
-export async function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
+export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
   const returnDirs = request & OSWALK.DIRS;
   const returnFiles = request & OSWALK.FILES;
   const returnHidden = request & OSWALK.HIDDEN;
   const browseRepo = request & OSWALK.BROWSE_REPOS;
 
-  async function internalOsWalk(dirPath: string, request: OSWALK, relPath: string, dirItemRef?: DirItem): Promise<DirItem[]> {
+  function internalOsWalk(dirPath: string, request: OSWALK, relPath: string, dirItemRef?: DirItem): Promise<DirItem[]> {
     if (dirPath.endsWith('/')) {
       // if directory ends with a seperator, we cut it off to ensure
       // we don't return a path like /foo/directory//file.jpg
@@ -102,7 +102,7 @@ export async function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[
   return internalOsWalk(dirPath, request, '');
 }
 
-async function darwinZip(src: string, dst: string): Promise<void> {
+function darwinZip(src: string, dst: string): Promise<void> {
   const p0 = cp.spawn('ditto', ['-c', '-k', '--sequesterRsrc', src, dst]);
   return new Promise((resolve, reject) => {
     p0.on('exit', (code) => {
@@ -115,7 +115,7 @@ async function darwinZip(src: string, dst: string): Promise<void> {
   });
 }
 
-export async function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}) {
+export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}) {
   if (!dst.endsWith('.zip')) {
     throw new Error('destination must be a zip');
   }

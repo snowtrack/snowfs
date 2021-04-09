@@ -59,7 +59,7 @@ export class Index {
    * Reset the entire index object. Used internally after a commit has been created,
    * or can be useful to discard any added or deleted files from the index object.
    */
-  async invalidate() {
+  invalidate() {
     return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
       if (exists) { return fse.unlink(this.getAbsPath()); }
     }).then(() => {
@@ -110,7 +110,7 @@ export class Index {
   /**
    * Store the index object to disk. Saved to {workdir}/.snow/index/..
    */
-  private async save(): Promise<void> {
+  private save(): Promise<void> {
     this.throwIfNotValid();
 
     const userData: string = JSON.stringify({
@@ -134,7 +134,7 @@ export class Index {
    * Load a saved index object from `{workdir}/.snow/index/..`.
    * If the index wasn't saved before, the function does not fail.
    */
-  static async loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
+  static loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
     return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
       const readIndexes = [];
       for (const dirItem of dirItems) {
@@ -211,7 +211,7 @@ export class Index {
   /**
    * Write files to object database. Needed before a commit can be made.
    */
-  async writeFiles(): Promise<void> {
+  writeFiles(): Promise<void> {
     this.throwIfNotValid();
 
     const ioContext = new IoContext();
