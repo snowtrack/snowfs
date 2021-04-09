@@ -385,7 +385,7 @@ program
         console.log(`On branch ${repo.getHead().getName()}`);
         console.log('Changes not staged for commit:');
         console.log('use "snow add <rel-path>..." to update what will be committed');
-        // console.log(`use "snow restore <file>..." to discard changes in working directory`);
+
         for (const modifiedFile of modified) {
           console.log(modifiedFile.path);
         }
