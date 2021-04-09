@@ -775,7 +775,7 @@ export class Repository {
       })
 
       .then(() => {
-        let moveTo: string;
+        let moveTo = '';
         if (target instanceof Reference) {
           moveTo = target.getName();
         } else if (target instanceof Commit) {

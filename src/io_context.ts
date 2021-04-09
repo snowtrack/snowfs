@@ -375,7 +375,7 @@ export class IoContext {
         }
 
         return new Promise((resolve, reject) => {
-          proc.on('exit', (code: number|null, _signal: string|null) => {
+          proc.on('exit', (code: number|null) => {
             if (code === 0) {
               resolve();
             } else {

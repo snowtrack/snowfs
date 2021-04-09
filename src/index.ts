@@ -59,7 +59,7 @@ export class Index {
    * Reset the entire index object. Used internally after a commit has been created,
    * or can be useful to discard any added or deleted files from the index object.
    */
-  invalidate() {
+  invalidate(): Promise<void> {
     return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
       if (exists) { return fse.unlink(this.getAbsPath()); }
     }).then(() => {
