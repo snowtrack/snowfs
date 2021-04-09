@@ -64,22 +64,15 @@ export const enum STATUS {
   UNMODIFIED = 0,
 
   /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and file is new. */
-  WT_NEW = 128,
+  WT_NEW = 1,
 
   /** File existed before, and is modified. */
-  WT_MODIFIED = 256,
+  WT_MODIFIED = 2,
 
   /** File got deleted */
-  WT_DELETED = 512,
+  WT_DELETED = 4,
 
-  /** TODO: Not implemented yet */
-  WT_TYPECHANGE = 1024,
-
-  /** TODO: Not implemented yet */
-  WT_RENAMED = 2048,
-
-  /** TODO: Not implemented yet. Use if file is ignored by [[IgnoreManager]] */
-  IGNORED = 16384,
+  WT_IGNORED = 8,
 }
 
 /**
@@ -113,46 +106,43 @@ export const enum RESET {
  */
 export const enum FILTER {
 
-  /** Return all untracked/new files. */
+  /** Return all untracked/new items. */
   INCLUDE_UNTRACKED = 1,
 
-  /** Return all files ignored through [[IgnoreManager]]. */
+  /** Return all items ignored through [[IgnoreManager]]. */
   INCLUDE_IGNORED = 2,
 
-  /** Return all unmodified files. */
+  /** Return all unmodified items. */
   INCLUDE_UNMODIFIED = 4,
 
   /** Return all directories - in such case [[StatusEntry.isDirectory]] returns true */
   INCLUDE_DIRECTORIES = 8,
 
-  /** Return all deleted files */
+  /** Return all deleted items */
   INCLUDE_DELETED = 16,
 
-  /** Return all modified files */
+  /** Return all modified items */
   INCLUDE_MODIFIED = 32,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED | INCLUDE_DELETED,
+  DEFAULT = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_UNMODIFIED | INCLUDE_DELETED | INCLUDE_DIRECTORIES,
 
-  /** TODO: Not implemented yet. */
+  /** Same as DEFAULT, but includes ignored entries */
+  ALL = DEFAULT | INCLUDE_IGNORED,
+
+  /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_INSENSITIVELY. */
   SORT_CASE_SENSITIVELY = 512,
 
-  /** TODO: Not implemented yet. */
-  SORT_CASE_INSENSITIVELY = 1024,
-
-  /** TODO: Not implemented yet. */
-  INCLUDE_UNREADABLE = 16384,
-
-  /** TODO: Not implemented yet. */
-  INCLUDE_UNREADABLE_AS_UNTRACKED = 32768,
+  /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_SENSITIVELY. */
+  SORT_CASE_INSENSITIVELY = 1024
 }
 
 /** Initialize a new [[StatusEntry]] */
-export interface StatusFileOptionsCustom {
-  /** Relative path of the file to the workdir root. */
+export interface StatusItemOptionsCustom {
+  /** Relative path of the item to the workdir root. */
   path?: string;
 
-  /** Flags, which define the attributes of the file. */
+  /** Flags, which define the attributes of the item. */
   status?: STATUS;
 }
 
@@ -160,16 +150,16 @@ export interface StatusFileOptionsCustom {
  * Used toinitialize a new repository.
  */
 export class StatusEntry {
-  /** Relative path of the file to the workdir root. */
+  /** Relative path of the item to the workdir root. */
   path?: string;
 
-  /** Flags, which define the attributes of the file. */
+  /** Flags, which define the attributes of the item. */
   status?: STATUS;
 
-  /** True if the "file" is actually a directory. */
+  /** True if the item is a directory. */
   isdir: boolean;
 
-  constructor(data: StatusFileOptionsCustom, isdir: boolean) {
+  constructor(data: StatusItemOptionsCustom, isdir: boolean) {
     this.path = data.path;
     this.status = data.status;
     this.isdir = isdir;
@@ -192,17 +182,7 @@ export class StatusEntry {
 
   /** Return true if the object is ignored by [[IgnoreManager]]. */
   isIgnored(): boolean {
-    return Boolean(this.status & STATUS.IGNORED);
-  }
-
-  /** Return true if the object got renamed. */
-  isRenamed(): boolean {
-    return Boolean(this.status & STATUS.WT_RENAMED);
-  }
-
-  /** Return true if the meta info got changed. For more information, please see [[STATUS.WT_TYPECHANGE]]. */
-  isTypechange(): boolean {
-    return Boolean(this.status & STATUS.WT_TYPECHANGE);
+    return Boolean(this.status & STATUS.WT_IGNORED);
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
