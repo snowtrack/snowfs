@@ -114,8 +114,8 @@ test('snow switch', async (t) => {
   const error = await t.throwsAsync(async () => exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
   const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
-  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  // abc1.txt did not get reported as deleted because switch/checkout don't mind if a file got deleted by the user since it can be restored
   t.true(lines.includes("fatal: You have local changes to 'branch-0'; not switching branches."));
 
   t.log('Switch and discard the local changes');
@@ -220,8 +220,8 @@ test('snow checkout', async (t) => {
   const error = await t.throwsAsync(async () => exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
   const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
-  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  // abc1.txt did not get reported as deleted because switch/checkout don't mind if a file got deleted by the user since it can be restored
   t.true(lines.includes(`fatal: You have local changes to '${allCommits[1].hash}'; not switching branches.`));
 
   t.log('Switch and discard the local changes');
