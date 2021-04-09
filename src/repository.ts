@@ -775,7 +775,17 @@ export class Repository {
         return Promise.all(promises);
       })
 
-      .then(() => this.repoLog.writeLog(`checkout: move to ${target} at ${targetCommit.hash} with ${reset}`));
+      .then(() => {
+        let moveTo: string;
+        if (target instanceof Reference) {
+          moveTo = target.getName();
+        } else if (target instanceof Commit) {
+          moveTo = target.hash;
+        } else {
+          moveTo = target;
+        }
+        return this.repoLog.writeLog(`checkout: move to '${moveTo}' at ${targetCommit.hash} with ${reset}`);
+      });
   }
 
   /**
