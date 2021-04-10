@@ -319,16 +319,7 @@ export class IoContext {
    *                    might be located somewhere else. Can be set so `SnowFS` can find
    *                    the executables.
   */
-  static async putToTrash(path: string): Promise<void> {
-    try {
-      fse.lstatSync(path);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return;
-      }
-      throw error;
-    }
-
+  static putToTrash(path: string): Promise<void> {
     let trashPath: string = IoContext.trashExecPath;
     if (!trashPath) {
       switch (process.platform) {
@@ -365,11 +356,9 @@ export class IoContext {
         if (isOlderThanMountainLion) {
           throw new Error('macOS 10.12 or later required');
         }
-        proc = spawn(trashPath, [path]);
         break;
       }
       case 'win32': {
-        proc = spawn(trashPath, [path]);
         break;
       }
       default: {
@@ -377,14 +366,21 @@ export class IoContext {
       }
     }
 
-    return new Promise((resolve, reject) => {
-      proc.on('exit', (code: number|null, signal: string|null) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(code);
+    return fse.pathExists(path)
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error(`${path} no such file or directory`);
         }
+
+        return new Promise((resolve, reject) => {
+          proc = spawn(trashPath, [path], { stdio: [0, 'pipe', 'pipe'] });
+          proc.on('close', (code) => {
+            resolve(code);
+          });
+          proc.on('error', (err) => {
+            reject(err);
+          });
+        });
       });
-    });
   }
 }
