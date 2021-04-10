@@ -356,11 +356,9 @@ export class IoContext {
         if (isOlderThanMountainLion) {
           throw new Error('macOS 10.12 or later required');
         }
-        proc = spawn(trashPath, [path]);
         break;
       }
       case 'win32': {
-        proc = spawn(trashPath, [path]);
         break;
       }
       default: {
@@ -375,12 +373,12 @@ export class IoContext {
         }
 
         return new Promise((resolve, reject) => {
-          proc.on('exit', (code: number|null) => {
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(code);
-            }
+          proc = spawn(trashPath, [path], { stdio: [0, 'pipe', 'pipe'] });
+          proc.on('close', (code) => {
+            resolve(code);
+          });
+          proc.on('error', (err) => {
+            reject(err);
           });
         });
       });
