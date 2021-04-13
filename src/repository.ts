@@ -825,12 +825,11 @@ export class Repository {
 
         const oldFiles: TreeEntry[] = Array.from(oldFilesMap.values());
 
-        if (filter & FILTER.INCLUDE_IGNORED && ignore) {
-          const entries: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
-
-          for (const entry of entries) {
+        if (filter & FILTER.INCLUDE_IGNORED) {
+          const ignored: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
+          for (const entry of ignored) {
             if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.absPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
             }
           }
         }
@@ -840,7 +839,7 @@ export class Repository {
           const entries: DirItem[] = currentFilesInProj.filter((value) => !oldFilesMap.has(value.relPath) && !ignore.ignored(value.relPath));
           for (const entry of entries) {
             if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.absPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_NEW }, entry.isdir));
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_NEW }, entry.isdir));
             }
           }
         }
