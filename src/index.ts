@@ -6,7 +6,7 @@ import {
   isAbsolute, join, relative, basename,
 } from './path';
 import * as fss from './fs-safe';
-import { IoContext, posix } from './io_context';
+import { IoContext, unix } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -275,15 +275,15 @@ export class Index {
             throw new Error(`file '${atLeastOneFileIsOpenInAnotherProcess}' is opened by another process.`);
           }
         } else {
-          const fileHandles: Map<string, posix.FileHandle[]> = await posix.whichFilesInDirAreOpen(this.repo.workdir());
+          const fileHandles: Map<string, unix.FileHandle[]> = await unix.whichFilesInDirAreOpen(this.repo.workdir());
           const errors: Error[] = [];
           for (const absolutePath of absolutePaths) {
-            const fhs: posix.FileHandle[] = fileHandles.get(absolutePath);
+            const fhs: unix.FileHandle[] = fileHandles.get(absolutePath);
             if (fhs) {
               for (const fh of fhs) {
-                if (fh.lockType === posix.LOCKTYPE.READ_WRITE_LOCK_FILE
-                  || fh.lockType === posix.LOCKTYPE.WRITE_LOCK_FILE
-                  || fh.lockType === posix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
+                if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
+                  || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE
+                  || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
                   errors.push(new StacklessError(`File '${relative(this.repo.workdir(), absolutePath)}' is locked by ${fh.processname}`));
                 }
               }

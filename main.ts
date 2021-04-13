@@ -12,8 +12,7 @@ import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
-import { calculateFileHash } from './src/common';
-import { IoContext, posix } from './src/io_context';
+import { IoContext } from './src/io_context';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 
 const program = require('commander');

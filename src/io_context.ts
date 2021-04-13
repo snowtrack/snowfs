@@ -28,7 +28,8 @@ export class Drive {
     this.filesystem = filesystem;
   }
 }
-export namespace posix {
+
+export namespace unix {
 
 /**
  * Possible file lock types on a given file. This are the extracted
