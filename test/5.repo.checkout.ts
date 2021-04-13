@@ -9,6 +9,7 @@ import { join, relative } from '../src/path';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { COMMIT_ORDER, Repository, RESET } from '../src/repository';
 import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { Commit } from '../src/commit';
 
 test('checkout test', async (t) => {
   const repoPath = getRandomPath();
@@ -18,6 +19,14 @@ test('checkout test', async (t) => {
 
   // 1. First add some initial files to the first commit
   const index = repo.ensureMainIndex();
+
+  // a file that gets another file on each commit
+  const dontTouchMe = join(repo.workdir(), 'subdir', 'dont-touch-me');
+  await createRandomFile(dontTouchMe, 1);
+
+  // a file that gets another file on each commit
+  const snowignore = join(repo.workdir(), '.snowignore');
+  fse.writeFileSync(snowignore, 'subdir/dont-touch-me');
 
   // a file that gets another file on each commit
   const newFile = join(repo.workdir(), 'subdir', 'new-file-0');
@@ -48,21 +57,25 @@ test('checkout test', async (t) => {
     // each commit modify the 'modify-file-' file
     const modifiedFile = join(repo.workdir(), 'subdir', `modify-file-${i}`);
     fse.writeFileSync(modifiedFile, `modify-file-${i}`);
+    t.log(`Add modified: ${modifiedFile}`);
     index.addFiles([modifiedFile]);
 
     // each commit add a new file 'new-file'
     const newFile = join(repo.workdir(), 'subdir', `new-file-${i}`);
     fse.writeFileSync(newFile, `new-file-${i}`);
+    t.log(`Add new file: ${newFile}`);
     index.addFiles([newFile]);
 
     // remove an initial foo file
     const delfile = join(repo.workdir(), 'subdir', `delete-file-${i}`);
     fse.unlinkSync(delfile);
+    t.log(`Delete file: ${delfile}`);
     index.deleteFiles([delfile]);
 
     await index.writeFiles();
 
-    await repo.createCommit(index, `Commit ${i}`);
+    const commit: Commit = await repo.createCommit(index, `Commit ${i}`);
+    t.log(`Created commit: ${commit.hash}`);
   }
 
   // $ snow log --verbose
@@ -175,21 +188,29 @@ test('checkout test', async (t) => {
 
   for (let i = 0; i < 5; ++i) {
     const commit = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST)[i];
+    t.log(`Checkout ${commit.hash}, run ${i}`);
     await repo.checkout(commit, RESET.DEFAULT);
 
     const dirItems = await osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     if (i === 0) {
-      t.is(dirItems.length, 1, "expect only 'subdir' left");
-    } else {
-      const filecount = dirItems.length - 1;
-      // 13 files because 4 base-file, 4 modified-files, 4 deleted files at the beginning and 1 new-file,
-      t.is(filecount, 13);
+      const items = dirItems.map((v: DirItem) => v.relPath);
 
-      const items = dirItems.map((v: DirItem) => relative(repo.workdir(), v.path));
+      const diffs = difference(items, [
+        '.snowignore',
+        'subdir',
+        'subdir/dont-touch-me',
+      ]);
+      t.is(diffs.length, 0);
+    } else {
+      t.is(dirItems.length, 16); // 14 files in subdir + subdir directory + .snowignore
+
+      const items = dirItems.map((v: DirItem) => v.relPath);
 
       if (i === 1) {
         const diffs = difference(items, [
+          '.snowignore',
           'subdir',
+          'subdir/dont-touch-me',
           'subdir/base-file-1',
           'subdir/base-file-2',
           'subdir/base-file-3',
@@ -207,7 +228,9 @@ test('checkout test', async (t) => {
         t.is(diffs.length, 0);
       } else if (i === 2) {
         const diffs = difference(items, [
+          '.snowignore',
           'subdir',
+          'subdir/dont-touch-me',
           'subdir/base-file-1',
           'subdir/base-file-2',
           'subdir/base-file-3',
@@ -225,7 +248,9 @@ test('checkout test', async (t) => {
         t.is(diffs.length, 0);
       } else if (i === 3) {
         const diffs = difference(items, [
+          '.snowignore',
           'subdir',
+          'subdir/dont-touch-me',
           'subdir/base-file-1',
           'subdir/base-file-2',
           'subdir/base-file-3',
@@ -243,7 +268,9 @@ test('checkout test', async (t) => {
         t.is(diffs.length, 0);
       } else if (i === 4) {
         const diffs = difference(items, [
+          '.snowignore',
           'subdir',
+          'subdir/dont-touch-me',
           'subdir/base-file-1',
           'subdir/base-file-2',
           'subdir/base-file-3',

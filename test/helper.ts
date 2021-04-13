@@ -39,7 +39,7 @@ export function createRepoPath(): string {
   }
 }
 
-export async function rmDirRecursive(dir: string): Promise<void> {
+export function rmDirRecursive(dir: string): Promise<void> {
   return new Promise((resolve, reject) => {
     fs.rmdir(dir, { recursive: true }, (err) => {
       if (err) {
@@ -60,7 +60,7 @@ export function createRandomString(length: number) {
   return result;
 }
 
-export async function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
+export function createRandomFile(dst: string, size: number): Promise<{filepath: string, filehash: string, hashBlocks?: HashBlock[]}> {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
   for (let i = 0; i < size; ++i) {
     stream.write(createRandomString(size));
@@ -87,7 +87,7 @@ export function getSnowexec(t): string {
   }
 }
 
-export async function exec(t, command: string, args?: string[], opts?: {cwd?: string},
+export function exec(t, command: string, args?: string[], opts?: {cwd?: string},
   stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
 

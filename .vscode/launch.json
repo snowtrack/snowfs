@@ -6,6 +6,8 @@
       {
           "type": "pwa-node",
           "request": "launch",
+          "console": "internalConsole", 
+          "outputCapture": "std",
           "name": "Launch CLI (main.ts)",
           "resolveSourceMapLocations": [
             "${workspaceFolder}/**",
@@ -19,7 +21,8 @@
           "args": [
               "${workspaceFolder}/main.ts",
               "--",
-              "test"
+              "switch",
+              "Main"
           ]
       },
       {

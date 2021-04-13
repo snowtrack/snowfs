@@ -82,7 +82,7 @@ export class Index {
    */
   deleteRelPaths: Set<string> = new Set();
 
-  constructor(repo: Repository, odb: Odb, id: string = '') {
+  constructor(repo: Repository, odb: Odb, id = '') {
     this.repo = repo;
     this.id = id;
     this.odb = odb;
@@ -92,7 +92,7 @@ export class Index {
    * Reset the entire index object. Used internally after a commit has been created,
    * or can be useful to discard any added or deleted files from the index object.
    */
-  async invalidate() {
+  invalidate(): Promise<void> {
     return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
       if (exists) { return fse.unlink(this.getAbsPath()); }
     }).then(() => {
@@ -143,7 +143,7 @@ export class Index {
   /**
    * Store the index object to disk. Saved to {workdir}/.snow/index/..
    */
-  private async save() {
+  private save(): Promise<void> {
     this.throwIfNotValid();
 
     const userData: string = JSON.stringify({
@@ -159,20 +159,21 @@ export class Index {
       }
       return value;
     });
-    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData));
+    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData))
+      .then(() => this.repo.modified());
   }
 
   /**
    * Load a saved index object from `{workdir}/.snow/index/..`.
    * If the index wasn't saved before, the function does not fail.
    */
-  static async loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
+  static loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
     return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
       const readIndexes = [];
       for (const dirItem of dirItems) {
-        const indexName = basename(dirItem.path);
+        const indexName = basename(dirItem.absPath);
         if (indexName.startsWith('index') || indexName === 'index') {
-          readIndexes.push(fse.readFile(dirItem.path).then((buf: Buffer) => [dirItem.path, buf]));
+          readIndexes.push(fse.readFile(dirItem.absPath).then((buf: Buffer) => [dirItem.absPath, buf]));
         }
       }
       return Promise.all(readIndexes);
@@ -243,7 +244,7 @@ export class Index {
   /**
    * Write files to object database. Needed before a commit can be made.
    */
-  async writeFiles(): Promise<void> {
+  writeFiles(): Promise<void> {
     this.throwIfNotValid();
 
     const ioContext = new IoContext();
