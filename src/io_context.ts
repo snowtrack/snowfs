@@ -101,7 +101,7 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
                 p.set(relPath, [lsofEntry]);
               }
             } else {
-              console.log(`lsof reported unknown path: ${pline}`)
+              console.log(`lsof reported unknown path: ${absPath}`)
             }
           }
         }
