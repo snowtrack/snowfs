@@ -857,7 +857,7 @@ export class Repository {
 
         if (filter & FILTER.INCLUDE_DIRECTORIES) {
           for (const entry of currentFilesInProj) {
-            if (entry.isdir && !statusResult.has(entry.relPath)) {
+            if (entry.isdir && !statusResult.has(entry.relPath) && !ignore.ignored(entry.relPath)) {
               // the status of this directory will later be overwritten in case
               // the directory contains a file that is modified
               statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: 0 }, true));
