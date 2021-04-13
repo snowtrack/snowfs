@@ -56,7 +56,7 @@ export interface HashBlock {
  * @param filepath  The file to calculate the hash from.
  * @param options The start, end and highwatermark value (aka the internal read-buffer size).
  */
-export async function getPartHash(filepath: string, options?: {start?: number; end?: number; highWaterMark?: number;}): Promise<HashBlock> {
+export function getPartHash(filepath: string, options?: {start?: number; end?: number; highWaterMark?: number;}): Promise<HashBlock> {
   return new Promise<HashBlock>((resolve, reject) => {
     const hash = crypto.createHash('sha256');
 
@@ -81,8 +81,8 @@ export async function getPartHash(filepath: string, options?: {start?: number; e
  * @param filehash      The hash the file must match with.
  * @param hashBlocks    Array of hashblock hashes if previously calculated.
  */
-export async function compareFileHash(filepath: string, filehash: string, hashBlocks?: string[]): Promise<boolean> {
-  return fse.stat(filepath).then(async (stat: fse.Stats) => {
+export function compareFileHash(filepath: string, filehash: string, hashBlocks?: string[]): Promise<boolean> {
+  return fse.stat(filepath).then((stat: fse.Stats) => {
     if (stat.size < MB20) {
       if (hashBlocks) {
         console.warn(`File ${filepath} should have no hash blocks because it's too small`);
@@ -141,8 +141,8 @@ export async function compareFileHash(filepath: string, filehash: string, hashBl
  *
  * @param filepath The path of the file where to calculate the hash from.
  */
-export async function calculateFileHash(filepath: string): Promise<{filehash : string, hashBlocks?: HashBlock[]}> {
-  return fse.stat(filepath).then(async (stat: fse.Stats) => {
+export function calculateFileHash(filepath: string): Promise<{filehash : string, hashBlocks?: HashBlock[]}> {
+  return fse.stat(filepath).then((stat: fse.Stats) => {
     if (stat.size < MB20) {
       return getPartHash(filepath).then((oid: HashBlock) => ({ filehash: oid.hash }));
     }
@@ -181,7 +181,7 @@ export async function calculateFileHash(filepath: string): Promise<{filehash : s
  * @param repoPath      The directory in question
  * @returns             Information about the directory. See [[LOADING_STATE]] for more information
  */
-export async function getRepoDetails(repoPath: string): Promise<{state : LOADING_STATE; workdir : string | null; commondir : string | null;}> {
+export function getRepoDetails(repoPath: string): Promise<{state : LOADING_STATE; workdir : string | null; commondir : string | null;}> {
   return fse.stat(repoPath)
     .then((stat: fse.Stats) => {
       // if the repo path is a file we treat the directory it is in as the repo path

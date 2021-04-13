@@ -4,7 +4,11 @@ import * as fse from 'fs-extra';
 import { normalize } from './path';
 
 export class DirItem {
-  path: string;
+  /** Absolute path of dir item */
+  absPath: string;
+
+  /** Relative path of dir item */
+  relPath: string;
 
   isdir: boolean;
 
@@ -33,65 +37,72 @@ export enum OSWALK {
  * @param request       Specify which elements are of interest.
  * @param dirItemRef    Only for internal use, must be not set when called.
  */
-export async function osWalk(dirPath: string, request: OSWALK, dirItemRef?: DirItem): Promise<DirItem[]> {
-  if (dirPath.endsWith('/')) {
-    // if directory ends with a seperator, we cut it off to ensure
-    // we don't return a path like /foo/directory//file.jpg
-    dirPath = dirPath.substr(0, dirPath.length - 1);
-  }
-
+export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
   const returnDirs = request & OSWALK.DIRS;
   const returnFiles = request & OSWALK.FILES;
   const returnHidden = request & OSWALK.HIDDEN;
   const browseRepo = request & OSWALK.BROWSE_REPOS;
-  const dirItems = [];
-  return new Promise<string[]>((resolve, reject) => {
-    fse.readdir(dirPath, (error, entries: string[]) => {
-      if (error) {
-        reject(error);
-        return;
-      }
 
-      // normalize all dir items
-      resolve(entries.map(normalize));
-    });
-  })
-    .then((entries: string[]) => {
-      const dirItemsTmp: DirItem[] = [];
+  function internalOsWalk(dirPath: string, request: OSWALK, relPath: string, dirItemRef?: DirItem): Promise<DirItem[]> {
+    if (dirPath.endsWith('/')) {
+      // if directory ends with a seperator, we cut it off to ensure
+      // we don't return a path like /foo/directory//file.jpg
+      dirPath = dirPath.substr(0, dirPath.length - 1);
+    }
 
-      for (const entry of entries) {
-        if (!browseRepo && (entry === '.snow' || entry.startsWith('.snow/') || entry.startsWith('.git'))) {
-          continue;
-        } else if (!returnHidden && entry.startsWith('.')) {
-          continue;
+    const dirItems = [];
+    return new Promise<string[]>((resolve, reject) => {
+      fse.readdir(dirPath, (error, entries: string[]) => {
+        if (error) {
+          reject(error);
+          return;
         }
 
-        const absPath = `${dirPath}/${entry}`;
-        const isDir: boolean = fse.statSync(absPath).isDirectory();
-        dirItemsTmp.push({ path: absPath, isdir: isDir, isempty: false });
-      }
-
-      if (dirItemRef) {
-        dirItemRef.isempty = entries.length === 0;
-      }
-
-      const promises = [];
-      for (const dirItem of dirItemsTmp) {
-        if ((dirItem.isdir && returnDirs) || (!dirItem.isdir && returnFiles)) {
-          dirItems.push(dirItem);
-        }
-
-        if (dirItem.isdir) {
-          promises.push(osWalk(dirItem.path, request, dirItem));
-        }
-      }
-
-      return Promise.all(promises);
+        // normalize all dir items
+        resolve(entries.map(normalize));
+      });
     })
-    .then((dirItemResults: DirItem[]) => dirItems.concat(...dirItemResults));
+      .then((entries: string[]) => {
+        const dirItemsTmp: DirItem[] = [];
+
+        for (const entry of entries) {
+          if (!browseRepo && (entry === '.snow' || entry.startsWith('.git') || entry.endsWith('.DS_Store'))) {
+            continue;
+          } else if (!returnHidden && entry.startsWith('.')) {
+            continue;
+          }
+
+          const absPath = `${dirPath}/${entry}`;
+          const isDir: boolean = fse.statSync(absPath).isDirectory();
+          dirItemsTmp.push({
+            absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
+          });
+        }
+
+        if (dirItemRef) {
+          dirItemRef.isempty = entries.length === 0;
+        }
+
+        const promises = [];
+        for (const dirItem of dirItemsTmp) {
+          if ((dirItem.isdir && returnDirs) || (!dirItem.isdir && returnFiles)) {
+            dirItems.push(dirItem);
+          }
+
+          if (dirItem.isdir) {
+            promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
+          }
+        }
+
+        return Promise.all(promises);
+      })
+      .then((dirItemResults: DirItem[]) => dirItems.concat(...dirItemResults));
+  }
+
+  return internalOsWalk(dirPath, request, '');
 }
 
-async function darwinZip(src: string, dst: string): Promise<void> {
+function darwinZip(src: string, dst: string): Promise<void> {
   const p0 = cp.spawn('ditto', ['-c', '-k', '--sequesterRsrc', src, dst]);
   return new Promise((resolve, reject) => {
     p0.on('exit', (code) => {
@@ -104,7 +115,7 @@ async function darwinZip(src: string, dst: string): Promise<void> {
   });
 }
 
-export async function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}) {
+export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): Promise<void> {
   if (!dst.endsWith('.zip')) {
     throw new Error('destination must be a zip');
   }

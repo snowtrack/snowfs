@@ -29,7 +29,7 @@ export class Drive {
   }
 }
 
-async function getFilesystem(drive: any, mountpoint: string) {
+function getFilesystem(drive: any, mountpoint: string) {
   try {
     if (process.platform === 'win32') {
       return new Promise<string | null>((resolve, reject) => {
@@ -153,9 +153,9 @@ export class IoContext {
     IoContext.trashExecPath = execPath;
   }
 
-  async init() {
+  init(): Promise<void> {
     const tmpDrives = [];
-    return drivelist.list().then(async (drives: any) => {
+    return drivelist.list().then((drives: any) => {
       this.origDrives = drives;
       this.mountpoints = new Set();
       this.drives = new Map();
@@ -213,7 +213,7 @@ export class IoContext {
     return i === j;
   }
 
-  private async copyFileApfs(src: string, dst: string): Promise<void> {
+  private copyFileApfs(src: string, dst: string): Promise<void> {
     return fse.stat(src).then((stat: fse.Stats) => {
       // TODO: (Need help)
       // It seems on APFS copying files smaller than 1MB is faster than using COW.
@@ -235,7 +235,7 @@ export class IoContext {
     });
   }
 
-  private async copyFileRefs(src: string, dst: string): Promise<void> {
+  private copyFileRefs(src: string, dst: string): Promise<void> {
     return fse.stat(src).then((stat: fse.Stats) => {
       if (stat.size < MB1) {
         return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
@@ -276,7 +276,7 @@ export class IoContext {
    * @param src   source filename to copy
    * @param dst   destination filename of the copy operation
    */
-  async copyFile(src: string, dst: string): Promise<void> {
+  copyFile(src: string, dst: string): Promise<void> {
     this.checkIfInitialized();
     const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
     let filesystem = FILESYSTEM.OTHER;
@@ -349,7 +349,6 @@ export class IoContext {
       }
     }
 
-    let proc: any;
     switch (process.platform) {
       case 'darwin': {
         const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
@@ -373,12 +372,19 @@ export class IoContext {
         }
 
         return new Promise((resolve, reject) => {
-          proc = spawn(trashPath, [path], { stdio: [0, 'pipe', 'pipe'] });
-          proc.on('close', (code) => {
-            resolve(code);
-          });
-          proc.on('error', (err) => {
-            reject(err);
+          const proc = spawn(trashPath, [path]);
+
+          proc.on('exit', (code: number) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              const stderr = proc.stderr.read();
+              if (stderr) {
+                reject(stderr.toString());
+              } else {
+                reject(code);
+              }
+            }
           });
         });
       });

@@ -2,9 +2,8 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { difference, intersection } from 'lodash';
 import {
-  resolve, join, dirname, relative,
+  resolve, join, dirname,
 } from './path';
 
 import { Log } from './log';
@@ -64,22 +63,15 @@ export const enum STATUS {
   UNMODIFIED = 0,
 
   /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and file is new. */
-  WT_NEW = 128,
+  WT_NEW = 1,
 
   /** File existed before, and is modified. */
-  WT_MODIFIED = 256,
+  WT_MODIFIED = 2,
 
   /** File got deleted */
-  WT_DELETED = 512,
+  WT_DELETED = 4,
 
-  /** TODO: Not implemented yet */
-  WT_TYPECHANGE = 1024,
-
-  /** TODO: Not implemented yet */
-  WT_RENAMED = 2048,
-
-  /** TODO: Not implemented yet. Use if file is ignored by [[IgnoreManager]] */
-  IGNORED = 16384,
+  WT_IGNORED = 8,
 }
 
 /**
@@ -113,46 +105,43 @@ export const enum RESET {
  */
 export const enum FILTER {
 
-  /** Return all untracked/new files. */
+  /** Return all untracked/new items. */
   INCLUDE_UNTRACKED = 1,
 
-  /** Return all files ignored through [[IgnoreManager]]. */
+  /** Return all items ignored through [[IgnoreManager]]. */
   INCLUDE_IGNORED = 2,
 
-  /** Return all unmodified files. */
+  /** Return all unmodified items. */
   INCLUDE_UNMODIFIED = 4,
 
   /** Return all directories - in such case [[StatusEntry.isDirectory]] returns true */
   INCLUDE_DIRECTORIES = 8,
 
-  /** Return all deleted files */
+  /** Return all deleted items */
   INCLUDE_DELETED = 16,
 
-  /** Return all modified files */
+  /** Return all modified items */
   INCLUDE_MODIFIED = 32,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  ALL = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_UNMODIFIED | INCLUDE_IGNORED | INCLUDE_DELETED,
+  DEFAULT = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_DELETED | INCLUDE_UNMODIFIED | INCLUDE_DIRECTORIES,
 
-  /** TODO: Not implemented yet. */
+  /** Same as DEFAULT, but includes ignored entries */
+  ALL = DEFAULT | INCLUDE_IGNORED,
+
+  /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_INSENSITIVELY. */
   SORT_CASE_SENSITIVELY = 512,
 
-  /** TODO: Not implemented yet. */
-  SORT_CASE_INSENSITIVELY = 1024,
-
-  /** TODO: Not implemented yet. */
-  INCLUDE_UNREADABLE = 16384,
-
-  /** TODO: Not implemented yet. */
-  INCLUDE_UNREADABLE_AS_UNTRACKED = 32768,
+  /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_SENSITIVELY. */
+  SORT_CASE_INSENSITIVELY = 1024
 }
 
 /** Initialize a new [[StatusEntry]] */
-export interface StatusFileOptionsCustom {
-  /** Relative path of the file to the workdir root. */
+export interface StatusItemOptionsCustom {
+  /** Relative path of the item to the workdir root. */
   path?: string;
 
-  /** Flags, which define the attributes of the file. */
+  /** Flags, which define the attributes of the item. */
   status?: STATUS;
 }
 
@@ -160,69 +149,63 @@ export interface StatusFileOptionsCustom {
  * Used toinitialize a new repository.
  */
 export class StatusEntry {
-  /** Internal data object which contains meta information about the file */
-  data: StatusFileOptionsCustom;
+  /** Relative path of the item to the workdir root. */
+  path?: string;
 
-  /** True if the "file" is actually a directory. */
+  /** Flags, which define the attributes of the item. */
+  status?: STATUS;
+
+  /** True if the item is a directory. */
   isdir: boolean;
 
-  constructor(data: StatusFileOptionsCustom, isdir: boolean) {
-    this.data = data;
+  constructor(data: StatusItemOptionsCustom, isdir: boolean) {
+    this.path = data.path;
+    this.status = data.status;
     this.isdir = isdir;
   }
 
   /** Return true if the object is new. */
   isNew(): boolean {
-    return Boolean(this.data.status & STATUS.WT_NEW);
+    return Boolean(this.status & STATUS.WT_NEW);
   }
 
   /** Return true if the object is modified. */
   isModified(): boolean {
-    return Boolean(this.data.status & STATUS.WT_MODIFIED);
+    return Boolean(this.status & STATUS.WT_MODIFIED);
   }
 
   /** Return true if the object got deleted. */
   isDeleted(): boolean {
-    return Boolean(this.data.status & STATUS.WT_DELETED);
+    return Boolean(this.status & STATUS.WT_DELETED);
   }
 
   /** Return true if the object is ignored by [[IgnoreManager]]. */
   isIgnored(): boolean {
-    return Boolean(this.data.status & STATUS.IGNORED);
-  }
-
-  /** Return true if the object got renamed. */
-  isRenamed(): boolean {
-    return Boolean(this.data.status & STATUS.WT_RENAMED);
-  }
-
-  /** Return true if the meta info got changed. For more information, please see [[STATUS.WT_TYPECHANGE]]. */
-  isTypechange(): boolean {
-    return Boolean(this.data.status & STATUS.WT_TYPECHANGE);
-  }
-
-  // Return the path of the object.
-  get path(): string {
-    return this.data.path;
+    return Boolean(this.status & STATUS.WT_IGNORED);
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
   public setStatusBit(status: STATUS) {
-    this.data.status = status;
+    this.status = status;
   }
 
   /** Return all status bits of the object. */
   statusBit(): STATUS {
-    return this.data.status;
+    return this.status;
   }
 
   /** Return true if the object represents a directory. */
   isDirectory(): boolean {
     return this.isdir;
   }
+
+  /** Return true if the object represents a file. */
+  isFile(): boolean {
+    return !this.isdir;
+  }
 }
 
-async function getSnowFSRepo(path: string): Promise<string | null> {
+function getSnowFSRepo(path: string): Promise<string | null> {
   const snowInit: string = join(path, '.snow');
   return fse.pathExists(snowInit).then((exists: boolean) => {
     if (exists) {
@@ -293,7 +276,7 @@ export class Repository {
    * @param res     Argument will be tunneled through and returned by the function.
    * @returns       Value of `res`.
    */
-  async modified<T>(res?: T): Promise<T> {
+  modified<T>(res?: T): Promise<T> {
     const state = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     return fse.writeFile(join(this.commondir(), 'state'), state)
       .then(() => res)
@@ -537,7 +520,7 @@ export class Repository {
   /**
    * Deletes the passed reference. If the passed Reference is the HEAD reference, it is ignored.
    */
-  async deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
+  deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
     if (this.getHead().getName() === branchName) {
       throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
     }
@@ -558,7 +541,7 @@ export class Repository {
   /**
    * Stores the HEAD reference to disk, inside the commondir.
    */
-  async writeHeadRefToDisk() {
+  writeHeadRefToDisk(): Promise<void> {
     return this.repoOdb.writeHeadReference(this.head);
   }
 
@@ -568,7 +551,7 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  async createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: {}): Promise<Reference> {
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: any): Promise<Reference> {
     const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
@@ -624,11 +607,7 @@ export class Repository {
    * @param target    Reference, commit or commit hash.
    * @param reset     Options for the restore operation.
    */
-  async checkout(target: string|Reference|Commit, reset: RESET): Promise<void> {
-    let oldFilePaths: string[];
-    let oldFilesMap: Map<string, TreeFile>;
-    const currentFiles: string[] = [];
-
+  checkout(target: string|Reference|Commit, reset: RESET): Promise<void> {
     let targetRef: Reference;
     let targetCommit: Commit;
     if (typeof target === 'string') {
@@ -668,39 +647,22 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
-    let items: DirItem[];
+    const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-    let ignore: IgnoreManager | null = null;
+    let statuses: StatusEntry[] = [];
+    const deleteCandidates = new Map<string, StatusEntry>();
+    const deleteRevokeDirs = new Set<string>();
 
     const ioContext = new IoContext();
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
-
-    // First iterate over all files and get their file stats
     return ioContext.init()
-      .then(() => fse.pathExists(snowtrackIgnoreDefault))
-      .then(async (exists: boolean) => {
-        if (exists) {
-          ignore = new IgnoreManager();
-          return ignore.init(snowtrackIgnoreDefault);
-        }
-      })
-      .then(() => osWalk(this.repoWorkDir, OSWALK.FILES))
-      .then((itemsResult: DirItem[]) => {
+      .then(() => this.getStatus(FILTER.DEFAULT | FILTER.INCLUDE_IGNORED | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
+      .then((statusResult: StatusEntry[]) => {
         // head hash is null before first commit is made
         if (!this.head.hash) {
           return [] as any; // as any otherwise TS doesn't like it
         }
 
-        items = itemsResult;
-
-        oldFilesMap = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false }) as Map<string, TreeFile>;
-        if (oldFilesMap) {
-          oldFilePaths = Array.from(oldFilesMap.values()).map((f: TreeFile) => f.path);
-        } else {
-          // no files map is available directly after getStatus is called if no commit made yet
-          oldFilesMap = new Map();
-          oldFilePaths = [];
-        }
+        statuses = statusResult;
 
         // After we received the target commit, we update the commit and reference
         // because any following error needs to be resolved by a user operation
@@ -713,64 +675,65 @@ export class Repository {
         return this.writeHeadRefToDisk();
       })
       .then(() => {
-        for (const item of items) {
-          currentFiles.push(relative(this.repoWorkDir, item.path));
-        }
-
         const promises = [];
 
-        if (reset & RESET.DELETE_NEW_FILES) {
-          // Delete files which didn't exist before, but do now
-          let newFiles: string[] = difference(currentFiles, oldFilePaths);
+        // Items which existed before but don't anymore
+        statuses.forEach((status: StatusEntry) => {
+          if (status.isDeleted() && reset & RESET.RESTORE_DELETED_FILES) {
+            const dst: string = join(this.repoWorkDir, status.path);
 
-          if (ignore) {
-            newFiles = ignore.filter(newFiles);
-          }
+            if (status.isFile()) {
+              const tfile: TreeEntry = oldFilesMap.get(status.path);
+              if (tfile) {
+                promises.push(this.repoOdb.readObject(tfile.hash, dst, ioContext));
+              } else {
+                throw new Error("item was detected as deleted but couldn't be found in reference commit");
+              }
 
-          for (const newFile of newFiles) {
-            promises.push(IoContext.putToTrash(join(this.repoWorkDir, newFile)));
-          }
-        }
-
-        // Files which existed before but don't anymore
-        if (reset & RESET.RESTORE_DELETED_FILES) {
-          let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
-
-          if (ignore) {
-            deletedFiles = ignore.filter(deletedFiles);
-          }
-
-          for (const deletedFile of deletedFiles) {
-            const file: TreeFile = oldFilesMap.get(deletedFile);
-            if (file) {
-              promises.push(this.repoOdb.readObject(file.hash, join(this.repoWorkDir, deletedFile), ioContext));
+              let parent = status.path;
+              while (parent.length > 0) {
+                if (deleteRevokeDirs.has(parent)) {
+                  // if the parent got added, the other parents got added already as well
+                  break;
+                } else {
+                  deleteRevokeDirs.add(parent);
+                }
+                parent = dirname(parent);
+              }
             } else {
-              throw new Error("file was detected as deleted but couldn't be found in old commit either");
+              promises.push(fse.ensureDir(dst));
+            }
+          } else if (status.isNew() && reset & RESET.DELETE_NEW_FILES) {
+            deleteCandidates.set(status.path, status);
+          } else if (status.isIgnored()) {
+            let parent = dirname(status.path);
+            while (parent.length > 0) {
+              if (deleteRevokeDirs.has(parent)) {
+                // if the parent got added, the other parents got added already as well
+                break;
+              } else {
+                deleteRevokeDirs.add(parent);
+              }
+              parent = dirname(parent);
             }
           }
-        }
+        });
 
         return Promise.all(promises);
       })
       .then(() => {
-        // Files which existed before, and still do, but check if they were modified
-
         const promises = [];
 
         if (reset & RESET.RESTORE_MODIFIED_FILES) {
-          let existingFiles = intersection(currentFiles, oldFilePaths);
-
-          if (ignore) {
-            existingFiles = ignore.filter(existingFiles);
-          }
-
-          for (const existingFile of existingFiles) {
-            const tfile: TreeFile = oldFilesMap.get(existingFile);
-            if (!tfile) {
-              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+          for (const file of statuses) {
+            if (file.isModified() && file.isFile()) {
+              const tfile: TreeFile = oldFilesMap.get(file.path) as TreeFile;
+              if (tfile) {
+                promises.push(tfile.isFileModified(this));
+              } else {
+                throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+              }
             }
-
-            promises.push(tfile.isFileModified(this));
           }
         }
 
@@ -787,7 +750,41 @@ export class Repository {
         }
         return Promise.all(promises);
       })
-      .then(() => this.repoLog.writeLog(`checkout: move to ${target} at ${targetCommit.hash} with ${reset}`));
+      .then(() => {
+        const promises = [];
+
+        deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
+          // Check if the delete operation got revoked for the directory
+          if (candidate.isDirectory()) {
+            if (!deleteRevokeDirs.has(relPath)) {
+              // If we delete a directory, we can remove all its subdirectories and files from the candidate list
+              // as they will already be deleted by the delete operation below.
+              deleteCandidates.forEach((_c: StatusEntry, relPath2: string) => {
+                if (relPath2.startsWith(relPath)) {
+                  deleteCandidates.delete(relPath2);
+                }
+              });
+              promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            }
+          } else {
+            promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+          }
+        });
+
+        return Promise.all(promises);
+      })
+
+      .then(() => {
+        let moveTo = '';
+        if (target instanceof Reference) {
+          moveTo = target.getName();
+        } else if (target instanceof Commit) {
+          moveTo = target.hash;
+        } else {
+          moveTo = target;
+        }
+        return this.repoLog.writeLog(`checkout: move to '${moveTo}' at ${targetCommit.hash} with ${reset}`);
+      });
   }
 
   /**
@@ -795,111 +792,110 @@ export class Repository {
    * controlled by the passed filter.
    * @param filter  Defines which entries the function returns
    */
-  async getStatus(filter?: FILTER): Promise<StatusEntry[]> {
-    let oldFilesMap: Map<string, TreeFile>;
-    let oldFilePaths: string[];
-    const statusResult: StatusEntry[] = [];
-    const currentFiles: string[] = [];
+  getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
+    const statusResult: Map<string, StatusEntry> = new Map();
 
-    let ignore: IgnoreManager | null = null;
+    const ignore = new IgnoreManager();
 
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
-          ignore = new IgnoreManager();
-          return ignore.init(snowtrackIgnoreDefault);
+          return ignore.loadFile(snowtrackIgnoreDefault);
         }
       })
       .then(() => {
         let walk: OSWALK = OSWALK.FILES;
         walk |= filter & FILTER.INCLUDE_DIRECTORIES ? OSWALK.DIRS : 0;
-        walk |= filter & FILTER.INCLUDE_IGNORED ? OSWALK.HIDDEN : 0;
         return osWalk(this.repoWorkDir, walk);
       })
-      .then((items: DirItem[]) => {
-        // head is null before first commit is made
-        if (!this.head.hash) {
+      .then((currentFilesInProj: DirItem[]) => {
+        const targetCommit: Commit = commit ?? this.getCommitByHead();
+        const promises = [];
+
+        // head is null before first commit is made, so add check to be safe than sorry
+        if (!this.head.hash || !targetCommit) {
           return [] as any;
         }
 
-        for (const item of items) {
-          if (item.isdir) {
-            if (filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.push(new StatusEntry({ path: relative(this.repoWorkDir, item.path) }, true));
+        // Get all tree entries from HEAD
+        const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+        const curFilesMap: Map<string, DirItem> = new Map(currentFilesInProj.map((x: DirItem) => [x.relPath, x]));
+
+        const oldFiles: TreeEntry[] = Array.from(oldFilesMap.values());
+
+        if (filter & FILTER.INCLUDE_IGNORED) {
+          const ignored: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
+          for (const entry of ignored) {
+            if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
             }
-          } else {
-            currentFiles.push(relative(this.repoWorkDir, item.path));
           }
         }
-        const currentCommit: Commit = this.getCommitByHead();
 
-        // Contains all files that are registered by the Commit object
-        oldFilesMap = currentCommit?.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false }) as Map<string, TreeFile>;
-        if (oldFilesMap) {
-          oldFilePaths = Array.from(oldFilesMap.values()).map((f: TreeFile) => f.path);
-        } else {
-          // no files map is available directly after getStatus is called if no commit made yet
-          oldFilesMap = new Map();
-          oldFilePaths = [];
-        }
-
-        const promises = [];
-
+        // Files which didn't exist before, but do now
         if (filter & FILTER.INCLUDE_UNTRACKED) {
-          // Files which didn't exist before, but do now
-          let newFiles: string[] = difference(currentFiles, oldFilePaths);
-          if (ignore) {
-            newFiles = ignore.filter(newFiles);
-          }
-          for (const newFile of newFiles) {
-            statusResult.push(new StatusEntry({ path: newFile, status: STATUS.WT_NEW }, false));
+          const entries: DirItem[] = currentFilesInProj.filter((value) => !oldFilesMap.has(value.relPath) && !ignore.ignored(value.relPath));
+          for (const entry of entries) {
+            if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_NEW }, entry.isdir));
+            }
           }
         }
 
         // Files which existed before but don't anymore
         if (filter & FILTER.INCLUDE_DELETED) {
-          let deletedFiles: string[] = difference(oldFilePaths, currentFiles);
+          const entries: TreeEntry[] = oldFiles.filter((value) => !curFilesMap.has(value.path) && !ignore.ignored(value.path));
 
-          if (ignore) {
-            deletedFiles = ignore.filter(deletedFiles);
-          }
-
-          for (const deletedFile of deletedFiles) {
-            statusResult.push(new StatusEntry({ path: deletedFile, status: STATUS.WT_DELETED }, false));
-          }
-        }
-
-        if (filter & FILTER.INCLUDE_MODIFIED) {
-          let existingFiles = intersection(currentFiles, oldFilePaths);
-
-          if (ignore) {
-            existingFiles = ignore.filter(existingFiles);
-          }
-
-          for (const existingFile of existingFiles) {
-            const tfile: TreeFile = oldFilesMap.get(existingFile);
-            if (!tfile) {
-              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+          for (const entry of entries) {
+            if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
+              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED }, entry.isDirectory()));
             }
-
-            promises.push(tfile.isFileModified(this));
           }
         }
 
+        if (filter & FILTER.INCLUDE_DIRECTORIES) {
+          for (const entry of currentFilesInProj) {
+            if (entry.isdir && !statusResult.has(entry.relPath) && !ignore.ignored(entry.relPath)) {
+              // the status of this directory will later be overwritten in case
+              // the directory contains a file that is modified
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: 0 }, true));
+            }
+          }
+        }
+
+        // Check which files were modified
+        if (filter & FILTER.INCLUDE_MODIFIED) {
+          const entries: TreeEntry[] = oldFiles.filter((value) => curFilesMap.has(value.path) && !ignore.ignored(value.path));
+
+          for (const existingEntry of entries) {
+            if (existingEntry instanceof TreeFile) {
+              promises.push(existingEntry.isFileModified(this));
+            }
+          }
+        }
         return Promise.all(promises);
       })
       .then((existingFiles: {file: TreeFile; modified : boolean}[]) => {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
-            statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
+            statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
-            statusResult.push(new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
+            statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
           }
         }
 
-        return statusResult;
+        const result = Array.from(statusResult.values());
+
+        // The following sorting also ensures that a directory is listed before its sub-items.
+        // E.g: ['foo.pxd', 'foo.pxd/Info.plist', 'foo2.pxd', 'foo2.pxd/Info.plist']
+        if (filter & FILTER.SORT_CASE_SENSITIVELY) {
+          result.sort((a: StatusEntry, b: StatusEntry) => a.path.toLocaleLowerCase().localeCompare(b.path.toLocaleLowerCase()));
+        } else if (filter & FILTER.SORT_CASE_SENSITIVELY) {
+          result.sort((a: StatusEntry, b: StatusEntry) => a.path.localeCompare(b.path));
+        }
+        return result;
       });
   }
 
@@ -1010,7 +1006,7 @@ export class Repository {
    * @param workdir     The path at which the directory is located.
    * @returns           The new repository object.
    */
-  static async open(workdir: string): Promise<Repository> {
+  static open(workdir: string): Promise<Repository> {
     const repo = new Repository();
 
     let odb: Odb;
@@ -1024,7 +1020,7 @@ export class Repository {
       commondirInside = join(workdir, '.snow');
       return fse.stat(commondirInside);
     })
-      .then(async (stat: fse.Stats) => {
+      .then((stat: fse.Stats) => {
         if (stat.isFile()) {
           return fse.readFile(commondirInside).then((buf: Buffer) => buf.toString());
         }
@@ -1103,7 +1099,7 @@ export class Repository {
    * @param opts        Additional options for the new repository.
    * @returns           The new repository object.
    */
-  static async initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
+  static initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
     const repo = new Repository();
 
     if (!opts) {
@@ -1124,7 +1120,7 @@ export class Repository {
     }
 
     return fse.ensureDir(workdir)
-      .then(async () => {
+      .then(() => {
         if (commondirOutside) {
           const snowtrackFile: string = join(workdir, '.snow');
           return fse.writeFile(snowtrackFile, opts.commondir);
