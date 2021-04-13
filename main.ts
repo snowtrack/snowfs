@@ -6,7 +6,7 @@ import {
   isAbsolute, join, resolve, relative, normalize,
 } from './src/path';
 
-import { Index, lock } from './src/index';
+import { Index } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
@@ -600,14 +600,6 @@ program
         process.exit(-1);
       }
     }
-  });
-
-program
-  .command('test')
-  .action(async (opts: any) => {
-    const foo = await lock('/Users/sebastian/Desktop/foo/yy.txt');
-    const drives = await posix.whichFilesInDirAreOpen('/Users/sebastian/Desktop/foo');
-    console.log(drives);
   });
 
 program
