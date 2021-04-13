@@ -3,7 +3,7 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
-import { join, dirname, normalize } from './path';
+import { join, dirname, normalize, relative } from './path';
 import { MB1 } from './common';
 
 const drivelist = require('drivelist');
@@ -89,14 +89,19 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
               lsofEntry.lockType = LOCKTYPE.UNKNOWN;
             }
           } else if (pline.startsWith('n')) { // Documents filepath
-            const filepath = pline.substr(1, pline.length - 1);
-            const q = p.get(filepath);
-            if (q) {
-              // if there was an entry before, add the new entry to the array in the map
-              q.push(lsofEntry);
+            const absPath = pline.substr(1, pline.length - 1);
+            if (absPath.startsWith(dirpath)) {
+              const relPath = relative(dirpath, pline.substr(1, pline.length - 1));
+              const q = p.get(relPath);
+              if (q) {
+                // if there was an entry before, add the new entry to the array in the map
+                q.push(lsofEntry);
+              } else {
+                // ..otherwise add a new list with the lsofEntry as the first element
+                p.set(relPath, [lsofEntry]);
+              }
             } else {
-              // ..otherwise add a new list with the lsofEntry as the first element
-              p.set(filepath, [lsofEntry]);
+              console.log(`lsof reported unknown path: ${pline}`)
             }
           }
         }
