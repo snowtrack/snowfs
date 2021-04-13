@@ -14,7 +14,6 @@ import { FileInfo } from './common';
 
 // if Node version 15, switch to built-in AggregateError
 const AggregateError = require('aggregate-error');
-const { fcntl, constants } = require('fs-ext');
 
 class StacklessError extends Error {
   constructor(...args) {
@@ -22,27 +21,6 @@ class StacklessError extends Error {
     this.name = this.constructor.name;
     delete this.stack;
   }
-}
-
-export async function lock(path: string) {
-  return new Promise<number>((resolve, reject) => fse.open(path, 'r', (err, fd: number) => {
-    if (err) reject(err);
-    resolve(fd);
-  })).then((fd: number) => new Promise<any>((resolve, reject) => {
-    async function release() {
-      return new Promise<void>((resolve, reject) => {
-        fcntl(fd, constants.F_UNLCK, (err: Error) => {
-          if (err) reject(err);
-          resolve();
-        });
-      });
-    }
-
-    fcntl(fd, constants.F_RDLCK, (err: Error) => {
-      if (err) reject(err);
-      resolve(release);
-    });
-  }));
 }
 
 /**
@@ -319,18 +297,6 @@ export class Index {
         const promises = [];
         for (const absolutePath of absolutePaths) {
           promises.push(this.odb.writeObject(absolutePath, ioContext));
-          let release: any;
-          promises.push(
-            lock(absolutePath)
-              .then((releaseResult: any) => {
-                release = releaseResult;
-                return this.odb.writeObject(absolutePath, ioContext);
-              }).finally(async () => {
-                if (release) {
-                  release();
-                }
-              }),
-          );
         }
 
         return Promise.all(promises);

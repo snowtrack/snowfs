@@ -51,7 +51,6 @@
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "drivelist": "^9.2.4",
-    "fs-ext": "^2.0.0",
     "fs-extra": "^9.0.1",
     "lockfile": "^1.0.4",
     "lodash": "^4.17.20",
