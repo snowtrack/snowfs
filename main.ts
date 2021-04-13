@@ -6,14 +6,15 @@ import {
   isAbsolute, join, resolve, relative, normalize,
 } from './src/path';
 
-import { Index } from './src/index';
+import { Index, lock } from './src/index';
 import { Commit } from './src/commit';
 import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
+import { calculateFileHash } from './src/common';
+import { IoContext, posix } from './src/io_context';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
-import { IoContext } from './src/io_context';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -150,7 +151,7 @@ program
       // if the file is not there! (expected by a unit-test in 9.cli.test)
       fse.statSync(filepathAbs);
 
-      IoContext.putToTrash(filepathAbs);
+      await IoContext.putToTrash(filepathAbs);
 
       const index: Index = getIndex(repo, opts.index);
       index.deleteFiles([path]);
@@ -280,19 +281,18 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_DIRECTORIES);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_MODIFIED);
           let criticalChanges = 0;
           for (const statusFile of statusFiles) {
-            if (statusFile.isFile()) { // new or modified files will abort the checkout to prevent data loss
-              if (statusFile.isModified()) {
-                process.stdout.write(`M ${statusFile.path}\n`);
-                criticalChanges++;
-              } else if (statusFile.isNew()) {
-                process.stdout.write(`A ${statusFile.path}\n`);
-                criticalChanges++;
-              }
-              // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
+            // new or modified files will abort the checkout to prevent data loss
+            if (statusFile.isModified()) {
+              process.stdout.write(`M ${statusFile.path}\n`);
+              criticalChanges++;
+            } else if (statusFile.isNew()) {
+              process.stdout.write(`A ${statusFile.path}\n`);
+              criticalChanges++;
             }
+            // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
           }
           if (criticalChanges > 0) {
             throw new Error(`You have local changes to '${target}'; not switching branches.`);
@@ -603,6 +603,14 @@ program
   });
 
 program
+  .command('test')
+  .action(async (opts: any) => {
+    const foo = await lock('/Users/sebastian/Desktop/foo/yy.txt');
+    const drives = await posix.whichFilesInDirAreOpen('/Users/sebastian/Desktop/foo');
+    console.log(drives);
+  });
+
+program
   .command('driveinfo')
   .option('--output [format=json-pretty]', "currently supported output formats 'json', 'json-pretty'")
   .description('List all connected drives in your computer, in all major operating systems')
@@ -649,19 +657,19 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_DIRECTORIES);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_MODIFIED);
           let criticalChanges = 0;
+
           for (const statusFile of statusFiles) {
-            if (statusFile.isFile()) { // new or modified files will abort the checkout to prevent data loss
-              if (statusFile.isModified()) {
-                process.stdout.write(`M ${statusFile.path}\n`);
-                criticalChanges++;
-              } else if (statusFile.isNew()) {
-                process.stdout.write(`A ${statusFile.path}\n`);
-                criticalChanges++;
-              }
-              // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
+            // new or modified files will abort the checkout to prevent data loss
+            if (statusFile.isModified()) {
+              process.stdout.write(`M ${statusFile.path}\n`);
+              criticalChanges++;
+            } else if (statusFile.isNew()) {
+              process.stdout.write(`A ${statusFile.path}\n`);
+              criticalChanges++;
             }
+            // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
           }
           if (criticalChanges > 0) {
             throw new Error(`You have local changes to '${branchName}'; not switching branches.`);

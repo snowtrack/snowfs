@@ -154,7 +154,7 @@ test('Ignore subdirectory', async (t) => {
     t.is(items[2].path, 'file3.txt');
     t.is(items[3].path, 'file4.txt');
     t.is(items[4].path, 'file5.txt');
-  }).then(() => {
+
     return repo.getStatus(FILTER.ALL | FILTER.SORT_CASE_SENSITIVELY);
   })
     .then((items: StatusEntry[]) => {

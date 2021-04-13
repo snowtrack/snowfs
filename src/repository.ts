@@ -124,7 +124,7 @@ export const enum FILTER {
   INCLUDE_MODIFIED = 32,
 
   /** Default flag passed to [[Repository.getStatus]] */
-  DEFAULT = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_UNMODIFIED | INCLUDE_DELETED | INCLUDE_DIRECTORIES,
+  DEFAULT = INCLUDE_UNTRACKED | INCLUDE_MODIFIED | INCLUDE_DELETED | INCLUDE_UNMODIFIED | INCLUDE_DIRECTORIES,
 
   /** Same as DEFAULT, but includes ignored entries */
   ALL = DEFAULT | INCLUDE_IGNORED,
@@ -880,12 +880,11 @@ export class Repository {
 
         const oldFiles: TreeEntry[] = Array.from(oldFilesMap.values());
 
-        if (filter & FILTER.INCLUDE_IGNORED && ignore) {
-          const entries: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
-
-          for (const entry of entries) {
+        if (filter & FILTER.INCLUDE_IGNORED) {
+          const ignored: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
+          for (const entry of ignored) {
             if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.absPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
             }
           }
         }
@@ -895,7 +894,7 @@ export class Repository {
           const entries: DirItem[] = currentFilesInProj.filter((value) => !oldFilesMap.has(value.relPath) && !ignore.ignored(value.relPath));
           for (const entry of entries) {
             if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.absPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_NEW }, entry.isdir));
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_NEW }, entry.isdir));
             }
           }
         }
@@ -907,6 +906,16 @@ export class Repository {
           for (const entry of entries) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED }, entry.isDirectory()));
+            }
+          }
+        }
+
+        if (filter & FILTER.INCLUDE_DIRECTORIES) {
+          for (const entry of currentFilesInProj) {
+            if (entry.isdir && !statusResult.has(entry.relPath) && !ignore.ignored(entry.relPath)) {
+              // the status of this directory will later be overwritten in case
+              // the directory contains a file that is modified
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: 0 }, true));
             }
           }
         }
@@ -927,16 +936,6 @@ export class Repository {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
             statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
-
-            if (filter & FILTER.INCLUDE_DIRECTORIES) {
-              let parent = existingFile.file.parent;
-              while (parent) {
-                if (!statusResult.has(parent.path)) {
-                  statusResult.set(parent.path, new StatusEntry({ path: parent.path, status: STATUS.WT_MODIFIED }, true));
-                }
-                parent = parent.parent;
-              }
-            }
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
           }
