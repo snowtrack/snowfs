@@ -855,6 +855,16 @@ export class Repository {
           }
         }
 
+        if (filter & FILTER.INCLUDE_DIRECTORIES) {
+          for (const entry of currentFilesInProj) {
+            if (entry.isdir && !statusResult.has(entry.relPath)) {
+              // the status of this directory will later be overwritten in case
+              // the directory contains a file that is modified
+              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: 0 }, true));
+            }
+          }
+        }
+
         // Check which files were modified
         if (filter & FILTER.INCLUDE_MODIFIED) {
           const entries: TreeEntry[] = oldFiles.filter((value) => curFilesMap.has(value.path) && !ignore.ignored(value.path));
@@ -871,16 +881,6 @@ export class Repository {
         for (const existingFile of existingFiles) {
           if (existingFile.modified) {
             statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
-
-            if (filter & FILTER.INCLUDE_DIRECTORIES) {
-              let parent = existingFile.file.parent;
-              while (parent) {
-                if (!statusResult.has(parent.path)) {
-                  statusResult.set(parent.path, new StatusEntry({ path: parent.path, status: STATUS.WT_MODIFIED }, true));
-                }
-                parent = parent.parent;
-              }
-            }
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
           }
