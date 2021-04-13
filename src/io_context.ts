@@ -60,8 +60,8 @@ export class FileHandle {
 
 export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
   try {
-    const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
     return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
+      const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
       const p = new Map<string, FileHandle[]>();
       p0.stdout.on('data', (data) => {
         let lsofEntry: FileHandle = new FileHandle();
