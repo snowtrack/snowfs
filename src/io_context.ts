@@ -349,7 +349,6 @@ export class IoContext {
       }
     }
 
-    let proc: any;
     switch (process.platform) {
       case 'darwin': {
         const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
@@ -374,7 +373,7 @@ export class IoContext {
 
         return new Promise((resolve, reject) => {
           const proc = spawn(trashPath, [path]);
-    
+
           proc.on('exit', (code: number) => {
             if (code === 0) {
               resolve();
