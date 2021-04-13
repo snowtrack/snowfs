@@ -349,7 +349,6 @@ export class IoContext {
       }
     }
 
-    let proc: any;
     switch (process.platform) {
       case 'darwin': {
         const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
@@ -373,12 +372,19 @@ export class IoContext {
         }
 
         return new Promise((resolve, reject) => {
-          proc = spawn(trashPath, [path], { stdio: [0, 'pipe', 'pipe'] });
-          proc.on('close', (code) => {
-            resolve(code);
-          });
-          proc.on('error', (err) => {
-            reject(err);
+          const proc = spawn(trashPath, [path]);
+
+          proc.on('exit', (code: number) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              const stderr = proc.stderr.read();
+              if (stderr) {
+                reject(stderr.toString());
+              } else {
+                reject(code);
+              }
+            }
           });
         });
       });

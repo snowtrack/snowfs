@@ -150,7 +150,7 @@ program
       // if the file is not there! (expected by a unit-test in 9.cli.test)
       fse.statSync(filepathAbs);
 
-      IoContext.putToTrash(filepathAbs);
+      await IoContext.putToTrash(filepathAbs);
 
       const index: Index = getIndex(repo, opts.index);
       index.deleteFiles([path]);
