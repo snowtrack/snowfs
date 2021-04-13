@@ -77,14 +77,14 @@ test('snow switch', async (t) => {
   t.log('Switch to branch-0');
   await exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 1);
   t.true(dirPaths.includes('abc0.txt'));
 
   t.log('Switch to branch-1');
   await exec(t, snow, ['switch', 'branch-1'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 2);
   t.true(dirPaths.includes('abc0.txt'));
   t.true(dirPaths.includes('abc1.txt'));
@@ -92,7 +92,7 @@ test('snow switch', async (t) => {
   t.log('Switch to branch-2');
   await exec(t, snow, ['switch', 'branch-2'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 3);
   t.true(dirPaths.includes('abc0.txt'));
   t.true(dirPaths.includes('abc1.txt'));
@@ -114,14 +114,14 @@ test('snow switch', async (t) => {
   const error = await t.throwsAsync(async () => exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
   const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
-  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  // abc1.txt did not get reported as deleted because switch/checkout don't mind if a file got deleted by the user since it can be restored
   t.true(lines.includes("fatal: You have local changes to 'branch-0'; not switching branches."));
 
   t.log('Switch and discard the local changes');
   await exec(t, snow, ['switch', 'branch-0', '--discard-changes'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 1);
   t.true(dirPaths.includes('abc0.txt'));
 
@@ -178,7 +178,7 @@ test('snow checkout', async (t) => {
   t.log(`Switch to ${allCommits[1]}`);
   await exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 1);
   t.true(dirPaths.includes('abc0.txt'));
 
@@ -190,7 +190,7 @@ test('snow checkout', async (t) => {
   t.log(`Switch to ${allCommits[2]}`);
   await exec(t, snow, ['checkout', allCommits[2].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 2);
   t.true(dirPaths.includes('abc0.txt'));
   t.true(dirPaths.includes('abc1.txt'));
@@ -198,7 +198,7 @@ test('snow checkout', async (t) => {
   t.log(`Switch to ${allCommits[3]}`);
   await exec(t, snow, ['checkout', allCommits[3].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 3);
   t.true(dirPaths.includes('abc0.txt'));
   t.true(dirPaths.includes('abc1.txt'));
@@ -220,14 +220,14 @@ test('snow checkout', async (t) => {
   const error = await t.throwsAsync(async () => exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
   const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
-  t.true(lines.includes('D abc1.txt')); // abc1.txt got added in the working dir
   t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  // abc1.txt did not get reported as deleted because switch/checkout don't mind if a file got deleted by the user since it can be restored
   t.true(lines.includes(`fatal: You have local changes to '${allCommits[1].hash}'; not switching branches.`));
 
   t.log('Switch and discard the local changes');
   await exec(t, snow, ['checkout', allCommits[1].hash, '--discard-changes'], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
-  dirPaths = dirItems.map((d) => basename(d.path));
+  dirPaths = dirItems.map((d) => basename(d.relPath));
   t.is(dirItems.length, 1);
   t.true(dirPaths.includes('abc0.txt'));
 

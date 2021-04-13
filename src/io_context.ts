@@ -116,7 +116,7 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
 }
 }
 
-async function getFilesystem(drive: any, mountpoint: string) {
+function getFilesystem(drive: any, mountpoint: string) {
   try {
     if (process.platform === 'win32') {
       return new Promise<string | null>((resolve, reject) => {
@@ -240,9 +240,9 @@ export class IoContext {
     IoContext.trashExecPath = execPath;
   }
 
-  async init() {
+  init(): Promise<void> {
     const tmpDrives = [];
-    return drivelist.list().then(async (drives: any) => {
+    return drivelist.list().then((drives: any) => {
       this.origDrives = drives;
       this.mountpoints = new Set();
       this.drives = new Map();
@@ -300,7 +300,7 @@ export class IoContext {
     return i === j;
   }
 
-  private async copyFileApfs(src: string, dst: string): Promise<void> {
+  private copyFileApfs(src: string, dst: string): Promise<void> {
     return fse.stat(src).then((stat: fse.Stats) => {
       // TODO: (Need help)
       // It seems on APFS copying files smaller than 1MB is faster than using COW.
@@ -322,13 +322,13 @@ export class IoContext {
     });
   }
 
-  private async copyFileRefs(src: string, dst: string): Promise<void> {
+  private copyFileRefs(src: string, dst: string): Promise<void> {
     return fse.stat(src).then((stat: fse.Stats) => {
       if (stat.size < MB1) {
         return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       }
 
-      let cloneFileViaBlockClonePs1: string = 'Clone-FileViaBlockClone.ps1';
+      let cloneFileViaBlockClonePs1 = 'Clone-FileViaBlockClone.ps1';
       if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1))) {
         cloneFileViaBlockClonePs1 = join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1);
       } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1))) {
@@ -363,7 +363,7 @@ export class IoContext {
    * @param src   source filename to copy
    * @param dst   destination filename of the copy operation
    */
-  async copyFile(src: string, dst: string): Promise<void> {
+  copyFile(src: string, dst: string): Promise<void> {
     this.checkIfInitialized();
     const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
     let filesystem = FILESYSTEM.OTHER;
@@ -406,16 +406,7 @@ export class IoContext {
    *                    might be located somewhere else. Can be set so `SnowFS` can find
    *                    the executables.
   */
-  static async putToTrash(path: string): Promise<void> {
-    try {
-      fse.lstatSync(path);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return;
-      }
-      throw error;
-    }
-
+  static putToTrash(path: string): Promise<void> {
     let trashPath: string = IoContext.trashExecPath;
     if (!trashPath) {
       switch (process.platform) {
@@ -445,18 +436,15 @@ export class IoContext {
       }
     }
 
-    let proc: any;
     switch (process.platform) {
       case 'darwin': {
         const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
         if (isOlderThanMountainLion) {
           throw new Error('macOS 10.12 or later required');
         }
-        proc = spawn(trashPath, [path]);
         break;
       }
       case 'win32': {
-        proc = spawn(trashPath, [path]);
         break;
       }
       default: {
@@ -464,14 +452,28 @@ export class IoContext {
       }
     }
 
-    return new Promise((resolve, reject) => {
-      proc.on('exit', (code: number|null, signal: string|null) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(code);
+    return fse.pathExists(path)
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error(`${path} no such file or directory`);
         }
+
+        return new Promise((resolve, reject) => {
+          const proc = spawn(trashPath, [path]);
+
+          proc.on('exit', (code: number) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              const stderr = proc.stderr.read();
+              if (stderr) {
+                reject(stderr.toString());
+              } else {
+                reject(code);
+              }
+            }
+          });
+        });
       });
-    });
   }
 }

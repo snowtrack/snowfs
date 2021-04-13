@@ -151,7 +151,7 @@ program
       // if the file is not there! (expected by a unit-test in 9.cli.test)
       fse.statSync(filepathAbs);
 
-      IoContext.putToTrash(filepathAbs);
+      await IoContext.putToTrash(filepathAbs);
 
       const index: Index = getIndex(repo, opts.index);
       index.deleteFiles([path]);
@@ -175,7 +175,7 @@ program
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
-      const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+      const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED);
 
       const relCwd = relative(repo.workdir(), normalize(process.cwd()));
 
@@ -281,24 +281,27 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_MODIFIED);
+          let criticalChanges = 0;
           for (const statusFile of statusFiles) {
+            // new or modified files will abort the checkout to prevent data loss
             if (statusFile.isModified()) {
               process.stdout.write(`M ${statusFile.path}\n`);
+              criticalChanges++;
             } else if (statusFile.isNew()) {
               process.stdout.write(`A ${statusFile.path}\n`);
-            } else if (statusFile.isDeleted()) {
-              process.stdout.write(`D ${statusFile.path}\n`);
+              criticalChanges++;
             }
+            // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
           }
-          if (statusFiles.length > 0) {
+          if (criticalChanges > 0) {
             throw new Error(`You have local changes to '${target}'; not switching branches.`);
           }
         }
 
         let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
         if (!opts.keepChanges) {
-          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
         }
 
         await repo.checkout(target, reset);
@@ -351,24 +354,24 @@ program
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
-      const files: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_IGNORED | FILTER.INCLUDE_UNTRACKED);
-      const newFiles: StatusEntry[] = [];
-      const modifiedFiles: StatusEntry[] = [];
-      const deletedFiles: StatusEntry[] = [];
-      for (const file of files) {
-        if (file.isNew()) {
-          newFiles.push(file);
-        } else if (file.isModified()) {
-          modifiedFiles.push(file);
-        } else if (file.isDeleted()) {
-          deletedFiles.push(file);
+      const statuses: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_DIRECTORIES);
+      const newe: StatusEntry[] = [];
+      const modified: StatusEntry[] = [];
+      const deleted: StatusEntry[] = [];
+      for (const status of statuses) {
+        if (status.isNew()) {
+          newe.push(status);
+        } else if (status.isModified()) {
+          modified.push(status);
+        } else if (status.isDeleted()) {
+          deleted.push(status);
         }
       }
 
       const index: Index = getIndex(repo, opts.index);
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        const o = { new_files: newFiles, modified_files: modifiedFiles, deleted_files: deletedFiles };
+        const o = { new: newe, modified, deleted };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof StatusEntry) {
@@ -381,28 +384,28 @@ program
       } else {
         console.log(`On branch ${repo.getHead().getName()}`);
         console.log('Changes not staged for commit:');
-        console.log('use "snow add <file>..." to update what will be committed');
-        // console.log(`use "snow restore <file>..." to discard changes in working directory`);
-        for (const modifiedFile of modifiedFiles) {
+        console.log('use "snow add <rel-path>..." to update what will be committed');
+
+        for (const modifiedFile of modified) {
           console.log(modifiedFile.path);
         }
         process.stdout.write('\n');
-        if (deletedFiles.length > 0) {
-          console.log('Deleted files:');
-          for (const deleteFile of deletedFiles) {
-            console.log(deleteFile.path);
+        if (deleted.length > 0) {
+          console.log('Deleted:');
+          for (const del of deleted) {
+            console.log(del.path);
           }
         } else {
           console.log('no deleted changes added to commit (use "snow rm")');
         }
         process.stdout.write('\n');
-        if (newFiles.length > 0) {
-          console.log('New files:');
-          for (const newFile of newFiles) {
-            if (index.addRelPaths.has(relative(repo.workdir(), newFile.path))) {
+        if (newe.length > 0) {
+          console.log('New:');
+          for (const n of newe) {
+            if (index.addRelPaths.has(n.path)) {
               process.stdout.write(chalk.red('+ '));
             }
-            console.log(newFile.path);
+            console.log(n.path);
           }
         } else {
           console.log('no changes added to commit (use "snow add"');
@@ -654,24 +657,28 @@ program
         if (opts.discardChanges && opts.keepChanges) {
           throw new Error('either --discard-changes or --keep-changes can be used, not both');
         } else if (!opts.discardChanges && !opts.keepChanges) {
-          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED);
+          const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_MODIFIED);
+          let criticalChanges = 0;
+
           for (const statusFile of statusFiles) {
+            // new or modified files will abort the checkout to prevent data loss
             if (statusFile.isModified()) {
               process.stdout.write(`M ${statusFile.path}\n`);
+              criticalChanges++;
             } else if (statusFile.isNew()) {
               process.stdout.write(`A ${statusFile.path}\n`);
-            } else if (statusFile.isDeleted()) {
-              process.stdout.write(`D ${statusFile.path}\n`);
+              criticalChanges++;
             }
+            // 'Ignored' or 'Deleted' files can also be ignored, since they could be restored
           }
-          if (statusFiles.length > 0) {
+          if (criticalChanges > 0) {
             throw new Error(`You have local changes to '${branchName}'; not switching branches.`);
           }
         }
 
         let reset: RESET = RESET.NONE;
         if (!opts.keepChanges) {
-          reset |= RESET.DELETE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
         }
         if (opts.detach) {
           reset |= RESET.DETACH;
