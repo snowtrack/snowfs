@@ -5,7 +5,6 @@ import * as os from 'os';
 import { exec, spawn } from 'child_process';
 import { join, dirname, normalize, relative } from './path';
 import { MB1 } from './common';
-import { stringify } from 'node:querystring';
 
 // if Node version 15, switch to built-in AggregateError
 const AggregateError = require('aggregate-error');
