@@ -73,9 +73,15 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
     return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
       const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
       const p = new Map<string, FileHandle[]>();
+
+      let stdout = '';
       p0.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      function parseStdout(stdout: string) {
         let lsofEntry: FileHandle = new FileHandle();
-        for (const pline of data.toString().split(/\n/)) {
+        for (const pline of stdout.split(/\n/)) {
           if (pline.startsWith('p')) { // PID of process which acquired the file handle
             // first item, therefore it creates the file handle
             lsofEntry = new FileHandle();
@@ -116,9 +122,11 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
             }
           }
         }
-      });
+      }
+
       p0.on('exit', (code) => {
         if (code === 1) { // lsof returns 1
+          parseStdout(stdout);
           resolve(p);
         } else {
           reject(code);
@@ -482,7 +490,9 @@ export class IoContext {
     function checkUnixLike(relPaths): Promise<void> {
       return unix.whichFilesInDirAreOpen(dir)
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
+
           const errors: Error[] = [];
+
           for (const relPath of relPaths) {
             const fhs: unix.FileHandle[] = fileHandles.get(relPath);
             if (fhs) {
@@ -490,15 +500,17 @@ export class IoContext {
                 if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE ||
                     fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE ||
                     fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
-                      const msg = `File '${relPath}' is written by ${fh.processname}`;
+                      const msg = `File '${relPath}' is written by ${fh.processname ?? 'another process'}`;
                       errors.push(new StacklessError(msg));
                 }
               }
             }
-            if (errors.length > 0) {
-              throw new AggregateError(errors);
-            }
           }
+
+          if (errors.length > 0) {
+            throw new AggregateError(errors);
+          }
+
         });
     }
 
