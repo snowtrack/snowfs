@@ -5,8 +5,19 @@ import * as os from 'os';
 import { exec, spawn } from 'child_process';
 import { join, dirname, normalize, relative } from './path';
 import { MB1 } from './common';
+import { stringify } from 'node:querystring';
 
+// if Node version 15, switch to built-in AggregateError
+const AggregateError = require('aggregate-error');
 const drivelist = require('drivelist');
+
+class StacklessError extends Error {
+  constructor(...args) {
+    super(...args);
+    this.name = this.constructor.name;
+    delete this.stack;
+  }
+}
 
 export enum FILESYSTEM {
   APFS = 1,
@@ -120,6 +131,7 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
     return new Map();
   }
 }
+
 }
 
 function getFilesystem(drive: any, mountpoint: string) {
@@ -401,6 +413,106 @@ export class IoContext {
       default:
         throw new Error('Unsupported Operating System');
     }
+  }
+
+  /**
+   * Check if the given filepaths are write-locked by another process.
+   * For more information, or to add comments visit https://github.com/Snowtrack/SnowFS/discussions/110
+   * 
+   * @param dir               The root directory path to check 
+   * @param relPaths          Relative file paths inside the given directory.
+   * @throws {AggregateError} Aggregated error of StacklessError
+   */
+   performWriteLockChecks(dir: string, relPaths: string[]): Promise<void> {
+
+    function checkWin32(relPaths): Promise<void> {
+      const absPaths = relPaths.map((p: string) => join(dir, p));
+
+      const promises = [];
+
+      for (const absPath of absPaths) {
+        promises.push(fse.stat(absPath));
+      }
+
+      const stats1 = new Map<string, number>();
+
+      return Promise.all(promises)
+        .then((stats: fse.Stats[]) => {
+          if (stats.length !== relPaths.length) {
+            throw new Error('Internal error: stats != paths');
+          }
+
+          for (let i = 0; i < relPaths.length; ++i) {
+            stats1.set(relPaths[i], stats[i].size);
+          }
+
+          return new Promise<void>((resolve) => {
+            setTimeout(() => {
+              resolve();
+            }, 500);
+          });
+      }).then(() => {
+        const promises = [];
+
+        for (const absPath of absPaths) {
+          promises.push(fse.stat(absPath));
+        }
+
+        return Promise.all(promises);
+      }).then((stats: fse.Stats[]) => {
+        if (stats.length !== relPaths.length) {
+          throw new Error('Internal error: stats != paths');
+        }
+
+        const errors: Error[] = [];
+
+        for (let i = 0; i < relPaths.length; ++i) {
+          const prevSize = stats1.get(relPaths[i]);
+          if (prevSize !== stats[i].size) {
+            const msg = `File '${relPaths[i]}' is written by another process`;
+            errors.push(new StacklessError(msg));
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new AggregateError(errors);
+        }
+      });
+    }
+
+    function checkUnixLike(relPaths): Promise<void> {
+      return unix.whichFilesInDirAreOpen(dir)
+        .then((fileHandles: Map<string, unix.FileHandle[]>) => {
+          const errors: Error[] = [];
+          for (const relPath of relPaths) {
+            const fhs: unix.FileHandle[] = fileHandles.get(relPath);
+            if (fhs) {
+              for (const fh of fhs) {
+                if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE ||
+                    fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE ||
+                    fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
+                      const msg = `File '${relPath}' is written by ${fh.processname}`;
+                      errors.push(new StacklessError(msg));
+                }
+              }
+            }
+            if (errors.length > 0) {
+              throw new AggregateError(errors);
+            }
+          }
+        });
+    }
+
+    switch (process.platform) {
+      case 'win32':
+        return checkWin32(relPaths);
+      case 'darwin':
+      case 'linux':
+        return checkUnixLike(relPaths);
+      default:
+        throw new Error("Unknown operating system");
+    }
+
   }
 
   /**

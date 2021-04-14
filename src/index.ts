@@ -12,15 +12,17 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-// if Node version 15, switch to built-in AggregateError
-const AggregateError = require('aggregate-error');
-
-class StacklessError extends Error {
-  constructor(...args) {
-    super(...args);
-    this.name = this.constructor.name;
-    delete this.stack;
-  }
+/**
+ * Used in [[Index.writeFiles]]. Used to control certain behaviours
+ * when files are written to disk.
+ */
+export enum WRITE {
+  NONE = 0,
+  /**
+   * By default filelocks are checked to ensure none of the given files
+   * is written by another process. Using this flag skips this check.
+   */
+  SKIP_FILELOCK_CHECKS = 1  
 }
 
 /**
@@ -222,81 +224,27 @@ export class Index {
   /**
    * Write files to object database. Needed before a commit can be made.
    */
-  writeFiles(): Promise<void> {
+  writeFiles(flags: WRITE = WRITE.NONE): Promise<void> {
     this.throwIfNotValid();
 
+    let unprocessedRelItems: string[] = [];
+
     const ioContext = new IoContext();
-
     return ioContext.init()
-      .then(async () => {
-        const addRelPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
-        const absolutePaths: string[] = [];
+      .then(() => {
+        const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
+      
+        unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
 
-        for (const relFilePath of addRelPaths) {
-          if (!this.processed.has(relFilePath)) {
-            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
-            if (!filepathAbs.startsWith(this.repo.workdir())) {
-              throw new Error(`file or directory not in workdir: ${relFilePath}`);
-            }
-            absolutePaths.push(filepathAbs);
-          }
-        }
-
-        // Ensure that no file in the index is opened by another process
-        // For more information, or to add comments visit https://github.com/Snowtrack/SnowFS/discussions/110
-        if (process.platform === 'win32') {
-          // On Windows, there is no known way to know if a file is opened by another process.
-          // But renaming a file is current workaround, until `CreateFile` for a read-lock is implemented.
-
-          let atLeastOneFileIsOpenInAnotherProcess: string = null;
-          const renamed: string[] = [];
-
-          // give each file a temporary name...
-          for (const absolutePath of absolutePaths) {
-            try {
-              fse.renameSync(absolutePath, `${absolutePaths}.tmp_rename`);
-              renamed.push(absolutePath);
-            } catch (error) {
-              atLeastOneFileIsOpenInAnotherProcess = absolutePath;
-              continue;
-            }
-          }
-
-          // ...rename each file back.
-          for (const tmp of renamed) {
-            try {
-              fse.renameSync(`${tmp}.tmp_rename`, tmp);
-            } catch (error) {
-              continue;
-            }
-          }
-
-          if (atLeastOneFileIsOpenInAnotherProcess) {
-            throw new Error(`file '${atLeastOneFileIsOpenInAnotherProcess}' is opened by another process.`);
-          }
+        if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
+          return Promise.resolve();
         } else {
-          const fileHandles: Map<string, unix.FileHandle[]> = await unix.whichFilesInDirAreOpen(this.repo.workdir());
-          const errors: Error[] = [];
-          for (const absolutePath of absolutePaths) {
-            const fhs: unix.FileHandle[] = fileHandles.get(absolutePath);
-            if (fhs) {
-              for (const fh of fhs) {
-                if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
-                  || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE
-                  || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
-                  errors.push(new StacklessError(`File '${relative(this.repo.workdir(), absolutePath)}' is locked by ${fh.processname}`));
-                }
-              }
-            }
-          }
-          if (errors.length > 0) {
-            throw new AggregateError(errors);
-          }
+          return ioContext.performWriteLockChecks(this.repo.workdir(), unprocessedRelItems);
         }
-
+      }).then(() => {
         const promises = [];
-        for (const absolutePath of absolutePaths) {
-          promises.push(this.odb.writeObject(absolutePath, ioContext));
+        for (const relFilePath of unprocessedRelItems) {
+          promises.push(this.odb.writeObject(relFilePath, ioContext));
         }
 
         return Promise.all(promises);
