@@ -1087,7 +1087,7 @@ export class Repository {
         return fse.pathExists(commondir);
       })
       .then((exists: boolean) => {
-        if (!exists) throw new Error("commondir doesn't exist");
+        if (!exists) throw new Error('commondir not found');
         return fse.stat(commondir);
       })
       .then((stat: fse.Stats) => {
