@@ -44,6 +44,7 @@
     "node": ">=12.10.0"
   },
   "dependencies": {
+    "@supercharge/promise-pool": "^1.7.0",
     "@types/fs-extra": "^9.0.6",
     "@types/lodash": "^4.14.167",
     "@types/npm": "^2.0.31",
