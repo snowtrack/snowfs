@@ -6,7 +6,24 @@ export class IgnoreManager {
     patterns: string[];
 
     constructor() {
-      this.patterns = ['.DS_Store', 'thumbs.db', '._.*', '.snowignore'];
+      this.patterns = ['.DS_Store',
+                       'thumbs.db',
+                       '._.*',
+                       '.snowignore',
+                       'backup/*',
+                       '*.bkp',
+                       'bkp/*',
+                       '*_bak[0-9]*.[A-Za-z0-9]+',
+                       '*.tmp',
+                       'tmp/*',
+                       'temp/*',
+                       'cache/*',
+                       '*.lnk', // *.lnk
+                       '*.log', // *.log
+                       '.vscode/*', 
+                       '.idea/*',
+                       '.Spotlight-V100'
+                      ];
     }
 
     loadFile(filepath: string): Promise<void> {
@@ -18,7 +35,7 @@ export class IgnoreManager {
             this.patterns.push(line);
 
             if (!line.endsWith('/')) { // could be a file or directory
-              this.patterns.push(`${line}/**`);
+              this.patterns.push(`${line}/*`);
             }
           }
         }
@@ -26,6 +43,6 @@ export class IgnoreManager {
     }
 
     ignored(filepath: string): boolean {
-      return nm.match(filepath, this.patterns, { dot: true }).length > 0;
+      return nm.match(filepath, this.patterns, { dot: true, nocase: true }).length > 0;
     }
 }

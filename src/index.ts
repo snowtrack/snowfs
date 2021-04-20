@@ -12,6 +12,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
+const PromisePool = require('@supercharge/promise-pool');
+
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
  * when files are written to disk.
@@ -22,7 +24,7 @@ export enum WRITE {
    * By default filelocks are checked to ensure none of the given files
    * is written by another process. Using this flag skips this check.
    */
-  SKIP_FILELOCK_CHECKS = 1  
+  SKIP_FILELOCK_CHECKS = 1
 }
 
 /**
@@ -233,27 +235,26 @@ export class Index {
     return ioContext.init()
       .then(() => {
         const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
-      
+
         unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
 
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
-        } else {
-          return ioContext.performWriteLockChecks(this.repo.workdir(), unprocessedRelItems);
         }
+        return ioContext.performWriteLockChecks(this.repo.workdir(), unprocessedRelItems);
       }).then(() => {
-        const promises = [];
-        for (const relFilePath of unprocessedRelItems) {
-          promises.push(this.odb.writeObject(relFilePath, ioContext));
-        }
-
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(unprocessedRelItems)
+          .process((relFilePath: string) => {
+            return this.odb.writeObject(relFilePath, ioContext);
+          });
       })
-      .then((value: {file: string, fileinfo: FileInfo}[]) => {
+      .then((value: {results: {file: string, fileinfo: FileInfo}[]}) => {
         ioContext.invalidate();
 
         // TODO: (Seb) Handle deleted files as well here
-        for (const r of value) {
+        for (const r of value.results) {
           this.processed.set(r.file, r.fileinfo);
         }
         return this.save();
