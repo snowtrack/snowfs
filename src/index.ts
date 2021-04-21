@@ -1,7 +1,6 @@
 import * as fse from 'fs-extra';
 
 import { difference } from 'lodash';
-
 import {
   isAbsolute, join, relative, basename,
 } from './path';
@@ -12,8 +11,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-const PromisePool = require('@supercharge/promise-pool');
-
+// eslint-disable-next-line import/order
+import PromisePool = require('@supercharge/promise-pool');
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
  * when files are written to disk.
@@ -95,7 +94,7 @@ export class Index {
    *
    * @throws Throws an exception if Index.invalidate() got called before.
    */
-  throwIfNotValid() {
+  throwIfNotValid(): void {
     if (!this.id && this.id !== '') { // an empty string is allowed for the main index
       // this happens if an index object got commited, it will be deleted and cleared
       throw new Error('index object is invalid');
@@ -180,7 +179,7 @@ export class Index {
    * Mark files as modified or new for the new commit.
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
-  addFiles(filepaths: string[]) {
+  addFiles(filepaths: string[]): void {
     this.throwIfNotValid();
 
     // filepaths can be absolute or relative to workdir
@@ -199,7 +198,7 @@ export class Index {
    * Mark files as being deleted for the new commit.
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
-  deleteFiles(filepaths: string[]) {
+  deleteFiles(filepaths: string[]): void {
     this.throwIfNotValid();
 
     // filepaths can be absolute or relative to workdir
@@ -232,6 +231,9 @@ export class Index {
     let unprocessedRelItems: string[] = [];
 
     const ioContext = new IoContext();
+
+    let unprocessedRelItems: string[] = [];
+
     return ioContext.init()
       .then(() => {
         const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
@@ -246,15 +248,17 @@ export class Index {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
-            return this.odb.writeObject(relFilePath, ioContext);
+            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
+            return this.odb.writeObject(filepathAbs, ioContext);
           });
       })
-      .then((value: {results: {file: string, fileinfo: FileInfo}[]}) => {
+      .then((res: {results: {file: string, fileinfo: FileInfo}[]}) => {
         ioContext.invalidate();
 
         // TODO: (Seb) Handle deleted files as well here
-        for (const r of value.results) {
+        for (const r of res.results) {
           this.processed.set(r.file, r.fileinfo);
         }
         return this.save();

@@ -1,29 +1,33 @@
 import * as fse from 'fs-extra';
 
-const nm = require('micromatch');
+import nm = require('micromatch');
 
 export class IgnoreManager {
     patterns: string[];
 
     constructor() {
-      this.patterns = ['.DS_Store',
-                       'thumbs.db',
-                       '._.*',
-                       '.snowignore',
-                       'backup/*',
-                       '*.bkp',
-                       'bkp/*',
-                       '*_bak[0-9]*.[A-Za-z0-9]+',
-                       '*.tmp',
-                       'tmp/*',
-                       'temp/*',
-                       'cache/*',
-                       '*.lnk', // *.lnk
-                       '*.log', // *.log
-                       '.vscode/*', 
-                       '.idea/*',
-                       '.Spotlight-V100'
-                      ];
+      this.patterns = [
+        '**/.DS_Store',
+        '**/thumbs.db',
+        '**/._.*',
+        '**/.git', // for .git worktree file
+        '**/.git/**',
+        '**/.snowignore',
+        '**/backup/**',
+        '**/*.bkp',
+        '**/bkp/**',
+        '**/*_bak[0-9]*.[A-Za-z0-9]+',
+        '**/**/*.tmp',
+        '**/tmp/**',
+        '**/temp/**',
+        '**/cache/**',
+        '**/*.lnk',
+        '**/*.log',
+        '**/.idea/**',
+        '**/.Spotlight-V100',
+
+        '**/*.blend[0-9]+', // Blender auto-saved files
+      ];
     }
 
     loadFile(filepath: string): Promise<void> {
@@ -43,6 +47,9 @@ export class IgnoreManager {
     }
 
     ignored(filepath: string): boolean {
-      return nm.match(filepath, this.patterns, { dot: true, nocase: true }).length > 0;
+      return nm.match(filepath, this.patterns, {
+        dot: true, // Match dotfiles
+        nocase: true, // a case-insensitive regex for matching files
+      }).length > 0;
     }
 }

@@ -30,15 +30,15 @@ export class TreeFile {
     public size: number,
   ) { }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return false;
   }
 
-  isFile() {
+  isFile(): boolean {
     return true;
   }
 
-  toString() {
+  toString(): string {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && !this.path) {
@@ -92,15 +92,15 @@ export class TreeDir {
   constructor(public path: string | undefined, public parent: TreeDir = null) {
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return true;
   }
 
-  isFile() {
+  isFile(): boolean {
     return false;
   }
 
-  toString(includeChildren?: boolean) {
+  toString(includeChildren?: boolean): string {
     const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
     return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "children": [${children.join(',')}]}`;
   }
@@ -150,7 +150,7 @@ export class TreeDir {
    *
    * @param relativePath      The relative file path to remove.
    */
-  remove(relativePath: string) {
+  remove(relativePath: string): void {
     function privateDelete(
       tree: TreeDir,
       cb: (entry: TreeEntry, index: number, length: number) => boolean,

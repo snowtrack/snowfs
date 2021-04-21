@@ -19,6 +19,9 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
+// eslint-disable-next-line import/order
+const PromisePool = require('@supercharge/promise-pool');
+
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
   NEWEST_FIRST = 2,
@@ -59,10 +62,10 @@ export class RepositoryInitOptions {
  * Used in [[StatusFileOptionsCustom]] to specify the state of a [[StatusEntry]]
  */
 export const enum STATUS {
-  /** Set if [[FILTER.INCLUDE_UNMODIFIED]] is passed to [[Repository.getStatus]] and file is not modified */
+  /** Set if [[FILTER.INCLUDE_UNMODIFIED]] is passed to [[Repository.getStatus]] and item is not modified */
   UNMODIFIED = 0,
 
-  /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and file is new. */
+  /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and item is new. */
   WT_NEW = 1,
 
   /** File existed before, and is modified. */
@@ -80,14 +83,14 @@ export const enum STATUS {
 export const enum RESET {
   NONE = 0,
 
-  /** Restore modified files. */
-  RESTORE_MODIFIED_FILES = 1,
+  /** Restore modified items. */
+  RESTORE_MODIFIED_ITEMS = 1,
 
-  /** Delete files from the worktree, if they are untracked/new. The affected files will be deleted. */
-  DELETE_NEW_FILES = 2,
+  /** Delete items from the worktree, if they are untracked/new. The affected items will be deleted. */
+  DELETE_NEW_ITEMS = 2,
 
-  /** Restore deleted files from the worktree, if they were deleted. */
-  RESTORE_DELETED_FILES = 4,
+  /** Restore deleted items from the worktree, if they were deleted. */
+  RESTORE_DELETED_ITEMS = 4,
 
   /**
    * Restore function will detach HEAD after the commit got restored.
@@ -97,7 +100,7 @@ export const enum RESET {
   DETACH = 8,
 
   /** Default flag passed to [[Repository.restoreVersion]] */
-  DEFAULT = RESTORE_MODIFIED_FILES | DELETE_NEW_FILES | RESTORE_DELETED_FILES
+  DEFAULT = RESTORE_MODIFIED_ITEMS | DELETE_NEW_ITEMS | RESTORE_DELETED_ITEMS
 }
 
 /**
@@ -185,7 +188,7 @@ export class StatusEntry {
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
-  public setStatusBit(status: STATUS) {
+  setStatusBit(status: STATUS): void {
     this.status = status;
   }
 
@@ -326,7 +329,7 @@ export class Repository {
    * Remove a passed index from the internal index array. The index is identifier by its id.
    * @param index       The index to be removed. Must not be invalidated yet, otherwise an error is thrown.
    */
-  removeIndex(index: Index) {
+  removeIndex(index: Index): void {
     index.throwIfNotValid();
 
     const foundIndex = this.repoIndexes.findIndex((i: Index) => i.id === index.id);
@@ -432,7 +435,7 @@ export class Repository {
    * Walk the commits back in the history by it's parents. Useful to acquire
    * all commits only related to the current branch.
    */
-  walkCommit(commit: Commit, cb: (commit: Commit) => void) {
+  walkCommit(commit: Commit, cb: (commit: Commit) => void): void {
     if (!commit) {
       throw new Error('commit must be set');
     }
@@ -580,7 +583,7 @@ export class Repository {
    * The reference name must be valid, otherwise an exception is thrown.
    * @param name    Name of the reference.
    */
-  setHead(name: string) {
+  setHead(name: string): void {
     if (!this.references.find((v: Reference) => v.getName() === name)) {
       throw new Error(`unknown reference name ${name}`);
     }
@@ -593,7 +596,7 @@ export class Repository {
    * The commit hash must be valid, otherwise an exception is thrown.
    * @param hash      Hash of the commit
    */
-  setHeadDetached(hash: string) {
+  setHeadDetached(hash: string): void {
     if (!this.commitMap.get(hash)) {
       throw new Error('unknown commit hash');
     }
@@ -689,14 +692,14 @@ export class Repository {
       }
     } else if (target instanceof Reference) {
       targetRef = target;
-      targetCommit = this.findCommitByHash((target as Reference).hash);
+      targetCommit = this.findCommitByHash(target.hash);
     } else if (target instanceof Commit) {
       const refs: Reference[] = this.filterReferenceByHash(target.hash);
       // if more than one ref is available we end up in a detached HEAD
       if (refs.length === 1) {
         targetRef = refs[0];
       }
-      targetCommit = target as Commit;
+      targetCommit = target;
     }
     if (!targetCommit) {
       throw new Error('unknown target version');
@@ -705,12 +708,30 @@ export class Repository {
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
-    const deleteCandidates = new Map<string, StatusEntry>();
+
+    // During the execution of this checkout function, it can happen that directories that will be deleted,
+    // shouldn't be due to the evaluation of e.g. the ignore patterns
+    const deleteDirCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
+
+    // IoTask is a callback helper, used by the promise pool to ensure that no more async operations
+    // of this type are executed than set/limited by PromisePool.withConcurrency(..)
+    type IoTask = () => Promise<unknown>;
+
+    // Array of async functions that are executed by the promise pool
+    const tasks: IoTask[] = [];
+
+    // Array of relative paths to files that will undergo the write-lock check
+    const relPathChecks: string[] = [];
 
     const ioContext = new IoContext();
     return ioContext.init()
-      .then(() => this.getStatus(FILTER.DEFAULT | FILTER.INCLUDE_IGNORED | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
+      .then(() => this.getStatus(FILTER.INCLUDE_UNTRACKED
+                                 | FILTER.INCLUDE_MODIFIED
+                                 | FILTER.INCLUDE_DELETED
+                                 | FILTER.INCLUDE_DIRECTORIES
+                                 | FILTER.INCLUDE_IGNORED
+                                 | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
       .then((statusResult: StatusEntry[]) => {
         // head hash is null before first commit is made
         if (!this.head.hash) {
@@ -730,21 +751,21 @@ export class Repository {
         return this.writeHeadRefToDisk();
       })
       .then(() => {
-        const promises = [];
-
         // Items which existed before but don't anymore
         statuses.forEach((status: StatusEntry) => {
-          if (status.isDeleted() && reset & RESET.RESTORE_DELETED_FILES) {
+          if (reset & RESET.RESTORE_DELETED_ITEMS && status.isDeleted()) {
             const dst: string = join(this.repoWorkDir, status.path);
 
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
-                promises.push(this.repoOdb.readObject(tfile.hash, dst, ioContext));
+                tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
               }
 
+              // The file above didn't exist and is about to be restored.
+              // That means we have to ensure the parent directories are not deleted
               let parent = status.path;
               while (parent.length > 0) {
                 if (deleteRevokeDirs.has(parent)) {
@@ -756,11 +777,26 @@ export class Repository {
                 parent = dirname(parent);
               }
             } else {
-              promises.push(fse.ensureDir(dst));
+              tasks.push(() => fse.ensureDir(dst));
             }
-          } else if (status.isNew() && reset & RESET.DELETE_NEW_FILES) {
-            deleteCandidates.set(status.path, status);
+          } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
+            deleteDirCandidates.set(status.path, status);
+          } else if (reset & RESET.RESTORE_MODIFIED_ITEMS && status.isModified()) {
+            const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
+            if (tfile) {
+              relPathChecks.push(tfile.path);
+              tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
+                if (res.modified) {
+                  const dst: string = join(this.repoWorkDir, res.file.path);
+                  return this.repoOdb.readObject(res.file.hash, dst, ioContext);
+                }
+              }));
+            } else {
+              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+            }
           } else if (status.isIgnored()) {
+            // If a file is being ignored by snowignore, the parent directories
+            // must not be deleted under any circumstances
             let parent = dirname(status.path);
             while (parent.length > 0) {
               if (deleteRevokeDirs.has(parent)) {
@@ -774,61 +810,35 @@ export class Repository {
           }
         });
 
-        return Promise.all(promises);
-      })
-      .then(() => {
-        const promises = [];
-
-        if (reset & RESET.RESTORE_MODIFIED_FILES) {
-          for (const file of statuses) {
-            if (file.isModified() && file.isFile()) {
-              const tfile: TreeFile = oldFilesMap.get(file.path) as TreeFile;
-              if (tfile) {
-                promises.push(tfile.isFileModified(this));
-              } else {
-                throw new Error(`File '${tfile.path}' not found during last-modified-check`);
-              }
-            }
-          }
-        }
-
-        return Promise.all(promises);
-      })
-      .then((modifiedFiles: {file: TreeFile; modified : boolean}[]) => {
-        const promises = [];
-
-        for (const modifiedFile of modifiedFiles) {
-          if (modifiedFile.modified) {
-            const dst: string = join(this.repoWorkDir, modifiedFile.file.path);
-            promises.push(this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
-          }
-        }
-        return Promise.all(promises);
-      })
-      .then(() => {
-        const promises = [];
-
-        deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
+        deleteDirCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
           if (candidate.isDirectory()) {
             if (!deleteRevokeDirs.has(relPath)) {
               // If we delete a directory, we can remove all its subdirectories and files from the candidate list
-              // as they will already be deleted by the delete operation below.
-              deleteCandidates.forEach((_c: StatusEntry, relPath2: string) => {
+              // as they will already be deleted by... (see next comment)
+              deleteDirCandidates.forEach((_c: StatusEntry, relPath2: string) => {
                 if (relPath2.startsWith(relPath)) {
-                  deleteCandidates.delete(relPath2);
+                  deleteDirCandidates.delete(relPath2);
                 }
               });
-              promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+              /// ... the delete operation below.
+              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
             }
           } else {
-            promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            relPathChecks.push(candidate.path);
+            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
           }
         });
 
-        return Promise.all(promises);
+        return ioContext.performWriteLockChecks(this.workdir(), relPathChecks);
       })
-
+      .then(() => {
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((task: IoTask) => task());
+      })
       .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {

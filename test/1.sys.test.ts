@@ -14,6 +14,8 @@ import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
 
+const AggregateError = require('es-aggregate-error');
+
 const exampleDirs = [
   join('foo', 'a'),
   join('bar', 'b', 'c'),
@@ -72,10 +74,10 @@ function getUniquePaths(dirSet: string[]): string[] {
 test('proper normalize', async (t) => {
   let error: any;
 
-  error = await t.throwsAsync(async () => normalize(undefined));
+  error = t.throws(() => normalize(undefined));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  error = await t.throwsAsync(async () => normalize(null));
+  error = t.throws(() => normalize(null));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
   t.is(normalize(''), '');
@@ -319,7 +321,7 @@ test('osWalk test#5', async (t) => {
   }
 });
 
-async function testGitZip(t, zipname: string): Promise<string> {
+function testGitZip(t, zipname: string): Promise<string> {
   const snowtrack: string = join(os.tmpdir(), 'foo');
 
   let tmpDir: string;
@@ -332,7 +334,7 @@ async function testGitZip(t, zipname: string): Promise<string> {
       t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: normalizeExt(tmpDir, sep), concurrency: 5 }))
+    .then((d) => d.extract({ path: normalizeExt(tmpDir).replace('/', sep), concurrency: 5 }))
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.
@@ -345,7 +347,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  async function runTest(filepath: string = '', errorMessage?: string) {
+  function runTest(filepath: string = '', errorMessage?: string) {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -627,19 +629,34 @@ async function sleep(delay) {
 }
 
 async function performWriteLockCheckTest(t, fileCount: number) {
-  t.pass(fileCount ?? 1);
+  if (fileCount === 0) {
+    t.plan(1); // in that case t.true(true) is checked nothing is reported
+  } else {
+    t.plan(fileCount + 2); // +2 because of 2 additional checks for no-file-handle.txt and read-file-handle.txt
+  }
 
   const tmp = join(process.cwd(), 'tmp');
   fse.ensureDirSync(tmp);
 
   const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
 
-  const files = new Map<string, fse.WriteStream>();
-  
+  const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
+
+  const noFileHandleFile: string = 'no-file-handle.txt';
+  const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
+  fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
+  fileHandles.set(noFileHandleFile, null);
+
+  const readFileHandleFile: string = 'read-file-handle.txt';
+  const absReadFileHandleFile = join(absDir, readFileHandleFile);
+  fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
+  fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
+
   for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
-    files.set(relName, fse.createWriteStream(absFile, { flags: 'w'}));
+
+    fileHandles.set(relName, fse.createWriteStream(absFile, { flags: 'w' }));
   }
 
   let stop = false;
@@ -653,8 +670,10 @@ async function performWriteLockCheckTest(t, fileCount: number) {
       }
     });
 
-    files.forEach((fh: fse.WriteStream) => {
-      fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
+    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
+      if (fh instanceof fse.WriteStream) {
+        fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
+      }
     });
   }
 
@@ -664,29 +683,39 @@ async function performWriteLockCheckTest(t, fileCount: number) {
 
   const ioContext = new IoContext();
   try {
-    await ioContext.performWriteLockChecks(absDir, Array.from(files.keys()));
+    await ioContext.performWriteLockChecks(absDir, Array.from(fileHandles.keys()));
     t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
-      t.true(true);
+      t.true(true); // to satisfy t.plan
     }
   } catch (error) {
-    const errors = error._errors.map((e) => e.message);
+    if (error instanceof AggregateError) {
+      const errorMessages: string[] = error.errors.map((e) => e.message);
 
-    let i = 0;
-    files.forEach((_, path: string) => {
-      if (i === 15) {
-        t.log(`${fileCount - i} more to go...`);
-      } else if (i < 15) {
-        t.log(`Check if ${path} is detected as being written by another process`);
-      }
-      t.true(errors[i++].includes(`File '${path}' is written by`));
-    });
+      let i = 0;
+      fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream | null, path: string) => {
+        if (fh instanceof fse.WriteStream) {
+          if (i === 15) {
+            t.log(`${fileCount - i} more to go...`);
+          } else if (i < 15) {
+            t.log(`Check if ${path} is detected as being written by another process`);
+          }
+          t.true(errorMessages[i++].includes(`File '${path}' is written by`));
+        } else if (!fh || fh instanceof fse.ReadStream) {
+          t.log(`Ensure that ${path} is not being detected as being written by another process`);
+          t.false(errorMessages.includes(`File ${path} is written by`));
+        }
+      });
+    } else {
+      // any other error than AggregateError is unexpected
+      throw error;
+    }
   }
 
   stop = true;
 }
 
-test.only('performWriteLockChecks / 0 file', async (t) => {
+test('performWriteLockChecks / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
@@ -695,7 +724,7 @@ test.only('performWriteLockChecks / 0 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 1 file', async (t) => {
+test('performWriteLockChecks / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
@@ -704,8 +733,7 @@ test.only('performWriteLockChecks / 1 file', async (t) => {
   }
 });
 
-
-test.only('performWriteLockChecks / 10 file', async (t) => {
+test('performWriteLockChecks / 10 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 10);
   } catch (error) {
@@ -714,8 +742,7 @@ test.only('performWriteLockChecks / 10 file', async (t) => {
   }
 });
 
-
-test.only('performWriteLockChecks / 100 file', async (t) => {
+test('performWriteLockChecks / 100 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 100);
   } catch (error) {
@@ -724,7 +751,7 @@ test.only('performWriteLockChecks / 100 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 1000 file', async (t) => {
+test('performWriteLockChecks / 1000 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1000);
   } catch (error) {
