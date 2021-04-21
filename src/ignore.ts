@@ -1,6 +1,6 @@
 import * as fse from 'fs-extra';
 
-const nm = require('micromatch');
+import nm = require('micromatch');
 
 export class IgnoreManager {
     patterns: string[];
