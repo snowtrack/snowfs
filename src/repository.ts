@@ -19,6 +19,7 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
+// eslint-disable-next-line import/order
 const PromisePool = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
@@ -187,7 +188,7 @@ export class StatusEntry {
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
-  public setStatusBit(status: STATUS) {
+  setStatusBit(status: STATUS): void {
     this.status = status;
   }
 
@@ -328,7 +329,7 @@ export class Repository {
    * Remove a passed index from the internal index array. The index is identifier by its id.
    * @param index       The index to be removed. Must not be invalidated yet, otherwise an error is thrown.
    */
-  removeIndex(index: Index) {
+  removeIndex(index: Index): void {
     index.throwIfNotValid();
 
     const foundIndex = this.repoIndexes.findIndex((i: Index) => i.id === index.id);
@@ -636,14 +637,14 @@ export class Repository {
       }
     } else if (target instanceof Reference) {
       targetRef = target;
-      targetCommit = this.findCommitByHash((target as Reference).hash);
+      targetCommit = this.findCommitByHash(target.hash);
     } else if (target instanceof Commit) {
       const refs: Reference[] = this.filterReferenceByHash(target.hash);
       // if more than one ref is available we end up in a detached HEAD
       if (refs.length === 1) {
         targetRef = refs[0];
       }
-      targetCommit = target as Commit;
+      targetCommit = target;
     }
     if (!targetCommit) {
       throw new Error('unknown target version');
@@ -657,7 +658,7 @@ export class Repository {
 
     // IoTask is a callback helper, used by the PromisePool to ensure that no more async operations
     // of this type are executed than set/limited by PromisePool.withConcurrency(..)
-    type IoTask = () => void;
+    type IoTask = () => Promise<unknown>;
 
     const ioContext = new IoContext();
     return ioContext.init()
@@ -753,7 +754,7 @@ export class Repository {
           .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
-      .then((res: {results: {file: TreeFile; modified : boolean}[]}) => {
+      .then((res: {results: {file: TreeFile, modified : boolean}[]}) => {
         const tasks: IoTask[] = [];
 
         for (const modifiedFile of res.results) {

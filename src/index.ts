@@ -1,8 +1,6 @@
 import * as fse from 'fs-extra';
 
 import { difference } from 'lodash';
-
-import { PromisePoolError } from '@supercharge/promise-pool/dist/promise-pool-error';
 import {
   isAbsolute, join, relative, basename,
 } from './path';
@@ -13,7 +11,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-const PromisePool = require('@supercharge/promise-pool');
+// eslint-disable-next-line import/order
+import PromisePool = require('@supercharge/promise-pool');
 
 /**
  * A class representing a list of files that is used to create a new Commit object.
@@ -83,7 +82,7 @@ export class Index {
    *
    * @throws Throws an exception if Index.invalidate() got called before.
    */
-  throwIfNotValid() {
+  throwIfNotValid(): void {
     if (!this.id && this.id !== '') { // an empty string is allowed for the main index
       // this happens if an index object got commited, it will be deleted and cleared
       throw new Error('index object is invalid');
@@ -168,7 +167,7 @@ export class Index {
    * Mark files as modified or new for the new commit.
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
-  addFiles(filepaths: string[]) {
+  addFiles(filepaths: string[]): void {
     this.throwIfNotValid();
 
     // filepaths can be absolute or relative to workdir
@@ -187,7 +186,7 @@ export class Index {
    * Mark files as being deleted for the new commit.
    * @param filepaths     Paths can be absolute or relative to `{workdir}`.
    */
-  deleteFiles(filepaths: string[]) {
+  deleteFiles(filepaths: string[]): void {
     this.throwIfNotValid();
 
     // filepaths can be absolute or relative to workdir
