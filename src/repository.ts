@@ -704,7 +704,6 @@ export class Repository {
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
-                relPathChecks.push(status.path);
                 tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
