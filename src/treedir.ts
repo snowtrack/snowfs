@@ -30,15 +30,15 @@ export class TreeFile {
     public size: number,
   ) { }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return false;
   }
 
-  isFile() {
+  isFile(): boolean {
     return true;
   }
 
-  toString() {
+  toString(): string {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && !this.path) {
