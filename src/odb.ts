@@ -239,13 +239,11 @@ export class Odb {
     }).then(() => this.repo.modified());
   }
 
-  writeObject(relPath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
+  writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
     const tmpFilename: string = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     const objects: string = join(this.repo.options.commondir, 'objects');
     const tmpDir: string = join(this.repo.options.commondir, 'tmp');
     const tmpPath: string = join(tmpDir, tmpFilename.toString());
-
-    const absPath = join(this.repo.workdir(), relPath);
 
     let dstFile: string;
     let filehash: string;
@@ -255,7 +253,7 @@ export class Odb {
     // In that order we prevent race conditions of file changes between the hash
     // computation and the file that ends up in the odb.
 
-    return fse.ensureDir(tmpDir, {}).then(() => ioContext.copyFile(absPath, tmpPath)).then(() => calculateFileHash(absPath))
+    return fse.ensureDir(tmpDir, {}).then(() => ioContext.copyFile(filepath, tmpPath)).then(() => calculateFileHash(filepath))
       .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
         filehash = res.filehash;
         hashBlocks = res.hashBlocks;
@@ -281,9 +279,9 @@ export class Odb {
         }
         return Promise.resolve();
       })
-      .then(() => fse.stat(absPath)
+      .then(() => fse.stat(filepath)
         .then((stat: fse.Stats) => ({
-          file: relative(this.repo.repoWorkDir, absPath),
+          file: relative(this.repo.repoWorkDir, filepath),
           fileinfo: {
             hash: filehash,
             stat: {

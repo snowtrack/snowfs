@@ -39,7 +39,7 @@ export class IgnoreManager {
             this.patterns.push(line);
 
             if (!line.endsWith('/')) { // could be a file or directory
-              this.patterns.push(`${line}/*`);
+              this.patterns.push(`${line}/**`);
             }
           }
         }
