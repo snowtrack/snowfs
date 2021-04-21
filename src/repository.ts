@@ -435,7 +435,7 @@ export class Repository {
    * Walk the commits back in the history by it's parents. Useful to acquire
    * all commits only related to the current branch.
    */
-  walkCommit(commit: Commit, cb: (commit: Commit) => void) {
+  walkCommit(commit: Commit, cb: (commit: Commit) => void): void {
     if (!commit) {
       throw new Error('commit must be set');
     }
@@ -583,7 +583,7 @@ export class Repository {
    * The reference name must be valid, otherwise an exception is thrown.
    * @param name    Name of the reference.
    */
-  setHead(name: string) {
+  setHead(name: string): void {
     if (!this.references.find((v: Reference) => v.getName() === name)) {
       throw new Error(`unknown reference name ${name}`);
     }
@@ -596,7 +596,7 @@ export class Repository {
    * The commit hash must be valid, otherwise an exception is thrown.
    * @param hash      Hash of the commit
    */
-  setHeadDetached(hash: string) {
+  setHeadDetached(hash: string): void {
     if (!this.commitMap.get(hash)) {
       throw new Error('unknown commit hash');
     }
@@ -729,7 +729,7 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
-          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
       .then(() => {
@@ -751,7 +751,7 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
-          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
       .then((res: {results: {file: TreeFile, modified : boolean}[]}) => {
@@ -767,7 +767,7 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
-          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
       .then(() => {
@@ -794,7 +794,7 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
-          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
       .then(() => {

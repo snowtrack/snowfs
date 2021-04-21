@@ -229,7 +229,7 @@ export class Index {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)
-          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
             const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
             return this.odb.writeObject(filepathAbs, ioContext);

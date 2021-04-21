@@ -48,7 +48,7 @@ test('repo commondir', async (t) => {
   t.true(fse.pathExistsSync(repoPath), 'repo must have been created');
 });
 
-export async function testRepoCommondirOutside(t, repo: Repository) {
+export function testRepoCommondirOutside(t, repo: Repository): Promise<void> {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS)
     .then((dirItems: DirItem[]) => {
       t.is(dirItems.length, 1, 'expect .snow reference in workdir');
@@ -83,7 +83,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
     });
 }
 
-export async function testRepoCommondirInside(t, repo: Repository): Promise<void> {
+export function testRepoCommondirInside(t, repo: Repository): Promise<void> {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS).then((dirItems: DirItem[]) => {
     t.is(dirItems.length, 12 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 
