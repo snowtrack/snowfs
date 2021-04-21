@@ -629,7 +629,11 @@ async function sleep(delay) {
 }
 
 async function performWriteLockCheckTest(t, fileCount: number) {
-  t.pass(fileCount ?? 1);
+  if (fileCount === 0) {
+    t.plan(1); // in that case t.true(true) is checked nothing is reported
+  } else {
+    t.plan(fileCount + 2); // +2 because of 2 additional checks for no-file-handle.txt and read-file-handle.txt
+  }
 
   const tmp = join(process.cwd(), 'tmp');
   fse.ensureDirSync(tmp);
@@ -648,7 +652,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
   fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
 
-  for (let i = 0; i < fileCount + 10; ++i) {
+  for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
 
@@ -682,7 +686,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
     await ioContext.performWriteLockChecks(absDir, Array.from(fileHandles.keys()));
     t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
-      t.true(true);
+      t.true(true); // to satisfy t.plan
     }
   } catch (error) {
     if (error instanceof AggregateError) {
