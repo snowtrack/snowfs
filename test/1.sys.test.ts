@@ -715,7 +715,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   stop = true;
 }
 
-test.only('performWriteLockChecks / 0 file', async (t) => {
+test('performWriteLockChecks / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
@@ -724,7 +724,7 @@ test.only('performWriteLockChecks / 0 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 1 file', async (t) => {
+test('performWriteLockChecks / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
@@ -733,7 +733,7 @@ test.only('performWriteLockChecks / 1 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 10 file', async (t) => {
+test('performWriteLockChecks / 10 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 10);
   } catch (error) {
@@ -742,7 +742,7 @@ test.only('performWriteLockChecks / 10 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 100 file', async (t) => {
+test('performWriteLockChecks / 100 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 100);
   } catch (error) {
@@ -751,7 +751,7 @@ test.only('performWriteLockChecks / 100 file', async (t) => {
   }
 });
 
-test.only('performWriteLockChecks / 1000 file', async (t) => {
+test('performWriteLockChecks / 1000 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1000);
   } catch (error) {
