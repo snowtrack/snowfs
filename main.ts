@@ -18,6 +18,7 @@ import { IoContext } from './src/io_context';
 const program = require('commander');
 const chalk = require('chalk');
 const drivelist = require('drivelist');
+const AggregateError = require('es-aggregate-error');
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
@@ -128,7 +129,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -159,7 +164,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -198,7 +207,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -245,7 +258,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -309,7 +326,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -332,7 +353,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -414,7 +439,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -459,7 +488,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -595,7 +628,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -681,7 +718,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
