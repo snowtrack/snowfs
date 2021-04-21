@@ -644,7 +644,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   fileHandles.set(noFileHandleFile, null);
 
   const readFileHandleFile: string = 'read-file-handle.txt';
-  const absReadFileHandleFile = join(absDir, noFileHandleFile);
+  const absReadFileHandleFile = join(absDir, readFileHandleFile);
   fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
   fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
 
