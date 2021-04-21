@@ -232,8 +232,6 @@ export class Index {
 
     const ioContext = new IoContext();
 
-    let unprocessedRelItems: string[] = [];
-
     return ioContext.init()
       .then(() => {
         const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
