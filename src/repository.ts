@@ -19,6 +19,9 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
+const PromisePool = require('@supercharge/promise-pool');
+const AggregateError = require('es-aggregate-error');
+
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
   NEWEST_FIRST = 2,
@@ -653,6 +656,10 @@ export class Repository {
     const deleteCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
 
+    // IoTask is a callback helper, used by the PromisePool to ensure that no more async operations
+    // of this type are executed than set/limited by PromisePool.withConcurrency(..)
+    type IoTask = () => void;
+
     const ioContext = new IoContext();
     return ioContext.init()
       .then(() => this.getStatus(FILTER.DEFAULT | FILTER.INCLUDE_IGNORED | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
@@ -675,7 +682,7 @@ export class Repository {
         return this.writeHeadRefToDisk();
       })
       .then(() => {
-        const promises = [];
+        const tasks: IoTask[] = [];
 
         // Items which existed before but don't anymore
         statuses.forEach((status: StatusEntry) => {
@@ -685,7 +692,7 @@ export class Repository {
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
-                promises.push(this.repoOdb.readObject(tfile.hash, dst, ioContext));
+                tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
               }
@@ -701,7 +708,7 @@ export class Repository {
                 parent = dirname(parent);
               }
             } else {
-              promises.push(fse.ensureDir(dst));
+              tasks.push(() => fse.ensureDir(dst));
             }
           } else if (status.isNew() && reset & RESET.DELETE_NEW_FILES) {
             deleteCandidates.set(status.path, status);
@@ -719,39 +726,64 @@ export class Repository {
           }
         });
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .process((task: IoTask) => task());
       })
-      .then(() => {
-        const promises = [];
+      .then((res: {errors: Error[]}) => {
+        if (res.errors?.length > 0) {
+          // map PromisePoolError => Error
+          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
+        }
+
+        const tasks: IoTask[] = [];
 
         if (reset & RESET.RESTORE_MODIFIED_FILES) {
-          for (const file of statuses) {
-            if (file.isModified() && file.isFile()) {
-              const tfile: TreeFile = oldFilesMap.get(file.path) as TreeFile;
+          statuses.forEach((status: StatusEntry) => {
+            if (status.isModified() && status.isFile()) {
+              const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
               if (tfile) {
-                promises.push(tfile.isFileModified(this));
+                tasks.push(() => tfile.isFileModified(this));
               } else {
                 throw new Error(`File '${tfile.path}' not found during last-modified-check`);
               }
             }
-          }
+          });
         }
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .process((task: IoTask) => task());
       })
-      .then((modifiedFiles: {file: TreeFile; modified : boolean}[]) => {
-        const promises = [];
+      .then((res: {results: {file: TreeFile; modified : boolean}[], errors: Error[]}) => {
+        if (res.errors?.length > 0) {
+          // map PromisePoolError => Error
+          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
+        }
 
-        for (const modifiedFile of modifiedFiles) {
+        const tasks: IoTask[] = [];
+
+        for (const modifiedFile of res.results) {
           if (modifiedFile.modified) {
             const dst: string = join(this.repoWorkDir, modifiedFile.file.path);
-            promises.push(this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
+            tasks.push(() => this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
           }
         }
-        return Promise.all(promises);
+
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .process((task: IoTask) => task());
       })
-      .then(() => {
-        const promises = [];
+      .then((res: {errors: Error[]}) => {
+        if (res.errors?.length > 0) {
+          // map PromisePoolError => Error
+          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
+        }
+
+        const tasks: IoTask[] = [];
 
         deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
@@ -764,17 +796,24 @@ export class Repository {
                   deleteCandidates.delete(relPath2);
                 }
               });
-              promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
             }
           } else {
-            promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
           }
         });
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .process((task: IoTask) => task());
       })
+      .then((res: {errors: Error[]}) => {
+        if (res.errors?.length > 0) {
+          // map PromisePoolError => Error
+          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
+        }
 
-      .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
           moveTo = target.getName();

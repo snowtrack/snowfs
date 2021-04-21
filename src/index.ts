@@ -2,6 +2,7 @@ import * as fse from 'fs-extra';
 
 import { difference } from 'lodash';
 
+import { PromisePoolError } from '@supercharge/promise-pool/dist/promise-pool-error';
 import {
   isAbsolute, join, relative, basename,
 } from './path';
@@ -11,6 +12,9 @@ import { Odb } from './odb';
 import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
+
+const PromisePool = require('@supercharge/promise-pool');
+const AggregateError = require('es-aggregate-error');
 
 /**
  * A class representing a list of files that is used to create a new Commit object.
@@ -216,29 +220,31 @@ export class Index {
 
     const ioContext = new IoContext();
 
+    let unprocessedRelItems: string[] = [];
+
     return ioContext.init()
       .then(() => {
-        const promises = [];
+        const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
 
-        const adds: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
+        unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
 
-        for (const relFilePath of adds) {
-          if (!this.processed.has(relFilePath)) {
-            const filepathAbs: string = isAbsolute(relFilePath) ? relFilePath : join(this.repo.repoWorkDir, relFilePath);
-            if (!filepathAbs.startsWith(this.repo.workdir())) {
-              throw new Error(`file or directory not in workdir: ${relFilePath}`);
-            }
-            promises.push(this.odb.writeObject(filepathAbs, ioContext));
-          }
-        }
-
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(unprocessedRelItems)
+          .process((relFilePath: string) => {
+            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
+            return this.odb.writeObject(filepathAbs, ioContext);
+          });
       })
-      .then((value: {file: string, fileinfo: FileInfo}[]) => {
+      .then((res: {results: {file: string, fileinfo: FileInfo}[], errors: Error[]}) => {
+        if (res.errors?.length > 0) {
+          // map PromisePoolError => Error
+          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
+        }
         ioContext.invalidate();
 
         // TODO: (Seb) Handle deleted files as well here
-        for (const r of value) {
+        for (const r of res.results) {
           this.processed.set(r.file, r.fileinfo);
         }
         return this.save();
