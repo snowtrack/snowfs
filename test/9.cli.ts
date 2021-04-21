@@ -44,7 +44,7 @@ test('snow add/commit/log', async (t) => {
   t.is(true, true);
 });
 
-test('snow switch', async (t) => {
+test.only('snow switch', async (t) => {
   t.timeout(180000);
 
   let out: string | void;

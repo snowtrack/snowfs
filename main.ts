@@ -300,7 +300,7 @@ program
 
         let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
         if (!opts.keepChanges) {
-          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_ITEMS | RESET.DELETE_NEW_ITEMS | RESET.RESTORE_DELETED_ITEMS;
         }
 
         await repo.checkout(target, reset);
@@ -669,7 +669,7 @@ program
 
         let reset: RESET = RESET.NONE;
         if (!opts.keepChanges) {
-          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_ITEMS | RESET.DELETE_NEW_ITEMS | RESET.RESTORE_DELETED_ITEMS;
         }
         if (opts.detach) {
           reset |= RESET.DETACH;

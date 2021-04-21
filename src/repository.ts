@@ -62,10 +62,10 @@ export class RepositoryInitOptions {
  * Used in [[StatusFileOptionsCustom]] to specify the state of a [[StatusEntry]]
  */
 export const enum STATUS {
-  /** Set if [[FILTER.INCLUDE_UNMODIFIED]] is passed to [[Repository.getStatus]] and file is not modified */
+  /** Set if [[FILTER.INCLUDE_UNMODIFIED]] is passed to [[Repository.getStatus]] and item is not modified */
   UNMODIFIED = 0,
 
-  /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and file is new. */
+  /** Set if [[FILTER.INCLUDE_UNTRACKED]] is passed to [[Repository.getStatus]] and item is new. */
   WT_NEW = 1,
 
   /** File existed before, and is modified. */
@@ -83,14 +83,14 @@ export const enum STATUS {
 export const enum RESET {
   NONE = 0,
 
-  /** Restore modified files. */
-  RESTORE_MODIFIED_FILES = 1,
+  /** Restore modified items. */
+  RESTORE_MODIFIED_ITEMS = 1,
 
-  /** Delete files from the worktree, if they are untracked/new. The affected files will be deleted. */
-  DELETE_NEW_FILES = 2,
+  /** Delete items from the worktree, if they are untracked/new. The affected items will be deleted. */
+  DELETE_NEW_ITEMS = 2,
 
-  /** Restore deleted files from the worktree, if they were deleted. */
-  RESTORE_DELETED_FILES = 4,
+  /** Restore deleted items from the worktree, if they were deleted. */
+  RESTORE_DELETED_ITEMS = 4,
 
   /**
    * Restore function will detach HEAD after the commit got restored.
@@ -100,7 +100,7 @@ export const enum RESET {
   DETACH = 8,
 
   /** Default flag passed to [[Repository.restoreVersion]] */
-  DEFAULT = RESTORE_MODIFIED_FILES | DELETE_NEW_FILES | RESTORE_DELETED_FILES
+  DEFAULT = RESTORE_MODIFIED_ITEMS | DELETE_NEW_ITEMS | RESTORE_DELETED_ITEMS
 }
 
 /**
@@ -653,16 +653,26 @@ export class Repository {
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
-    const deleteCandidates = new Map<string, StatusEntry>();
+
+    // During the execution of this checkout function, it can happen that directories that will be deleted,
+    // shouldn't be due to the evaluation of e.g. the ignore patterns
+    const deleteDirCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
 
     // IoTask is a callback helper, used by the PromisePool to ensure that no more async operations
     // of this type are executed than set/limited by PromisePool.withConcurrency(..)
     type IoTask = () => Promise<unknown>;
 
+    const tasks: IoTask[] = [];
+
     const ioContext = new IoContext();
     return ioContext.init()
-      .then(() => this.getStatus(FILTER.DEFAULT | FILTER.INCLUDE_IGNORED | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
+      .then(() => this.getStatus(FILTER.INCLUDE_UNTRACKED
+                                 | FILTER.INCLUDE_MODIFIED
+                                 | FILTER.INCLUDE_DELETED
+                                 | FILTER.INCLUDE_DIRECTORIES
+                                 | FILTER.INCLUDE_IGNORED
+                                 | FILTER.SORT_CASE_SENSITIVELY, targetCommit))
       .then((statusResult: StatusEntry[]) => {
         // head hash is null before first commit is made
         if (!this.head.hash) {
@@ -682,11 +692,9 @@ export class Repository {
         return this.writeHeadRefToDisk();
       })
       .then(() => {
-        const tasks: IoTask[] = [];
-
         // Items which existed before but don't anymore
         statuses.forEach((status: StatusEntry) => {
-          if (status.isDeleted() && reset & RESET.RESTORE_DELETED_FILES) {
+          if (reset & RESET.RESTORE_DELETED_ITEMS && status.isDeleted()) {
             const dst: string = join(this.repoWorkDir, status.path);
 
             if (status.isFile()) {
@@ -697,6 +705,8 @@ export class Repository {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
               }
 
+              // The file above didn't exist and is about to be restored.
+              // That means we have to ensure the parent directories are not deleted
               let parent = status.path;
               while (parent.length > 0) {
                 if (deleteRevokeDirs.has(parent)) {
@@ -710,9 +720,23 @@ export class Repository {
             } else {
               tasks.push(() => fse.ensureDir(dst));
             }
-          } else if (status.isNew() && reset & RESET.DELETE_NEW_FILES) {
-            deleteCandidates.set(status.path, status);
+          } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
+            deleteDirCandidates.set(status.path, status);
+          } else if (reset & RESET.RESTORE_MODIFIED_ITEMS && status.isModified()) {
+            const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
+            if (tfile) {
+              tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
+                if (res.modified) {
+                  const dst: string = join(this.repoWorkDir, res.file.path);
+                  return this.repoOdb.readObject(res.file.hash, dst, ioContext);
+                }
+              }));
+            } else {
+              throw new Error(`File '${tfile.path}' not found during last-modified-check`);
+            }
           } else if (status.isIgnored()) {
+            // If a file is being ignored by snowignore, the parent directories
+            // must not be deleted under any circumstances
             let parent = dirname(status.path);
             while (parent.length > 0) {
               if (deleteRevokeDirs.has(parent)) {
@@ -726,64 +750,18 @@ export class Repository {
           }
         });
 
-        return PromisePool
-          .withConcurrency(32)
-          .for(tasks)
-          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
-          .process((task: IoTask) => task());
-      })
-      .then(() => {
-        const tasks: IoTask[] = [];
-
-        if (reset & RESET.RESTORE_MODIFIED_FILES) {
-          statuses.forEach((status: StatusEntry) => {
-            if (status.isModified() && status.isFile()) {
-              const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
-              if (tfile) {
-                tasks.push(() => tfile.isFileModified(this));
-              } else {
-                throw new Error(`File '${tfile.path}' not found during last-modified-check`);
-              }
-            }
-          });
-        }
-
-        return PromisePool
-          .withConcurrency(32)
-          .for(tasks)
-          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
-          .process((task: IoTask) => task());
-      })
-      .then((res: {results: {file: TreeFile, modified : boolean}[]}) => {
-        const tasks: IoTask[] = [];
-
-        for (const modifiedFile of res.results) {
-          if (modifiedFile.modified) {
-            const dst: string = join(this.repoWorkDir, modifiedFile.file.path);
-            tasks.push(() => this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
-          }
-        }
-
-        return PromisePool
-          .withConcurrency(32)
-          .for(tasks)
-          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
-          .process((task: IoTask) => task());
-      })
-      .then(() => {
-        const tasks: IoTask[] = [];
-
-        deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
+        deleteDirCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
           if (candidate.isDirectory()) {
             if (!deleteRevokeDirs.has(relPath)) {
               // If we delete a directory, we can remove all its subdirectories and files from the candidate list
-              // as they will already be deleted by the delete operation below.
-              deleteCandidates.forEach((_c: StatusEntry, relPath2: string) => {
+              // as they will already be deleted by... (see next comment)
+              deleteDirCandidates.forEach((_c: StatusEntry, relPath2: string) => {
                 if (relPath2.startsWith(relPath)) {
-                  deleteCandidates.delete(relPath2);
+                  deleteDirCandidates.delete(relPath2);
                 }
               });
+              /// ... the delete operation below.
               tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
             }
           } else {
