@@ -13,6 +13,18 @@ import { FileInfo } from './common';
 
 // eslint-disable-next-line import/order
 import PromisePool = require('@supercharge/promise-pool');
+/**
+ * Used in [[Index.writeFiles]]. Used to control certain behaviours
+ * when files are written to disk.
+ */
+export enum WRITE {
+  NONE = 0,
+  /**
+   * By default filelocks are checked to ensure none of the given files
+   * is written by another process. Using this flag skips this check.
+   */
+  SKIP_FILELOCK_CHECKS = 1
+}
 
 /**
  * A class representing a list of files that is used to create a new Commit object.
@@ -213,7 +225,7 @@ export class Index {
   /**
    * Write files to object database. Needed before a commit can be made.
    */
-  writeFiles(): Promise<void> {
+  writeFiles(flags: WRITE = WRITE.NONE): Promise<void> {
     this.throwIfNotValid();
 
     const ioContext = new IoContext();
@@ -226,6 +238,11 @@ export class Index {
 
         unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
 
+        if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
+          return Promise.resolve();
+        }
+        return ioContext.performWriteLockChecks(this.repo.workdir(), unprocessedRelItems);
+      }).then(() => {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)

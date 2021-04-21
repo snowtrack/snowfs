@@ -9,6 +9,7 @@ import {
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
+import { IoContext } from '../src/io_context';
 import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
@@ -611,6 +612,137 @@ test('fss.writeSafeFile test', async (t) => {
     await fss.writeSafeFile(tmpFile, 'Foo2');
     t.true(fse.pathExistsSync(tmpFile));
     t.is(fse.readFileSync(tmpFile).toString(), 'Foo2');
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+async function sleep(delay) {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, delay);
+  });
+}
+
+async function performWriteLockCheckTest(t, fileCount: number) {
+  t.pass(fileCount ?? 1);
+
+  const tmp = join(process.cwd(), 'tmp');
+  fse.ensureDirSync(tmp);
+
+  const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
+
+  const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
+
+  const noFileHandleFile: string = 'no-file-handle.txt';
+  const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
+  fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
+  fileHandles.set(noFileHandleFile, null);
+
+  const readFileHandleFile: string = 'read-file-handle.txt';
+  const absReadFileHandleFile = join(absDir, noFileHandleFile);
+  fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
+  fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
+
+  for (let i = 0; i < fileCount + 10; ++i) {
+    const relName = `foo${i}.txt`;
+    const absFile = join(absDir, relName);
+
+    fileHandles.set(relName, fse.createWriteStream(absFile, { flags: 'w' }));
+  }
+
+  let stop = false;
+
+  function parallelWrite() {
+    setTimeout(() => {
+      if (stop) {
+        t.log('Stop parallel writes');
+      } else {
+        parallelWrite();
+      }
+    });
+
+    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
+      if (fh instanceof fse.WriteStream) {
+        fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
+      }
+    });
+  }
+
+  parallelWrite();
+
+  await sleep(500); // just to ensure on GitHub runners that all files were written to
+
+  const ioContext = new IoContext();
+  try {
+    await ioContext.performWriteLockChecks(absDir, Array.from(fileHandles.keys()));
+    t.log('Ensure no file is reported as being written to');
+    if (fileCount === 0) {
+      t.true(true);
+    }
+  } catch (error) {
+    const errorMessages: string[] = error.errors.map((e) => e.message);
+
+    let i = 0;
+    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream | null, path: string) => {
+      if (fh instanceof fse.WriteStream) {
+        if (i === 15) {
+          t.log(`${fileCount - i} more to go...`);
+        } else if (i < 15) {
+          t.log(`Check if ${path} is detected as being written by another process`);
+        }
+        t.true(errorMessages[i++].includes(`File '${path}' is written by`));
+      } else if (!fh || fh instanceof fse.ReadStream) {
+        t.log(`Ensure that ${path} is not being detected as being written by another process`);
+        t.false(errorMessages.includes(`File ${path} is written by`));
+      }
+    });
+  }
+
+  stop = true;
+}
+
+test.only('performWriteLockChecks / 0 file', async (t) => {
+  try {
+    await performWriteLockCheckTest(t, 0);
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test.only('performWriteLockChecks / 1 file', async (t) => {
+  try {
+    await performWriteLockCheckTest(t, 1);
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test.only('performWriteLockChecks / 10 file', async (t) => {
+  try {
+    await performWriteLockCheckTest(t, 10);
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test.only('performWriteLockChecks / 100 file', async (t) => {
+  try {
+    await performWriteLockCheckTest(t, 100);
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test.only('performWriteLockChecks / 1000 file', async (t) => {
+  try {
+    await performWriteLockCheckTest(t, 1000);
   } catch (error) {
     console.error(error);
     t.fail(error.message);

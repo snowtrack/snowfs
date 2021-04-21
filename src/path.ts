@@ -1,12 +1,17 @@
 import * as path from 'path';
 
-export { sep, basename, isAbsolute } from 'path';
+export {
+  sep, basename, isAbsolute,
+} from 'path';
 
 /**
  * Normalizes a path by using `path.normalize()` internally, and discarding a trailing directory delimiter.
+ * If a path normalizes to the root ('/'), this will be returned
  *
- * Input: /Users/snowtrack/Desktop/../foo/
- * Output: /Users/snowtrack/foo
+ * Input: '/Users/snowtrack/Desktop/../foo/'
+ * Output: '/Users/snowtrack/foo'
+ * Input: '/'
+ * Output: '/'
  *
  * @param p Required. A string. The path you want to normalize.
  * @returns    A String, representing the normalized path
@@ -18,7 +23,9 @@ export function normalize(p: string): string {
   }
 
   p = path.normalize(p).replace(/\\/g, '/');
-  if (p.endsWith('/')) {
+
+  // strip away trailing slashes
+  if (p !== '/' && p.endsWith('/')) {
     p = p.substr(0, p.length - 1);
   }
   return p;
