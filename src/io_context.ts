@@ -146,9 +146,9 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
 function getFilesystem(drive: any, mountpoint: string) {
   try {
     if (process.platform === 'win32') {
-      return new Promise<string | null>((resolve, reject) => {
+      return new Promise<string | null>((resolve, _reject) => {
         const driveLetter = mountpoint.endsWith('\\') ? mountpoint.substring(0, mountpoint.length - 1) : mountpoint;
-        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, stderr) => {
+        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, _stderr) => {
           if (error) {
             return resolve(null); // if we can't extract the volume info, we simply skip the ReFS detection
           }
@@ -240,12 +240,12 @@ export class IoContext {
    * Invalidates the internal device storage information.
    * Normally not needed to explicitly call.
    */
-  invalidate() {
+  invalidate(): void {
     this.valid = false;
     this.mountpoints = undefined;
   }
 
-  checkIfInitialized() {
+  checkIfInitialized(): void {
     if (!this.valid) {
       throw new Error('IoContext is not initialized, did you forget to call IoContext.init(..)?');
     }
@@ -257,7 +257,7 @@ export class IoContext {
    * the path of the executable.
    * @param execPath  Path to the executable. Fails if the file does not exist or the path is a directory.
    */
-  static setTrashExecPath(execPath: string) {
+  static setTrashExecPath(execPath: string): void {
     if (!fse.pathExistsSync(execPath)) {
       throw new Error(`path ${execPath} does not exist`);
     }

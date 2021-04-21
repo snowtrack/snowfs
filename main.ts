@@ -75,7 +75,7 @@ async function parseOptions(opts: any) {
         rl.close();
       });
 
-      tmp = await new Promise<string>((resolve, reject) => {
+      tmp = await new Promise<string>((resolve, _reject) => {
         rl.on('close', () => {
           resolve(res);
         });
@@ -646,13 +646,6 @@ program
     const drives = await drivelist.list();
     console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
   });
-
-const switchDesc = `switch a commit, or create a branch
-  
-  ${chalk.bold('Examples')}
-  
-      switch to a branch
-        $ snow switch branch-name`;
 
 program
   .command('switch [branch-name]')

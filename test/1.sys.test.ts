@@ -5,7 +5,7 @@ import * as unzipper from 'unzipper';
 import test from 'ava';
 
 import {
-  join, relative, dirname, normalize, normalizeExt, sep,
+  join, dirname, normalize, normalizeExt, sep,
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -74,10 +74,10 @@ function getUniquePaths(dirSet: string[]): string[] {
 test('proper normalize', async (t) => {
   let error: any;
 
-  error = await t.throwsAsync(async () => normalize(undefined));
+  error = t.throws(() => normalize(undefined));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
-  error = await t.throwsAsync(async () => normalize(null));
+  error = t.throws(() => normalize(null));
   t.is(error.code, 'ERR_INVALID_ARG_TYPE', 'no error expected');
 
   t.is(normalize(''), '');
@@ -321,7 +321,7 @@ test('osWalk test#5', async (t) => {
   }
 });
 
-async function testGitZip(t, zipname: string): Promise<string> {
+function testGitZip(t, zipname: string): Promise<string> {
   const snowtrack: string = join(os.tmpdir(), 'foo');
 
   let tmpDir: string;
@@ -334,7 +334,7 @@ async function testGitZip(t, zipname: string): Promise<string> {
       t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: normalizeExt(tmpDir, sep), concurrency: 5 }))
+    .then((d) => d.extract({ path: normalizeExt(tmpDir).replace('/', sep), concurrency: 5 }))
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.
@@ -347,7 +347,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  async function runTest(filepath: string = '', errorMessage?: string) {
+  function runTest(filepath: string = '', errorMessage?: string) {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 

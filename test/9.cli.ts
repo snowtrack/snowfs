@@ -8,7 +8,7 @@ import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 
-function getSnowexec(t): string {
+function getSnowexec(): string {
   switch (process.platform) {
     case 'darwin':
       return join(__dirname, '..', './bin/snow');
@@ -25,7 +25,7 @@ function getSnowexec(t): string {
 test('snow add/commit/log', async (t) => {
   t.timeout(180000);
 
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -48,7 +48,7 @@ test.only('snow switch', async (t) => {
   t.timeout(180000);
 
   let out: string | void;
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   // Create branch succesfully
@@ -147,7 +147,7 @@ test.only('snow switch', async (t) => {
 
 test('snow checkout', async (t) => {
   let out: string | void;
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   // Create branch succesfully
@@ -256,7 +256,7 @@ test('snow branch foo-branch', async (t) => {
 
   let out: string | void;
   let error: any;
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   // Create branch succesfully
@@ -324,7 +324,7 @@ test('snow branch foo-branch', async (t) => {
 test('snow add .', async (t) => {
   t.timeout(180000);
 
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -346,7 +346,7 @@ test('snow add .', async (t) => {
 });
 
 test('snow add *', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -371,7 +371,7 @@ test('snow add *', async (t) => {
  * This test ensures that foo.txt is not added to the staging area because cwd is the subdirectory
  */
 test('snow add foo.txt', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -393,7 +393,7 @@ test('snow add foo.txt', async (t) => {
 });
 
 test('snow add bar.txt', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -415,7 +415,7 @@ test('snow add bar.txt', async (t) => {
 });
 
 test('snow rm foo.txt', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -442,7 +442,7 @@ test('snow rm foo.txt', async (t) => {
 });
 
 test('snow rm subdir', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -469,7 +469,7 @@ test('snow rm subdir', async (t) => {
 });
 
 test('snow rm subdir/bar.txt', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -496,7 +496,7 @@ test('snow rm subdir/bar.txt', async (t) => {
 });
 
 test('snow rm file-does-not-exist', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');
 
@@ -522,7 +522,7 @@ test('snow rm file-does-not-exist', async (t) => {
 });
 
 test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
@@ -559,7 +559,7 @@ test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 });
 
 test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -573,7 +573,7 @@ test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
 });
 
 test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = 'FirstTag';
@@ -595,7 +595,7 @@ test('Commit Tags --- STORE AND LOAD IDENTICAL', async (t) => {
 });
 
 test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   const tag1 = '[]}';
@@ -616,7 +616,7 @@ test('Commit Tags --- SPECIAL SYMBOLS INPUT', async (t) => {
 });
 
 test('Commit Tags --- EMPTY INPUT', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -630,7 +630,7 @@ test('Commit Tags --- EMPTY INPUT', async (t) => {
 });
 
 test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   const uData: any = { str_key: 'str_value', int_key: 3 };
@@ -668,7 +668,7 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
 });
 
 test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const branchName = 'u-data-test';
 
@@ -684,7 +684,7 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
 });
 
 test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -743,7 +743,7 @@ test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
 test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
   t.timeout(180000);
 
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
@@ -759,7 +759,7 @@ test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
 });
 
 test('driveinfo test', async (t) => {
-  const snow: string = getSnowexec(t);
+  const snow: string = getSnowexec();
 
   const out1 = await exec(t, snow, ['driveinfo'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
 
