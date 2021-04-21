@@ -20,7 +20,6 @@ import {
 } from './treedir';
 
 const PromisePool = require('@supercharge/promise-pool');
-const AggregateError = require('es-aggregate-error');
 
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
@@ -729,14 +728,10 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
+          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
-      .then((res: {errors: Error[]}) => {
-        if (res.errors?.length > 0) {
-          // map PromisePoolError => Error
-          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
-        }
-
+      .then(() => {
         const tasks: IoTask[] = [];
 
         if (reset & RESET.RESTORE_MODIFIED_FILES) {
@@ -755,14 +750,10 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
+          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
-      .then((res: {results: {file: TreeFile; modified : boolean}[], errors: Error[]}) => {
-        if (res.errors?.length > 0) {
-          // map PromisePoolError => Error
-          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
-        }
-
+      .then((res: {results: {file: TreeFile; modified : boolean}[]}) => {
         const tasks: IoTask[] = [];
 
         for (const modifiedFile of res.results) {
@@ -775,14 +766,10 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
+          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
-      .then((res: {errors: Error[]}) => {
-        if (res.errors?.length > 0) {
-          // map PromisePoolError => Error
-          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
-        }
-
+      .then(() => {
         const tasks: IoTask[] = [];
 
         deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
@@ -806,14 +793,10 @@ export class Repository {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
+          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((task: IoTask) => task());
       })
-      .then((res: {errors: Error[]}) => {
-        if (res.errors?.length > 0) {
-          // map PromisePoolError => Error
-          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
-        }
-
+      .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
           moveTo = target.getName();

@@ -14,7 +14,6 @@ import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
 const PromisePool = require('@supercharge/promise-pool');
-const AggregateError = require('es-aggregate-error');
 
 /**
  * A class representing a list of files that is used to create a new Commit object.
@@ -231,16 +230,13 @@ export class Index {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)
+          .handleError(async (error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
             const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
             return this.odb.writeObject(filepathAbs, ioContext);
           });
       })
-      .then((res: {results: {file: string, fileinfo: FileInfo}[], errors: Error[]}) => {
-        if (res.errors?.length > 0) {
-          // map PromisePoolError => Error
-          throw AggregateError(res.errors.map((error) => new Error(error?.message)));
-        }
+      .then((res: {results: {file: string, fileinfo: FileInfo}[]}) => {
         ioContext.invalidate();
 
         // TODO: (Seb) Handle deleted files as well here
