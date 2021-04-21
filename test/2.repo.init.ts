@@ -35,22 +35,20 @@ test('repo commondir', async (t) => {
   const repoPath = createRepoPath();
   const commondirInside = repoPath;
 
-  const error1 = await t.throwsAsync(async () => Repository.initExt(repoPath, { commondir: commondirInside }));
+  const error1 = t.throws(() => Repository.initExt(repoPath, { commondir: commondirInside }));
   t.is(error1.message, 'commondir must be outside repository');
   t.false(fse.pathExistsSync(repoPath), 'repo must not exist yet');
 
-  const error2 = await t.throwsAsync(async () => Repository.initExt(repoPath, { commondir: join(commondirInside, 'inside') }));
+  const error2 = t.throws(() => Repository.initExt(repoPath, { commondir: join(commondirInside, 'inside') }));
   t.is(error2.message, 'commondir must be outside repository');
   t.false(fse.pathExistsSync(repoPath), 'repo must not exist yet');
 
   const commondirOutside = createRepoPath();
-  const error3 = await t.notThrowsAsync(async () =>
-    Repository.initExt(repoPath, { commondir: commondirOutside }));
-  t.is(error3, undefined, 'no error expected');
+  await t.notThrowsAsync(() => Repository.initExt(repoPath, { commondir: commondirOutside }));
   t.true(fse.pathExistsSync(repoPath), 'repo must have been created');
 });
 
-export async function testRepoCommondirOutside(t, repo: Repository) {
+export function testRepoCommondirOutside(t, repo: Repository): Promise<void> {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS)
     .then((dirItems: DirItem[]) => {
       t.is(dirItems.length, 1, 'expect .snow reference in workdir');
@@ -85,7 +83,7 @@ export async function testRepoCommondirOutside(t, repo: Repository) {
     });
 }
 
-export async function testRepoCommondirInside(t, repo: Repository) {
+export function testRepoCommondirInside(t, repo: Repository): Promise<void> {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS).then((dirItems: DirItem[]) => {
     t.is(dirItems.length, 12 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 

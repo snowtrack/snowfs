@@ -44,9 +44,7 @@
     "node": ">=12.10.0"
   },
   "dependencies": {
-    "@types/fs-extra": "^9.0.6",
-    "@types/lodash": "^4.14.167",
-    "@types/npm": "^2.0.31",
+    "@supercharge/promise-pool": "^1.7.0",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "drivelist": "^9.2.4",
@@ -56,6 +54,9 @@
     "ts-node": "^9.1.1"
   },
   "devDependencies": {
+    "@types/fs-extra": "^9.0.6",
+    "@types/lodash": "^4.14.167",
+    "@types/npm": "^2.0.31",
     "@types/unzipper": "^0.10.3",
     "@typescript-eslint/eslint-plugin": "^4.14.2",
     "@typescript-eslint/parser": "^4.14.2",

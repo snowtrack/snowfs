@@ -19,6 +19,9 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
+// eslint-disable-next-line import/order
+const PromisePool = require('@supercharge/promise-pool');
+
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
   NEWEST_FIRST = 2,
@@ -185,7 +188,7 @@ export class StatusEntry {
   }
 
   /** Sets the internal status bits of the object. Normally used only inside [[Repository.getStatus]]. */
-  public setStatusBit(status: STATUS) {
+  setStatusBit(status: STATUS): void {
     this.status = status;
   }
 
@@ -326,7 +329,7 @@ export class Repository {
    * Remove a passed index from the internal index array. The index is identifier by its id.
    * @param index       The index to be removed. Must not be invalidated yet, otherwise an error is thrown.
    */
-  removeIndex(index: Index) {
+  removeIndex(index: Index): void {
     index.throwIfNotValid();
 
     const foundIndex = this.repoIndexes.findIndex((i: Index) => i.id === index.id);
@@ -432,7 +435,7 @@ export class Repository {
    * Walk the commits back in the history by it's parents. Useful to acquire
    * all commits only related to the current branch.
    */
-  walkCommit(commit: Commit, cb: (commit: Commit) => void) {
+  walkCommit(commit: Commit, cb: (commit: Commit) => void): void {
     if (!commit) {
       throw new Error('commit must be set');
     }
@@ -580,7 +583,7 @@ export class Repository {
    * The reference name must be valid, otherwise an exception is thrown.
    * @param name    Name of the reference.
    */
-  setHead(name: string) {
+  setHead(name: string): void {
     if (!this.references.find((v: Reference) => v.getName() === name)) {
       throw new Error(`unknown reference name ${name}`);
     }
@@ -593,7 +596,7 @@ export class Repository {
    * The commit hash must be valid, otherwise an exception is thrown.
    * @param hash      Hash of the commit
    */
-  setHeadDetached(hash: string) {
+  setHeadDetached(hash: string): void {
     if (!this.commitMap.get(hash)) {
       throw new Error('unknown commit hash');
     }
@@ -634,14 +637,14 @@ export class Repository {
       }
     } else if (target instanceof Reference) {
       targetRef = target;
-      targetCommit = this.findCommitByHash((target as Reference).hash);
+      targetCommit = this.findCommitByHash(target.hash);
     } else if (target instanceof Commit) {
       const refs: Reference[] = this.filterReferenceByHash(target.hash);
       // if more than one ref is available we end up in a detached HEAD
       if (refs.length === 1) {
         targetRef = refs[0];
       }
-      targetCommit = target as Commit;
+      targetCommit = target;
     }
     if (!targetCommit) {
       throw new Error('unknown target version');
@@ -652,6 +655,10 @@ export class Repository {
     let statuses: StatusEntry[] = [];
     const deleteCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
+
+    // IoTask is a callback helper, used by the PromisePool to ensure that no more async operations
+    // of this type are executed than set/limited by PromisePool.withConcurrency(..)
+    type IoTask = () => Promise<unknown>;
 
     const ioContext = new IoContext();
     return ioContext.init()
@@ -675,7 +682,7 @@ export class Repository {
         return this.writeHeadRefToDisk();
       })
       .then(() => {
-        const promises = [];
+        const tasks: IoTask[] = [];
 
         // Items which existed before but don't anymore
         statuses.forEach((status: StatusEntry) => {
@@ -685,7 +692,7 @@ export class Repository {
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
-                promises.push(this.repoOdb.readObject(tfile.hash, dst, ioContext));
+                tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
               }
@@ -701,7 +708,7 @@ export class Repository {
                 parent = dirname(parent);
               }
             } else {
-              promises.push(fse.ensureDir(dst));
+              tasks.push(() => fse.ensureDir(dst));
             }
           } else if (status.isNew() && reset & RESET.DELETE_NEW_FILES) {
             deleteCandidates.set(status.path, status);
@@ -719,39 +726,52 @@ export class Repository {
           }
         });
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((task: IoTask) => task());
       })
       .then(() => {
-        const promises = [];
+        const tasks: IoTask[] = [];
 
         if (reset & RESET.RESTORE_MODIFIED_FILES) {
-          for (const file of statuses) {
-            if (file.isModified() && file.isFile()) {
-              const tfile: TreeFile = oldFilesMap.get(file.path) as TreeFile;
+          statuses.forEach((status: StatusEntry) => {
+            if (status.isModified() && status.isFile()) {
+              const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
               if (tfile) {
-                promises.push(tfile.isFileModified(this));
+                tasks.push(() => tfile.isFileModified(this));
               } else {
                 throw new Error(`File '${tfile.path}' not found during last-modified-check`);
               }
             }
-          }
+          });
         }
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((task: IoTask) => task());
       })
-      .then((modifiedFiles: {file: TreeFile; modified : boolean}[]) => {
-        const promises = [];
+      .then((res: {results: {file: TreeFile, modified : boolean}[]}) => {
+        const tasks: IoTask[] = [];
 
-        for (const modifiedFile of modifiedFiles) {
+        for (const modifiedFile of res.results) {
           if (modifiedFile.modified) {
             const dst: string = join(this.repoWorkDir, modifiedFile.file.path);
-            promises.push(this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
+            tasks.push(() => this.repoOdb.readObject(modifiedFile.file.hash, dst, ioContext));
           }
         }
-        return Promise.all(promises);
+
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((task: IoTask) => task());
       })
       .then(() => {
-        const promises = [];
+        const tasks: IoTask[] = [];
 
         deleteCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
@@ -764,16 +784,19 @@ export class Repository {
                   deleteCandidates.delete(relPath2);
                 }
               });
-              promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
             }
           } else {
-            promises.push(IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
           }
         });
 
-        return Promise.all(promises);
+        return PromisePool
+          .withConcurrency(32)
+          .for(tasks)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((task: IoTask) => task());
       })
-
       .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
