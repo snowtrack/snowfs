@@ -14,6 +14,8 @@ import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
 
+const AggregateError = require('es-aggregate-error');
+
 const exampleDirs = [
   join('foo', 'a'),
   join('bar', 'b', 'c'),
@@ -683,22 +685,27 @@ async function performWriteLockCheckTest(t, fileCount: number) {
       t.true(true);
     }
   } catch (error) {
-    const errorMessages: string[] = error.errors.map((e) => e.message);
+    if (error instanceof AggregateError) {
+      const errorMessages: string[] = error.errors.map((e) => e.message);
 
-    let i = 0;
-    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream | null, path: string) => {
-      if (fh instanceof fse.WriteStream) {
-        if (i === 15) {
-          t.log(`${fileCount - i} more to go...`);
-        } else if (i < 15) {
-          t.log(`Check if ${path} is detected as being written by another process`);
+      let i = 0;
+      fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream | null, path: string) => {
+        if (fh instanceof fse.WriteStream) {
+          if (i === 15) {
+            t.log(`${fileCount - i} more to go...`);
+          } else if (i < 15) {
+            t.log(`Check if ${path} is detected as being written by another process`);
+          }
+          t.true(errorMessages[i++].includes(`File '${path}' is written by`));
+        } else if (!fh || fh instanceof fse.ReadStream) {
+          t.log(`Ensure that ${path} is not being detected as being written by another process`);
+          t.false(errorMessages.includes(`File ${path} is written by`));
         }
-        t.true(errorMessages[i++].includes(`File '${path}' is written by`));
-      } else if (!fh || fh instanceof fse.ReadStream) {
-        t.log(`Ensure that ${path} is not being detected as being written by another process`);
-        t.false(errorMessages.includes(`File ${path} is written by`));
-      }
-    });
+      });
+    } else {
+      // any other error than AggregateError is unexpected
+      throw error;
+    }
   }
 
   stop = true;
