@@ -3,7 +3,6 @@ import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
-import * as tty from 'tty';
 import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
 
@@ -184,11 +183,11 @@ export async function snowFsRestoreTexture(repoPath: string, t: any = console): 
 
   const t0 = new Date().getTime();
   const commit = repo.findCommitByHash('HEAD~1');
-  await repo.checkout(commit, RESET.RESTORE_DELETED_FILES);
+  await repo.checkout(commit, RESET.RESTORE_DELETED_ITEMS);
   return new Date().getTime() - t0;
 }
 
-export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console) {
+export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console): Promise<void> {
   let playground: string;
   while (true) {
     const desktop = join(os.homedir(), 'desktop');
@@ -239,5 +238,11 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
 }
 
 if (process.env.NODE_ENV === 'benchmark') {
-  startBenchmark();
+  (async () => {
+    try {
+      await startBenchmark();
+    } catch (e) {
+      process.stderr.write(e.message);
+    }
+  })();
 }

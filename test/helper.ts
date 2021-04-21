@@ -76,7 +76,7 @@ export function createRandomFile(dst: string, size: number): Promise<{filepath: 
     .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => ({ filepath: dst, filehash: res.filehash, hashBlocks: res.hashBlocks }));
 }
 
-export function getSnowexec(t): string {
+export function getSnowexec(): string {
   switch (process.platform) {
     case 'darwin':
       return join(__dirname, '..', './bin/snow');

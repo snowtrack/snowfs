@@ -3,10 +3,21 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
-import { join, dirname, normalize } from './path';
+import {
+  join, dirname, normalize, relative,
+} from './path';
 import { MB1 } from './common';
 
+const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
+
+class StacklessError extends Error {
+  constructor(...args) {
+    super(...args);
+    this.name = this.constructor.name;
+    delete this.stack;
+  }
+}
 
 export enum FILESYSTEM {
   APFS = 1,
@@ -29,12 +40,115 @@ export class Drive {
   }
 }
 
+export namespace unix {
+
+/**
+ * Possible file lock types on a given file. This are the extracted
+ * information from a `man lsof` converted into an enum.
+ */
+export enum LOCKTYPE {
+  NFS_LOCK = 'N', // for a Solaris NFS lock of unknown type
+  READ_LOCK_FILE_PART = 'r', // for read lock on part of the file
+  READ_LOCK_FILE = 'R', // for a read lock on the entire file
+  WRITE_LOCK_FILE_PART = 'w', // for a write lock on part of the file
+  WRITE_LOCK_FILE = 'W', // for a write lock on the entire file
+  READ_WRITE_LOCK_FILE = 'u', // for a read and write lock of any length
+  UNKNOWN = 'X' // An unknown lock type (U, x or X)
+}
+
+export class FileHandle {
+  /** PID of process which acquired the file handle */
+  pid: string;
+
+  processname: string;
+
+  /** File access information with file lock info */
+  lockType: LOCKTYPE;
+
+  /** Documents filepath */
+  filepath: string;
+}
+
+export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
+  try {
+    return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
+      const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
+      const p = new Map<string, FileHandle[]>();
+
+      let stdout = '';
+      p0.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      function parseStdout(stdout: string) {
+        let lsofEntry: FileHandle = new FileHandle();
+        for (const pline of stdout.split(/\n/)) {
+          if (pline.startsWith('p')) { // PID of process which acquired the file handle
+            // first item, therefore it creates the file handle
+            lsofEntry = new FileHandle();
+            lsofEntry.pid = pline.substr(1, pline.length - 1);
+          } else if (pline.startsWith('c')) { // Name of process which acquired the file handle
+            lsofEntry.processname = pline.substr(1, pline.length - 1);
+          } else if (pline.startsWith('a')) { // File access information with file lock info
+            // See `LOCKTYPE` for more information
+            if (pline.includes('N')) {
+              lsofEntry.lockType = LOCKTYPE.NFS_LOCK;
+            } else if (pline.includes('r')) {
+              lsofEntry.lockType = LOCKTYPE.READ_LOCK_FILE_PART;
+            } else if (pline.includes('R')) {
+              lsofEntry.lockType = LOCKTYPE.READ_LOCK_FILE;
+            } else if (pline.includes('w')) {
+              lsofEntry.lockType = LOCKTYPE.WRITE_LOCK_FILE_PART;
+            } else if (pline.includes('W')) {
+              lsofEntry.lockType = LOCKTYPE.WRITE_LOCK_FILE;
+            } else if (pline.includes('u')) {
+              lsofEntry.lockType = LOCKTYPE.READ_WRITE_LOCK_FILE;
+            } else {
+              lsofEntry.lockType = LOCKTYPE.UNKNOWN;
+            }
+          } else if (pline.startsWith('n')) { // Documents filepath
+            const absPath = pline.substr(1, pline.length - 1);
+            if (absPath.startsWith(dirpath)) {
+              const relPath = relative(dirpath, pline.substr(1, pline.length - 1));
+              const q = p.get(relPath);
+              if (q) {
+                // if there was an entry before, add the new entry to the array in the map
+                q.push(lsofEntry);
+              } else {
+                // ..otherwise add a new list with the lsofEntry as the first element
+                p.set(relPath, [lsofEntry]);
+              }
+              lsofEntry = new FileHandle();
+            } else {
+              console.log(`lsof reported unknown path: ${absPath}`);
+            }
+          }
+        }
+      }
+
+      p0.on('exit', (code) => {
+        if (code === 1) { // lsof returns 1
+          parseStdout(stdout);
+          resolve(p);
+        } else {
+          reject(code);
+        }
+      });
+    });
+  } catch (error) {
+    console.log(error);
+    return new Map();
+  }
+}
+
+}
+
 function getFilesystem(drive: any, mountpoint: string) {
   try {
     if (process.platform === 'win32') {
-      return new Promise<string | null>((resolve, reject) => {
+      return new Promise<string | null>((resolve, _reject) => {
         const driveLetter = mountpoint.endsWith('\\') ? mountpoint.substring(0, mountpoint.length - 1) : mountpoint;
-        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, stderr) => {
+        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, _stderr) => {
           if (error) {
             return resolve(null); // if we can't extract the volume info, we simply skip the ReFS detection
           }
@@ -126,12 +240,12 @@ export class IoContext {
    * Invalidates the internal device storage information.
    * Normally not needed to explicitly call.
    */
-  invalidate() {
+  invalidate(): void {
     this.valid = false;
     this.mountpoints = undefined;
   }
 
-  checkIfInitialized() {
+  checkIfInitialized(): void {
     if (!this.valid) {
       throw new Error('IoContext is not initialized, did you forget to call IoContext.init(..)?');
     }
@@ -143,7 +257,7 @@ export class IoContext {
    * the path of the executable.
    * @param execPath  Path to the executable. Fails if the file does not exist or the path is a directory.
    */
-  static setTrashExecPath(execPath: string) {
+  static setTrashExecPath(execPath: string): void {
     if (!fse.pathExistsSync(execPath)) {
       throw new Error(`path ${execPath} does not exist`);
     }
@@ -307,6 +421,106 @@ export class IoContext {
         return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       default:
         throw new Error('Unsupported Operating System');
+    }
+  }
+
+  /**
+   * Check if the given filepaths are write-locked by another process.
+   * For more information, or to add comments visit https://github.com/Snowtrack/SnowFS/discussions/110
+   *
+   * @param dir               The root directory path to check
+   * @param relPaths          Relative file paths inside the given directory.
+   * @throws {AggregateError} Aggregated error of StacklessError
+   */
+  performWriteLockChecks(dir: string, relPaths: string[]): Promise<void> {
+    function checkWin32(relPaths): Promise<void> {
+      const absPaths = relPaths.map((p: string) => join(dir, p));
+
+      const promises = [];
+
+      for (const absPath of absPaths) {
+        promises.push(fse.stat(absPath));
+      }
+
+      const stats1 = new Map<string, number>();
+
+      return Promise.all(promises)
+        .then((stats: fse.Stats[]) => {
+          if (stats.length !== relPaths.length) {
+            throw new Error('Internal error: stats != paths');
+          }
+
+          for (let i = 0; i < relPaths.length; ++i) {
+            stats1.set(relPaths[i], stats[i].size);
+          }
+
+          return new Promise<void>((resolve) => {
+            setTimeout(() => {
+              resolve();
+            }, 500);
+          });
+        }).then(() => {
+          const promises = [];
+
+          for (const absPath of absPaths) {
+            promises.push(fse.stat(absPath));
+          }
+
+          return Promise.all(promises);
+        }).then((stats: fse.Stats[]) => {
+          if (stats.length !== relPaths.length) {
+            throw new Error('Internal error: stats != paths');
+          }
+
+          const errors: Error[] = [];
+
+          for (let i = 0; i < relPaths.length; ++i) {
+            const prevSize = stats1.get(relPaths[i]);
+            if (prevSize !== stats[i].size) {
+              const msg = `File '${relPaths[i]}' is written by another process`;
+              errors.push(new StacklessError(msg));
+            }
+          }
+
+          if (errors.length > 0) {
+            throw new AggregateError(errors);
+          }
+        });
+    }
+
+    function checkUnixLike(relPaths): Promise<void> {
+      return unix.whichFilesInDirAreOpen(dir)
+        .then((fileHandles: Map<string, unix.FileHandle[]>) => {
+          const errors: Error[] = [];
+
+          for (const relPath of relPaths) {
+            const fhs: unix.FileHandle[] = fileHandles.get(relPath);
+            if (fhs) {
+              for (const fh of fhs) {
+                if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
+                    || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE
+                    || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
+                  const msg = `File '${relPath}' is written by ${fh.processname ?? 'another process'}`;
+                  errors.push(new StacklessError(msg));
+                }
+              }
+            }
+          }
+
+          if (errors.length > 0) {
+            throw new AggregateError(errors);
+          }
+        });
+    }
+
+    switch (process.platform) {
+      case 'win32':
+        return checkWin32(relPaths);
+      case 'darwin':
+      case 'linux':
+        return checkUnixLike(relPaths);
+      default:
+        throw new Error('Unknown operating system');
     }
   }
 

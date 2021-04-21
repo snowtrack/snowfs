@@ -18,6 +18,7 @@ import { IoContext } from './src/io_context';
 const program = require('commander');
 const chalk = require('chalk');
 const drivelist = require('drivelist');
+const AggregateError = require('es-aggregate-error');
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
@@ -74,7 +75,7 @@ async function parseOptions(opts: any) {
         rl.close();
       });
 
-      tmp = await new Promise<string>((resolve, reject) => {
+      tmp = await new Promise<string>((resolve, _reject) => {
         rl.on('close', () => {
           resolve(res);
         });
@@ -128,7 +129,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -159,7 +164,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -198,7 +207,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -245,7 +258,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -300,7 +317,7 @@ program
 
         let reset: RESET = RESET.DETACH; // checkout always results in a detached HEAD
         if (!opts.keepChanges) {
-          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_ITEMS | RESET.DELETE_NEW_ITEMS | RESET.RESTORE_DELETED_ITEMS;
         }
 
         await repo.checkout(target, reset);
@@ -309,7 +326,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -332,7 +353,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -414,7 +439,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -459,7 +488,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -595,7 +628,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }
@@ -609,13 +646,6 @@ program
     const drives = await drivelist.list();
     console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
   });
-
-const switchDesc = `switch a commit, or create a branch
-  
-  ${chalk.bold('Examples')}
-  
-      switch to a branch
-        $ snow switch branch-name`;
 
 program
   .command('switch [branch-name]')
@@ -669,7 +699,7 @@ program
 
         let reset: RESET = RESET.NONE;
         if (!opts.keepChanges) {
-          reset |= RESET.RESTORE_MODIFIED_FILES | RESET.DELETE_NEW_FILES | RESET.RESTORE_DELETED_FILES;
+          reset |= RESET.RESTORE_MODIFIED_ITEMS | RESET.DELETE_NEW_ITEMS | RESET.RESTORE_DELETED_ITEMS;
         }
         if (opts.detach) {
           reset |= RESET.DETACH;
@@ -681,7 +711,11 @@ program
       if (opts.debug) {
         throw error;
       } else {
-        process.stderr.write(`fatal: ${error.message}\n`);
+        if (error instanceof AggregateError) {
+          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+        } else {
+          process.stderr.write(`fatal: ${error.message}\n`);
+        }
         process.exit(-1);
       }
     }

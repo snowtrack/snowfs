@@ -48,6 +48,7 @@
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "drivelist": "^9.2.4",
+    "es-aggregate-error": "^1.0.5",
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
     "micromatch": "^4.0.2",
