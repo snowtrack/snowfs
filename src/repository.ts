@@ -659,11 +659,15 @@ export class Repository {
     const deleteDirCandidates = new Map<string, StatusEntry>();
     const deleteRevokeDirs = new Set<string>();
 
-    // IoTask is a callback helper, used by the PromisePool to ensure that no more async operations
+    // IoTask is a callback helper, used by the promise pool to ensure that no more async operations
     // of this type are executed than set/limited by PromisePool.withConcurrency(..)
     type IoTask = () => Promise<unknown>;
 
+    // Array of async functions that are executed by the promise pool
     const tasks: IoTask[] = [];
+
+    // Array of relative paths to files that will undergo the write-lock check
+    const relPathChecks: string[] = [];
 
     const ioContext = new IoContext();
     return ioContext.init()
@@ -700,6 +704,7 @@ export class Repository {
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
+                relPathChecks.push(status.path);
                 tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
@@ -725,6 +730,7 @@ export class Repository {
           } else if (reset & RESET.RESTORE_MODIFIED_ITEMS && status.isModified()) {
             const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
             if (tfile) {
+              relPathChecks.push(tfile.path);
               tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
                 if (res.modified) {
                   const dst: string = join(this.repoWorkDir, res.file.path);
@@ -765,10 +771,14 @@ export class Repository {
               tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
             }
           } else {
+            relPathChecks.push(candidate.path);
             tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
           }
         });
 
+        return ioContext.performWriteLockChecks(this.workdir(), relPathChecks);
+      })
+      .then(() => {
         return PromisePool
           .withConcurrency(32)
           .for(tasks)
