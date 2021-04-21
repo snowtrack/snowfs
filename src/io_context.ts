@@ -8,7 +8,6 @@ import {
 } from './path';
 import { MB1 } from './common';
 
-// if Node version 15, switch to built-in AggregateError
 const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
 
