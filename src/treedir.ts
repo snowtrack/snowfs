@@ -20,23 +20,41 @@ export const enum FILEMODE {
   COMMIT = 57344,
 }
 
-export class TreeFile {
+export class TreeEntry {
   constructor(
     public hash: string,
-    public ext: string,
-    public parent: TreeDir,
     public path: string,
-    public ctime: number,
-    public mtime: number,
-    public size: number,
-  ) { }
+  ) {
+  }
 
   isDirectory(): boolean {
-    return false;
+    return this instanceof TreeDir;
   }
 
   isFile(): boolean {
-    return true;
+    return this instanceof TreeFile;
+  }
+
+  getItemDesc(): string {
+    if (this.isDirectory()) {
+      return "Directory";
+    } else {
+      return "File";
+    }
+  }
+}
+
+export class TreeFile extends TreeEntry {
+  constructor(
+    hash: string,
+    public ext: string,
+    public parent: TreeDir,
+    path: string,
+    public ctime: number,
+    public mtime: number,
+    public size: number,
+  ) {
+    super(hash, path);
   }
 
   toString(): string {
@@ -84,7 +102,7 @@ export class TreeFile {
   }
 }
 
-export class TreeDir {
+export class TreeDir extends TreeEntry {
   static ROOT = undefined;
 
   hash: string;
@@ -92,14 +110,7 @@ export class TreeDir {
   children: (TreeEntry)[] = [];
 
   constructor(public path: string | undefined, public parent: TreeDir = null) {
-  }
-
-  isDirectory(): boolean {
-    return true;
-  }
-
-  isFile(): boolean {
-    return false;
+    super(undefined, path);
   }
 
   toString(includeChildren?: boolean): string {
@@ -186,7 +197,7 @@ export class TreeDir {
   ) {
     let i = 0;
     for (const entry of tree.children) {
-      cb(entry, i, tree.children.length);
+      cb(<TreeFile>entry, i, tree.children.length);
       if (entry.isDirectory()) {
         TreeDir.walk(entry as TreeDir, cb);
       }
@@ -267,5 +278,3 @@ export function constructTree(
       return tree;
     });
 }
-
-export declare type TreeEntry = TreeDir | TreeFile;
