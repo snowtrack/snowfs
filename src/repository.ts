@@ -206,6 +206,14 @@ export class StatusEntry {
   isFile(): boolean {
     return !this.isdir;
   }
+
+  getItemDesc(): string {
+    if (this.isDirectory()) {
+      return "Directory";
+    } else {
+      return "File";
+    }
+  }
 }
 
 function getSnowFSRepo(path: string): Promise<string | null> {
@@ -665,7 +673,7 @@ export class Repository {
    * @param target    Reference, commit or commit hash.
    * @param reset     Options for the restore operation.
    */
-  checkout(target: string|Reference|Commit, reset: RESET): Promise<void> {
+  checkout(target: string|Reference|Commit, reset: RESET, limitToPath?: string): Promise<void> {
     let targetRef: Reference;
     let targetCommit: Commit;
     if (typeof target === 'string') {
@@ -736,6 +744,12 @@ export class Repository {
         // head hash is null before first commit is made
         if (!this.head.hash) {
           return [] as any; // as any otherwise TS doesn't like it
+        }
+
+        if (limitToPath) {
+          statusResult = statusResult.filter((status: StatusEntry) => {
+            return status.path.startsWith(limitToPath);
+          })
         }
 
         statuses = statusResult;
