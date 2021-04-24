@@ -2,7 +2,7 @@ import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 
 import {
-  basename, join, dirname, relative,
+  basename, join, dirname, relative, extname,
 } from './path';
 import {
   DirItem, OSWALK, osWalk, zipFile,
@@ -180,7 +180,7 @@ export class Odb {
 
   getObjectPath(file: TreeFile): string {
     const objects: string = join(this.repo.options.commondir, 'objects');
-    return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString());
+    return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
   }
 
   writeReference(ref: Reference): Promise<void> {
@@ -243,7 +243,7 @@ export class Odb {
     const tmpFilename: string = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     const objects: string = join(this.repo.options.commondir, 'objects');
     const tmpDir: string = join(this.repo.options.commondir, 'tmp');
-    const tmpPath: string = join(tmpDir, tmpFilename.toString());
+    const tmpPath: string = join(tmpDir, tmpFilename);
 
     let dstFile: string;
     let filehash: string;
@@ -257,7 +257,7 @@ export class Odb {
       .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
         filehash = res.filehash;
         hashBlocks = res.hashBlocks;
-        dstFile = join(objects, filehash.substr(0, 2), filehash.substr(2, 2), filehash.toString());
+        dstFile = join(objects, filehash.substr(0, 2), filehash.substr(2, 2), filehash.toString() + extname(filepath));
         return fse.pathExists(dstFile);
       })
       .then((exists: boolean) => {
@@ -283,6 +283,7 @@ export class Odb {
         .then((stat: fse.Stats) => ({
           file: relative(this.repo.repoWorkDir, filepath),
           fileinfo: {
+            ext: extname(filepath),
             hash: filehash,
             stat: {
               size: stat.size,
@@ -295,8 +296,9 @@ export class Odb {
       .then((res) => this.repo.modified(res));
   }
 
-  readObject(hash: string, dstAbsPath: string, ioContext: IoContext): Promise<void> {
-    const objectFile: string = join(this.repo.options.commondir, 'objects', hash.substr(0, 2), hash.substr(2, 2), hash.toString());
+  readObject(file: TreeFile, dstAbsPath: string, ioContext: IoContext): Promise<void> {
+    const hash: string = file.hash;
+    const objectFile: string = this.getObjectPath(file);
 
     return fse.pathExists(objectFile).then((exists: boolean) => {
       if (!exists) {

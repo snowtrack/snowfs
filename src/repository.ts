@@ -3,7 +3,7 @@
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import {
-  resolve, join, dirname,
+  resolve, join, dirname, extname,
 } from './path';
 
 import { Log } from './log';
@@ -759,7 +759,7 @@ export class Repository {
             if (status.isFile()) {
               const tfile: TreeEntry = oldFilesMap.get(status.path);
               if (tfile) {
-                tasks.push(() => this.repoOdb.readObject(tfile.hash, dst, ioContext));
+                tasks.push(() => this.repoOdb.readObject(<TreeFile>tfile, dst, ioContext));
               } else {
                 throw new Error("item was detected as deleted but couldn't be found in reference commit");
               }
@@ -788,7 +788,7 @@ export class Repository {
               tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
                 if (res.modified) {
                   const dst: string = join(this.repoWorkDir, res.file.path);
-                  return this.repoOdb.readObject(res.file.hash, dst, ioContext);
+                  return this.repoOdb.readObject(res.file, dst, ioContext);
                 }
               }));
             } else {
@@ -995,6 +995,7 @@ export class Repository {
       currentTree.forEach((value: TreeFile) => {
         processedMap.set(value.path, {
           hash: value.hash,
+          ext: extname(value.path),
           stat: {
             size: value.size, atime: 0, mtime: value.mtime, ctime: value.ctime,
           },

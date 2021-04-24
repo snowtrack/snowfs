@@ -4,7 +4,7 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 
 import {
-  join, relative, normalize,
+  join, relative, normalize, extname,
 } from './path';
 import { Repository } from './repository';
 import {
@@ -23,6 +23,7 @@ export const enum FILEMODE {
 export class TreeFile {
   constructor(
     public hash: string,
+    public ext: string,
     public parent: TreeDir,
     public path: string,
     public ctime: number,
@@ -50,9 +51,10 @@ export class TreeFile {
     const { ctime } = this;
     const { mtime } = this;
     const { size } = this;
+    const { ext } = this;
     const path: string = this.path;
     const output: any = {
-      hash, ctime, mtime, size, path,
+      ext, hash, ctime, mtime, size, path,
     };
     return JSON.stringify(output);
   }
@@ -244,7 +246,7 @@ export function constructTree(
             const fileinfo: FileInfo | null = processed?.get(relative(root, absPath));
             if (fileinfo) {
               const path: string = relative(root, absPath);
-              const entry: TreeFile = new TreeFile(fileinfo.hash, tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
+              const entry: TreeFile = new TreeFile(fileinfo.hash, extname(path), tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
               tree.children.push(entry);
             } else {
               // console.warn(`No hash for ${absPath}`);
