@@ -831,7 +831,7 @@ export class Repository {
               // If we delete a directory, we can remove all its subdirectories and files from the candidate list
               // as they will already be deleted by... (see next comment)
               deleteDirCandidates.forEach((_c: StatusEntry, relPath2: string) => {
-                if (relPath2.startsWith(relPath)) {
+                if (relPath2.startsWith(`${relPath}/`)) {
                   deleteDirCandidates.delete(relPath2);
                 }
               });
