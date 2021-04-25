@@ -66,7 +66,9 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
         const dirItemsTmp: DirItem[] = [];
 
         for (const entry of entries) {
-          if (!browseRepo && (entry === '.snow' || entry.startsWith('.git') || entry.endsWith('.DS_Store'))) {
+          if (entry === '.DS_Store' || entry === 'thumbs.db') {
+            continue;
+          } else if (!browseRepo && (entry === '.snow' || entry === '.git')) {
             continue;
           } else if (!returnHidden && entry.startsWith('.')) {
             continue;
