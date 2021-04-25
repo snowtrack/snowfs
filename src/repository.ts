@@ -970,9 +970,19 @@ export class Repository {
         // The following sorting also ensures that a directory is listed before its sub-items.
         // E.g: ['foo.pxd', 'foo.pxd/Info.plist', 'foo2.pxd', 'foo2.pxd/Info.plist']
         if (filter & FILTER.SORT_CASE_SENSITIVELY) {
-          result.sort((a: StatusEntry, b: StatusEntry) => a.path.toLocaleLowerCase().localeCompare(b.path.toLocaleLowerCase()));
+          result.sort((a: StatusEntry, b: StatusEntry) => {
+            if (a.isDirectory() != b.isDirectory()) {
+              return a.isDirectory() ? -1 : 1;
+            }
+            return a.path.toLocaleLowerCase().localeCompare(b.path.toLocaleLowerCase());
+          });
         } else if (filter & FILTER.SORT_CASE_SENSITIVELY) {
-          result.sort((a: StatusEntry, b: StatusEntry) => a.path.localeCompare(b.path));
+          result.sort((a: StatusEntry, b: StatusEntry) => {
+            if (a.isDirectory() !== b.isDirectory()) {
+              return a.isDirectory() ? -1 : 1;
+            }
+            return a.path.localeCompare(b.path);
+          });
         }
         return result;
       });
