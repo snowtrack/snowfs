@@ -28,7 +28,10 @@ export enum OSWALK {
   HIDDEN = 4,
 
   /** Browse Git and/or SnowFS repositories. */
-  BROWSE_REPOS = 8
+  BROWSE_REPOS = 8,
+
+  /** Recursively running through the hierarchy */
+  NO_RECURSIVE = 16
 }
 
 /**
@@ -91,7 +94,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
             dirItems.push(dirItem);
           }
 
-          if (dirItem.isdir) {
+          if (dirItem.isdir && !(request & OSWALK.NO_RECURSIVE)) {
             promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
