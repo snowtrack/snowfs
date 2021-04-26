@@ -12,8 +12,8 @@ import { Reference } from './src/reference';
 import {
   StatusEntry, FILTER, Repository, RESET, COMMIT_ORDER, REFERENCE_TYPE,
 } from './src/repository';
-import { IoContext } from './src/io_context';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
+import { IoContext } from './src/io_context';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -519,7 +519,7 @@ program
       const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        const o = { commits, refs, head: headName };
+        const o = { commits, refs, head: repo.getHead().isDetached() ? headHash : headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {
