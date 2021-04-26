@@ -57,7 +57,14 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
     return new Promise<string[]>((resolve, reject) => {
       fse.readdir(dirPath, (error, entries: string[]) => {
         if (error) {
-          reject(error);
+          // While browsing through a sub-directory, readdir
+          // might fail if the directory e.g. gets deleted at the same
+          // time. Therefore sub-directories don't throw an error
+          if (dirItemRef) {
+            resolve([]);
+          } else {
+            reject(error);
+          }
           return;
         }
 
@@ -78,10 +85,17 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
           }
 
           const absPath = `${dirPath}/${entry}`;
-          const isDir: boolean = fse.statSync(absPath).isDirectory();
-          dirItemsTmp.push({
-            absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
-          });
+
+          try {
+            // While the function browses through a hierarchy,
+            // the item might be inaccessible or existant anymore
+            const isDir: boolean = fse.statSync(absPath).isDirectory();
+            dirItemsTmp.push({
+              absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
+            });
+          } catch (_error) {
+            // ignore error
+          }
         }
 
         if (dirItemRef) {
