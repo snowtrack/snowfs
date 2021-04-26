@@ -178,7 +178,7 @@ export class Odb {
     });
   }
 
-  getObjectPath(file: TreeFile): string {
+  getAbsObjectPath(file: TreeFile): string {
     const objects: string = join(this.repo.options.commondir, 'objects');
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
   }
@@ -298,7 +298,7 @@ export class Odb {
 
   readObject(file: TreeFile, dstAbsPath: string, ioContext: IoContext): Promise<void> {
     const hash: string = file.hash;
-    const objectFile: string = this.getObjectPath(file);
+    const objectFile: string = this.getAbsObjectPath(file);
 
     return fse.pathExists(objectFile).then((exists: boolean) => {
       if (!exists) {
