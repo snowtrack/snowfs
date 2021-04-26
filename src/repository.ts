@@ -209,10 +209,9 @@ export class StatusEntry {
 
   getItemDesc(): string {
     if (this.isDirectory()) {
-      return "Directory";
-    } else {
-      return "File";
+      return 'Directory';
     }
+    return 'File';
   }
 }
 
@@ -749,7 +748,7 @@ export class Repository {
         if (limitToPath) {
           statusResult = statusResult.filter((status: StatusEntry) => {
             return status.path.startsWith(limitToPath);
-          })
+          });
         }
 
         statuses = statusResult;
