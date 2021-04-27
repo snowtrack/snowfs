@@ -1,8 +1,12 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
-import winattr = require('winattr');
 import { normalize } from './path';
 
+let winattr;
+if (process.platform === 'win32') {
+  // eslint-disable-next-line global-require
+  winattr = require('winattr');
+}
 export class DirItem {
   /** Absolute path of dir item */
   absPath: string;
@@ -164,7 +168,7 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
  * @returns
  */
 export function hideItem(path: string): Promise<void> {
-  if (process.platform === 'win32') {
+  if (winattr) {
     return new Promise<void>((resolve) => {
       winattr.set(path, { hidden: true }, (error) => {
         console.log(error);
