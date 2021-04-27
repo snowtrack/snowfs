@@ -54,6 +54,9 @@
     "micromatch": "^4.0.2",
     "ts-node": "^9.1.1"
   },
+  "optionalDependencies": {
+    "winattr": "^3.0.0"
+  },
   "devDependencies": {
     "@types/fs-extra": "^9.0.6",
     "@types/lodash": "^4.14.167",
