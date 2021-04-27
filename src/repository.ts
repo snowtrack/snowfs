@@ -37,6 +37,10 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
+const warningMessage = `Attention: Modifications to the content of this directory without the proper knowledge might result in data loss.
+
+Only proceed if you know exactly what you are doing!`;
+
 /**
  * Initialize a new [[Repository]].
  */
@@ -1226,6 +1230,9 @@ export class Repository {
         }
         return hideItem(opts.commondir);
       }).then(() => {
+        return fse.writeFile(join(opts.commondir, 'IMPORTANT.txt'), warningMessage);
+      })
+      .then(() => {
         repo.repoLog = new Log(repo);
         return repo.repoLog.init();
       })
