@@ -4,9 +4,10 @@ import { normalize } from './path';
 
 let winattr;
 if (process.platform === 'win32') {
-  // eslint-disable-next-line global-require
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
 }
+
 export class DirItem {
   /** Absolute path of dir item */
   absPath: string;
@@ -34,7 +35,7 @@ export enum OSWALK {
   /** Browse Git and/or SnowFS repositories. */
   BROWSE_REPOS = 8,
 
-  /** Recursively running through the hierarchy */
+  /** Only run over the first level of the directory */
   NO_RECURSIVE = 16
 }
 

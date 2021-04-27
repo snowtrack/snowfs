@@ -34,14 +34,6 @@ export class TreeEntry {
   isFile(): boolean {
     return this instanceof TreeFile;
   }
-
-  getItemDesc(): string {
-    if (this.isDirectory()) {
-      return "Directory";
-    } else {
-      return "File";
-    }
-  }
 }
 
 export class TreeFile extends TreeEntry {

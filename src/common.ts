@@ -20,6 +20,8 @@ export class FileInfo {
   hash: string;
   ext: string; // including '.'
 
+  ext: string; // including '.'
+
   stat: {
     size: number,
     atime: number;
