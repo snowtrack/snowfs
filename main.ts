@@ -519,7 +519,7 @@ program
       const headName: string = repo.getHead().getName();
 
       if (opts.output === 'json' || opts.output === 'json-pretty') {
-        const o = { commits, refs, head: headName };
+        const o = { commits, refs, head: repo.getHead().isDetached() ? headHash : headName };
 
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {
