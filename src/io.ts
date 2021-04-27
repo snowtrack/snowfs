@@ -4,7 +4,7 @@ import { normalize } from './path';
 
 let winattr;
 if (process.platform === 'win32') {
-  // eslint-disable-next-line global-require
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
 }
 
