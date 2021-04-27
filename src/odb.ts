@@ -263,7 +263,7 @@ export class Odb {
           return zipFile(tmpPath, dstFile, { deleteSrc: true });
         }
 
-        return fse.move(tmpPath, dstFile, { overwrite: true });
+        return fse.move(tmpPath, dstFile, { overwrite: false });
       })
       .then(() => {
         if (hashBlocks) {
