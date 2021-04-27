@@ -11,7 +11,9 @@ import { Commit } from './commit';
 import { FileInfo } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
-import { DirItem, OSWALK, osWalk } from './io';
+import {
+  DirItem, hideItem, OSWALK, osWalk,
+} from './io';
 import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Reference } from './reference';
@@ -1084,7 +1086,7 @@ export class Repository {
         return this.repoOdb.writeHeadReference(this.head);
       })
       .then(() =>
-      // update .snow/refs/XYZ
+        // update .snow/refs/XYZ
         this.repoOdb.writeReference(this.head))
       .then(() => this.repoLog.writeLog(`commit: ${message}`))
       .then(() => commit);
@@ -1209,18 +1211,21 @@ export class Repository {
     }
 
     return fse.ensureDir(workdir)
-      .then(() => {
-        if (commondirOutside) {
-          const snowtrackFile: string = join(workdir, '.snow');
-          return fse.writeFile(snowtrackFile, opts.commondir);
-        }
-      }).then(() => Odb.create(repo, opts))
+      .then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
         repo.repoIndexes = [];
+
+        if (commondirOutside) {
+          const snowtrackFile: string = join(workdir, '.snow');
+          return fse.writeFile(snowtrackFile, opts.commondir)
+            .then(() => hideItem(snowtrackFile));
+        }
+        return hideItem(opts.commondir);
+      }).then(() => {
         repo.repoLog = new Log(repo);
         return repo.repoLog.init();
       })
