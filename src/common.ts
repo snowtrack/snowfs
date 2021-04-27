@@ -18,7 +18,6 @@ export const MB1 = 1000000;
  */
 export class FileInfo {
   hash: string;
-  ext: string; // including '.'
 
   ext: string; // including '.'
 
