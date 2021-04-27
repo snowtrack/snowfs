@@ -1,7 +1,12 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
-
 import { normalize } from './path';
+
+let winattr;
+if (process.platform === 'win32') {
+  // eslint-disable-next-line global-require
+  winattr = require('winattr');
+}
 
 export class DirItem {
   /** Absolute path of dir item */
@@ -154,4 +159,24 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
       return fse.remove(src);
     }
   });
+}
+
+/**
+ * Hides a given directory or file. If the function failed to hide the item,
+ * the function doesn't throw an exception.
+ *
+ * @param path      Path to file or dir to hide.
+ * @returns
+ */
+export function hideItem(path: string): Promise<void> {
+  if (winattr) {
+    return new Promise<void>((resolve) => {
+      winattr.set(path, { hidden: true }, (error) => {
+        console.log(error);
+        // not being able to hide the directory shouldn't stop us here
+        resolve();
+      });
+    });
+  }
+  return Promise.resolve();
 }
