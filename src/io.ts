@@ -28,7 +28,10 @@ export enum OSWALK {
   HIDDEN = 4,
 
   /** Browse Git and/or SnowFS repositories. */
-  BROWSE_REPOS = 8
+  BROWSE_REPOS = 8,
+
+  /** Only run over the first level of the directory */
+  NO_RECURSIVE = 16
 }
 
 /**
@@ -54,7 +57,14 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
     return new Promise<string[]>((resolve, reject) => {
       fse.readdir(dirPath, (error, entries: string[]) => {
         if (error) {
-          reject(error);
+          // While browsing through a sub-directory, readdir
+          // might fail if the directory e.g. gets deleted at the same
+          // time. Therefore sub-directories don't throw an error
+          if (dirItemRef) {
+            resolve([]);
+          } else {
+            reject(error);
+          }
           return;
         }
 
@@ -66,17 +76,26 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
         const dirItemsTmp: DirItem[] = [];
 
         for (const entry of entries) {
-          if (!browseRepo && (entry === '.snow' || entry.startsWith('.git') || entry.endsWith('.DS_Store'))) {
+          if (entry === '.DS_Store' || entry === 'thumbs.db') {
+            continue;
+          } else if (!browseRepo && (entry === '.snow' || entry === '.git')) {
             continue;
           } else if (!returnHidden && entry.startsWith('.')) {
             continue;
           }
 
           const absPath = `${dirPath}/${entry}`;
-          const isDir: boolean = fse.statSync(absPath).isDirectory();
-          dirItemsTmp.push({
-            absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
-          });
+
+          try {
+            // While the function browses through a hierarchy,
+            // the item might be inaccessible or existant anymore
+            const isDir: boolean = fse.statSync(absPath).isDirectory();
+            dirItemsTmp.push({
+              absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
+            });
+          } catch (_error) {
+            // ignore error
+          }
         }
 
         if (dirItemRef) {
@@ -89,7 +108,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
             dirItems.push(dirItem);
           }
 
-          if (dirItem.isdir) {
+          if (dirItem.isdir && !(request & OSWALK.NO_RECURSIVE)) {
             promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
