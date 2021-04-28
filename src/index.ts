@@ -5,7 +5,7 @@ import {
   isAbsolute, join, relative, basename,
 } from './path';
 import * as fss from './fs-safe';
-import { IoContext, unix } from './io_context';
+import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -229,9 +229,9 @@ export class Index {
   writeFiles(flags: WRITE = WRITE.NONE): Promise<void> {
     this.throwIfNotValid();
 
-    let unprocessedRelItems: string[] = [];
-
     const ioContext = new IoContext();
+
+    let unprocessedRelItems: string[] = [];
 
     return ioContext.init()
       .then(() => {
