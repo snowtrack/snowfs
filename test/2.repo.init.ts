@@ -56,7 +56,8 @@ export function testRepoCommondirOutside(t, repo: Repository): Promise<void> {
       return osWalk(repo.commondir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     })
     .then((dirItems: DirItem[]) => {
-      t.is(dirItems.length, 12, 'expected .snow reference with 10 elements inside');
+      // Normally 12, but 13 with IMPORTANT.txt
+      t.is(dirItems.length, 13, 'expected .snow reference with 10 elements inside');
 
       t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
@@ -85,7 +86,8 @@ export function testRepoCommondirOutside(t, repo: Repository): Promise<void> {
 
 export function testRepoCommondirInside(t, repo: Repository): Promise<void> {
   return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS).then((dirItems: DirItem[]) => {
-    t.is(dirItems.length, 12 + 1, 'expect .snow reference in workdir (+1 for .snow)');
+    // Normally 12+1, but 13+1 with IMPORTANT.txt
+    t.is(dirItems.length, 13 + 1, 'expect .snow reference in workdir (+1 for .snow)');
 
     t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
     t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
