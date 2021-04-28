@@ -8,7 +8,10 @@ async function copyTest(t, searchForFilesystem: FILESYSTEM) {
   const ioContext = new IoContext();
   await ioContext.init();
   for (const [mountpoint, drive] of ioContext.drives) {
-    if (mountpoint !== '/' && !mountpoint.startsWith('/System') && drive.filesystem === searchForFilesystem) {
+    if (mountpoint !== '/'
+          && !mountpoint.startsWith('/Volumes/Recovery')
+          && !mountpoint.startsWith('/System')
+          && drive.filesystem === searchForFilesystem) {
       // eslint-disable-next-line no-await-in-loop
       const testfile = await createRandomFile(join(mountpoint, `snowfs-unittest-${createRandomString(10)}`), 25000);
       const src = testfile.filepath;
@@ -34,7 +37,7 @@ if (!process.env.GITHUB_WORKFLOW) {
   test('ReFS Test', async (t) => {
     const driveFound: boolean = await copyTest(t, FILESYSTEM.REFS);
     if (!driveFound) {
-      t.log('Skipped test because no ReFS drive could be found');
+      t.log('Skipped test because no external ReFS drive could be found');
       t.pass();
     }
   });
@@ -42,7 +45,7 @@ if (!process.env.GITHUB_WORKFLOW) {
   test('APFS Test', async (t) => {
     const driveFound: boolean = await copyTest(t, FILESYSTEM.APFS);
     if (!driveFound) {
-      t.log('Skipped test because no APFS drive could be found');
+      t.log('Skipped test because no external APFS drive could be found');
       t.pass();
     }
   });

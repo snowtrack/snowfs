@@ -976,7 +976,7 @@ export class Repository {
         // E.g: ['foo.pxd', 'foo.pxd/Info.plist', 'foo2.pxd', 'foo2.pxd/Info.plist']
         if (filter & FILTER.SORT_CASE_SENSITIVELY) {
           result.sort((a: StatusEntry, b: StatusEntry) => {
-            if (a.isDirectory() != b.isDirectory()) {
+            if (a.isDirectory() !== b.isDirectory()) {
               return a.isDirectory() ? -1 : 1;
             }
             return a.path.toLocaleLowerCase().localeCompare(b.path.toLocaleLowerCase());
