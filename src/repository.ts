@@ -247,7 +247,7 @@ export class Repository {
   commits: Commit[] = [];
 
   /** Hash Map of all commits of the repository. The commit hash is the key, and the Commit object is the value. */
-  commitMap: Map<string, Commit> = new Map();
+  commitMap = new Map<string, Commit>();
 
   /** Array of all references in the repository. The order is undefined.
    * The array does not contain the HEAD reference
@@ -805,7 +805,7 @@ export class Repository {
    * @param filter  Defines which entries the function returns
    */
   getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
-    const statusResult: Map<string, StatusEntry> = new Map();
+    const statusResult = new Map<string, StatusEntry>();
 
     const ignore = new IgnoreManager();
 

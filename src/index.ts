@@ -51,7 +51,7 @@ export class Index {
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  processed: Map<string, FileInfo> = new Map();
+  processed = new Map<string, FileInfo>();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
