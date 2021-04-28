@@ -662,17 +662,17 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   let stop = false;
 
   function parallelWrite() {
+    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
+      if (fh instanceof fse.WriteStream) {
+        fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
+      }
+    });
+
     setTimeout(() => {
       if (stop) {
         t.log('Stop parallel writes');
       } else {
         parallelWrite();
-      }
-    });
-
-    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
-      if (fh instanceof fse.WriteStream) {
-        fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
       }
     });
   }
