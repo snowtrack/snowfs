@@ -37,7 +37,7 @@ if (!process.env.GITHUB_WORKFLOW) {
   test('ReFS Test', async (t) => {
     const driveFound: boolean = await copyTest(t, FILESYSTEM.REFS);
     if (!driveFound) {
-      t.log('Skipped test because no ReFS drive could be found');
+      t.log('Skipped test because no external ReFS drive could be found');
       t.pass();
     }
   });
@@ -45,7 +45,7 @@ if (!process.env.GITHUB_WORKFLOW) {
   test('APFS Test', async (t) => {
     const driveFound: boolean = await copyTest(t, FILESYSTEM.APFS);
     if (!driveFound) {
-      t.log('Skipped test because no APFS drive could be found');
+      t.log('Skipped test because no external APFS drive could be found');
       t.pass();
     }
   });
