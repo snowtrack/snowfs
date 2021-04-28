@@ -8,7 +8,10 @@ async function copyTest(t, searchForFilesystem: FILESYSTEM) {
   const ioContext = new IoContext();
   await ioContext.init();
   for (const [mountpoint, drive] of ioContext.drives) {
-    if (mountpoint !== '/' && !mountpoint.startsWith('/System') && drive.filesystem === searchForFilesystem) {
+    if (mountpoint !== '/'
+          && !mountpoint.startsWith('/Volumes/Recovery')
+          && !mountpoint.startsWith('/System')
+          && drive.filesystem === searchForFilesystem) {
       // eslint-disable-next-line no-await-in-loop
       const testfile = await createRandomFile(join(mountpoint, `snowfs-unittest-${createRandomString(10)}`), 25000);
       const src = testfile.filepath;
