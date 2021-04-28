@@ -51,7 +51,7 @@ export class Index {
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  processed: Map<string, FileInfo> = new Map();
+  processed = new Map<string, FileInfo>();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
@@ -74,17 +74,19 @@ export class Index {
    * or can be useful to discard any added or deleted files from the index object.
    */
   invalidate(): Promise<void> {
-    return fse.unlink(this.getAbsPath())
-      .then(() => {
-        this.repo.removeIndex(this);
+    // check if index exists, this can be false if the commit has no files (--allowEmpty)
+    return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
+      if (exists) { return fse.unlink(this.getAbsPath()); }
+    }).then(() => {
+      this.repo.removeIndex(this);
 
-        this.addRelPaths = new Set();
-        this.deleteRelPaths = new Set();
-        this.processed.clear();
-        this.id = undefined;
-        this.repo = null;
-        this.odb = null;
-      });
+      this.addRelPaths = new Set();
+      this.deleteRelPaths = new Set();
+      this.processed.clear();
+      this.id = undefined;
+      this.repo = null;
+      this.odb = null;
+    });
   }
 
   /**

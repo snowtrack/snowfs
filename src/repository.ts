@@ -247,7 +247,7 @@ export class Repository {
   commits: Commit[] = [];
 
   /** Hash Map of all commits of the repository. The commit hash is the key, and the Commit object is the value. */
-  commitMap: Map<string, Commit> = new Map();
+  commitMap = new Map<string, Commit>();
 
   /** Array of all references in the repository. The order is undefined.
    * The array does not contain the HEAD reference
@@ -530,7 +530,7 @@ export class Repository {
       throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
     }
 
-    let ref: Reference;
+    let ref: Reference = null;
     const index = this.references.findIndex((r: Reference) => r.getName() === branchName && r.getType() === type);
     if (index > -1) {
       ref = this.references[index];
@@ -613,8 +613,8 @@ export class Repository {
    * @param reset     Options for the restore operation.
    */
   checkout(target: string|Reference|Commit, reset: RESET): Promise<void> {
-    let targetRef: Reference;
-    let targetCommit: Commit;
+    let targetRef: Reference = null;
+    let targetCommit: Commit = null;
     if (typeof target === 'string') {
       // check first if target is a reference name...
       const ref: Reference = this.findReferenceByName(REFERENCE_TYPE.BRANCH, target);
@@ -805,7 +805,7 @@ export class Repository {
    * @param filter  Defines which entries the function returns
    */
   getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
-    const statusResult: Map<string, StatusEntry> = new Map();
+    const statusResult = new Map<string, StatusEntry>();
 
     const ignore = new IgnoreManager();
 
@@ -929,8 +929,8 @@ export class Repository {
    * @returns        New commit object.
    */
   async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
-    let tree: TreeDir;
-    let commit: Commit;
+    let tree: TreeDir = null;
+    let commit: Commit = null;
     if (opts?.allowEmpty) {
       if (!index) {
         index = new Index(this, this.repoOdb); // dummy index if no index got passed
@@ -1032,9 +1032,9 @@ export class Repository {
   static open(workdir: string): Promise<Repository> {
     const repo = new Repository();
 
-    let odb: Odb;
-    let commondirInside: string;
-    let commondir: string;
+    let odb: Odb = null;
+    let commondirInside: string = null;
+    let commondir: string = null;
     return getSnowFSRepo(workdir).then((snowFSRepoPath: string | null) => {
       if (!snowFSRepoPath) {
         throw new Error('not a SnowFS repository (or any of the parent directories): .snow');
@@ -1096,7 +1096,7 @@ export class Repository {
           }
         }
 
-        let headRef: Reference;
+        let headRef: Reference = null;
         // check if the head is a name
         if (hashOrRefName) {
           headRef = repo.references.find((ref: Reference) => ref.getName() === hashOrRefName);
