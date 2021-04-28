@@ -160,25 +160,25 @@ test('Ignore subdirectory', async (t) => {
     .then((items: StatusEntry[]) => {
       t.is(items.length, 11);
 
-      t.is(items[0].path, 'file1.txt');
-      t.is(items[1].path, 'file2.txt');
-      t.is(items[2].path, 'file3.txt');
-      t.is(items[3].path, 'file4.txt');
-      t.is(items[4].path, 'file5.txt');
-      t.is(items[5].path, 'subdir');
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'file1.txt');
+      t.is(items[2].path, 'file2.txt');
+      t.is(items[3].path, 'file3.txt');
+      t.is(items[4].path, 'file4.txt');
+      t.is(items[5].path, 'file5.txt');
       t.is(items[6].path, 'subdir/file1.txt');
       t.is(items[7].path, 'subdir/file2.txt');
       t.is(items[8].path, 'subdir/file3.txt');
       t.is(items[9].path, 'subdir/file4.txt');
       t.is(items[10].path, 'subdir/file5.foo');
 
-      t.true(items[0].isNew());
+      t.true(items[0].isDirectory()); // subdir
+
       t.true(items[1].isNew());
       t.true(items[2].isNew());
       t.true(items[3].isNew());
       t.true(items[4].isNew());
-
-      t.true(items[5].isDirectory()); // subdir
+      t.true(items[5].isNew());
 
       t.true(items[6].isIgnored());
       t.true(items[7].isIgnored());
@@ -219,13 +219,14 @@ test('Ignore nested subdirectory', async (t) => {
     return repo.getStatus(FILTER.DEFAULT | FILTER.SORT_CASE_SENSITIVELY);
   }).then((items: StatusEntry[]) => {
     t.is(items.length, 11);
-    t.is(items[0].path, 'file1.txt');
-    t.is(items[1].path, 'file2.txt');
-    t.is(items[2].path, 'file3.txt');
-    t.is(items[3].path, 'file4.txt');
-    t.is(items[4].path, 'file5.txt');
 
-    t.is(items[5].path, 'subdir');
+    t.is(items[0].path, 'subdir');
+
+    t.is(items[1].path, 'file1.txt');
+    t.is(items[2].path, 'file2.txt');
+    t.is(items[3].path, 'file3.txt');
+    t.is(items[4].path, 'file4.txt');
+    t.is(items[5].path, 'file5.txt');
 
     t.is(items[6].path, 'subdir/file1.txt');
     t.is(items[7].path, 'subdir/file2.txt');
@@ -238,39 +239,41 @@ test('Ignore nested subdirectory', async (t) => {
     .then((items: StatusEntry[]) => {
       t.is(items.length, 17);
 
-      t.is(items[0].path, 'file1.txt');
-      t.is(items[1].path, 'file2.txt');
-      t.is(items[2].path, 'file3.txt');
-      t.is(items[3].path, 'file4.txt');
-      t.is(items[4].path, 'file5.txt');
-      t.is(items[5].path, 'subdir');
-      t.is(items[6].path, 'subdir/file1.txt');
-      t.is(items[7].path, 'subdir/file2.txt');
-      t.is(items[8].path, 'subdir/file3.txt');
-      t.is(items[9].path, 'subdir/file4.txt');
-      t.is(items[10].path, 'subdir/file5.txt');
-      t.is(items[11].path, 'subdir/subdir');
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'subdir/subdir');
+
+      t.is(items[2].path, 'file1.txt');
+      t.is(items[3].path, 'file2.txt');
+      t.is(items[4].path, 'file3.txt');
+      t.is(items[5].path, 'file4.txt');
+      t.is(items[6].path, 'file5.txt');
+
+      t.is(items[7].path, 'subdir/file1.txt');
+      t.is(items[8].path, 'subdir/file2.txt');
+      t.is(items[9].path, 'subdir/file3.txt');
+      t.is(items[10].path, 'subdir/file4.txt');
+      t.is(items[11].path, 'subdir/file5.txt');
+
       t.is(items[12].path, 'subdir/subdir/file1.txt');
       t.is(items[13].path, 'subdir/subdir/file2.txt');
       t.is(items[14].path, 'subdir/subdir/file3.txt');
       t.is(items[15].path, 'subdir/subdir/file4.txt');
       t.is(items[16].path, 'subdir/subdir/file5.txt');
 
-      t.true(items[0].isNew());
-      t.true(items[1].isNew());
+      t.true(items[0].isDirectory()); // subdir
+      t.true(items[1].isDirectory()); // subdir/subdir
+
       t.true(items[2].isNew());
       t.true(items[3].isNew());
       t.true(items[4].isNew());
-
-      t.true(items[5].isDirectory()); // subdir
-
+      t.true(items[5].isNew());
       t.true(items[6].isNew());
+
       t.true(items[7].isNew());
       t.true(items[8].isNew());
       t.true(items[9].isNew());
       t.true(items[10].isNew());
-
-      t.true(items[11].isDirectory()); // subdir/subdir
+      t.true(items[11].isNew());
 
       t.true(items[12].isIgnored());
       t.true(items[13].isIgnored());
@@ -311,13 +314,14 @@ test('Ignore comments in ignore', async (t) => {
     return repo.getStatus(FILTER.DEFAULT | FILTER.SORT_CASE_SENSITIVELY);
   }).then((items: StatusEntry[]) => {
     t.is(items.length, 11);
-    t.is(items[0].path, 'file1.txt');
-    t.is(items[1].path, 'file2.txt');
-    t.is(items[2].path, 'file3.txt');
-    t.is(items[3].path, 'file4.txt');
-    t.is(items[4].path, 'file5.txt');
 
-    t.is(items[5].path, 'subdir');
+    t.is(items[0].path, 'subdir');
+
+    t.is(items[1].path, 'file1.txt');
+    t.is(items[2].path, 'file2.txt');
+    t.is(items[3].path, 'file3.txt');
+    t.is(items[4].path, 'file4.txt');
+    t.is(items[5].path, 'file5.txt');
 
     t.is(items[6].path, 'subdir/file1.txt');
     t.is(items[7].path, 'subdir/file2.txt');
@@ -330,39 +334,40 @@ test('Ignore comments in ignore', async (t) => {
     .then((items: StatusEntry[]) => {
       t.is(items.length, 17);
 
-      t.is(items[0].path, 'file1.txt');
-      t.is(items[1].path, 'file2.txt');
-      t.is(items[2].path, 'file3.txt');
-      t.is(items[3].path, 'file4.txt');
-      t.is(items[4].path, 'file5.txt');
-      t.is(items[5].path, 'subdir');
-      t.is(items[6].path, 'subdir/file1.txt');
-      t.is(items[7].path, 'subdir/file2.txt');
-      t.is(items[8].path, 'subdir/file3.txt');
-      t.is(items[9].path, 'subdir/file4.txt');
-      t.is(items[10].path, 'subdir/file5.txt');
-      t.is(items[11].path, 'subdir/subdir');
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'subdir/subdir');
+
+      t.is(items[2].path, 'file1.txt');
+      t.is(items[3].path, 'file2.txt');
+      t.is(items[4].path, 'file3.txt');
+      t.is(items[5].path, 'file4.txt');
+      t.is(items[6].path, 'file5.txt');
+      t.is(items[7].path, 'subdir/file1.txt');
+      t.is(items[8].path, 'subdir/file2.txt');
+      t.is(items[9].path, 'subdir/file3.txt');
+      t.is(items[10].path, 'subdir/file4.txt');
+      t.is(items[11].path, 'subdir/file5.txt');
       t.is(items[12].path, 'subdir/subdir/file1.txt');
       t.is(items[13].path, 'subdir/subdir/file2.txt');
       t.is(items[14].path, 'subdir/subdir/file3.txt');
       t.is(items[15].path, 'subdir/subdir/file4.txt');
       t.is(items[16].path, 'subdir/subdir/file5.txt');
 
-      t.true(items[0].isNew());
-      t.true(items[1].isNew());
+      t.true(items[0].isDirectory()); // subdir
+
+      t.true(items[1].isDirectory()); // subdir/subdir
+
       t.true(items[2].isNew());
       t.true(items[3].isNew());
       t.true(items[4].isNew());
-
-      t.true(items[5].isDirectory()); // subdir
-
+      t.true(items[5].isNew());
       t.true(items[6].isNew());
+
       t.true(items[7].isNew());
       t.true(items[8].isNew());
       t.true(items[9].isNew());
       t.true(items[10].isNew());
-
-      t.true(items[11].isDirectory()); // subdir/subdir
+      t.true(items[11].isNew());
 
       t.true(items[12].isIgnored());
       t.true(items[13].isIgnored());
@@ -414,39 +419,39 @@ test('Ignore inline comments in ignore', async (t) => {
     .then((items: StatusEntry[]) => {
       t.is(items.length, 17);
 
-      t.is(items[0].path, 'file1.txt');
-      t.is(items[1].path, 'file2.txt');
-      t.is(items[2].path, 'file3.txt');
-      t.is(items[3].path, 'file4.txt');
-      t.is(items[4].path, 'file5.txt');
-      t.is(items[5].path, 'subdir');
-      t.is(items[6].path, 'subdir/file1.txt');
-      t.is(items[7].path, 'subdir/file2.txt');
-      t.is(items[8].path, 'subdir/file3.txt');
-      t.is(items[9].path, 'subdir/file4.txt');
-      t.is(items[10].path, 'subdir/file5.txt');
-      t.is(items[11].path, 'subdir/subdir');
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'subdir/subdir');
+
+      t.is(items[2].path, 'file1.txt');
+      t.is(items[3].path, 'file2.txt');
+      t.is(items[4].path, 'file3.txt');
+      t.is(items[5].path, 'file4.txt');
+      t.is(items[6].path, 'file5.txt');
+      t.is(items[7].path, 'subdir/file1.txt');
+      t.is(items[8].path, 'subdir/file2.txt');
+      t.is(items[9].path, 'subdir/file3.txt');
+      t.is(items[10].path, 'subdir/file4.txt');
+      t.is(items[11].path, 'subdir/file5.txt');
       t.is(items[12].path, 'subdir/subdir/file1.txt');
       t.is(items[13].path, 'subdir/subdir/file2.txt');
       t.is(items[14].path, 'subdir/subdir/file3.txt');
       t.is(items[15].path, 'subdir/subdir/file4.txt');
       t.is(items[16].path, 'subdir/subdir/file5.txt');
 
-      t.true(items[0].isNew());
-      t.true(items[1].isNew());
+      t.true(items[0].isDirectory()); // subdir
+      t.true(items[1].isDirectory()); // subdir/subdir
+
       t.true(items[2].isNew());
       t.true(items[3].isNew());
       t.true(items[4].isNew());
+      t.true(items[5].isNew());
+      t.true(items[6].isNew());
 
-      t.true(items[5].isDirectory()); // subdir
-
-      t.true(items[6].isIgnored());
       t.true(items[7].isIgnored());
       t.true(items[8].isIgnored());
       t.true(items[9].isIgnored());
       t.true(items[10].isIgnored());
-
-      t.true(items[11].isDirectory()); // subdir/subdir
+      t.true(items[11].isIgnored());
 
       t.true(items[12].isIgnored());
       t.true(items[13].isIgnored());
@@ -482,6 +487,7 @@ test('Ignore inverse', async (t) => {
     return repo.getStatus(FILTER.DEFAULT | FILTER.SORT_CASE_SENSITIVELY);
   }).then((items: StatusEntry[]) => {
     t.is(items.length, 6);
+
     t.is(items[0].path, 'file1.txt');
     t.is(items[1].path, 'file2.txt');
     t.is(items[2].path, 'file3.txt');
@@ -502,25 +508,25 @@ test('Ignore inverse', async (t) => {
     .then((items: StatusEntry[]) => {
       t.is(items.length, 11);
 
-      t.is(items[0].path, 'file1.txt');
-      t.is(items[1].path, 'file2.txt');
-      t.is(items[2].path, 'file3.txt');
-      t.is(items[3].path, 'file4.txt');
-      t.is(items[4].path, 'file5.txt');
-      t.is(items[5].path, 'subdir');
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'file1.txt');
+      t.is(items[2].path, 'file2.txt');
+      t.is(items[3].path, 'file3.txt');
+      t.is(items[4].path, 'file4.txt');
+      t.is(items[5].path, 'file5.txt');
       t.is(items[6].path, 'subdir/file1.txt');
       t.is(items[7].path, 'subdir/file2.txt');
       t.is(items[8].path, 'subdir/file3.txt');
       t.is(items[9].path, 'subdir/file4.txt');
       t.is(items[10].path, 'subdir/file5.txt');
 
-      t.true(items[0].isNew());
+      t.true(items[0].isDirectory()); // subdir
+
       t.true(items[1].isNew());
       t.true(items[2].isNew());
       t.true(items[3].isNew());
       t.true(items[4].isNew());
-
-      t.true(items[5].isDirectory()); // subdir
+      t.true(items[5].isNew());
 
       t.true(items[6].isIgnored());
       t.true(items[7].isIgnored());
