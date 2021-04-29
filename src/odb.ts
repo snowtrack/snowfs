@@ -270,7 +270,18 @@ export class Odb {
           return zipFile(tmpPath, dstFile, { deleteSrc: true });
         }
 
-        return fse.move(tmpPath, dstFile, { overwrite: false });
+        return fse.move(tmpPath, dstFile, { overwrite: false })
+          .catch((error) => {
+            // the error message below is thrown, especially on Windows if
+            // several files that are commited have the same fingerprint hash.
+            // This leads to the same dstFile, and despite 'overwrite:false',
+            // concurrent write operations might make this function fail, so
+            // we can safely ignore it
+            if (!error.message.startsWith('dest already exists')
+                && !error.message.startsWith('EPERM: operation not permitted, rename')) {
+              throw error;
+            }
+          });
       })
       .then(() => {
         if (hashBlocks) {
