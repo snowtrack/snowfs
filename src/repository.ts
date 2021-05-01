@@ -53,6 +53,8 @@ export class RepositoryInitOptions {
 
   compress?: boolean;
 
+  additionalConfig?: any;
+
   /**
    * @param commondir Path outside the repository where the versions are stored
    * @param compress true or false if the repository shall be compressed. Still needs work.

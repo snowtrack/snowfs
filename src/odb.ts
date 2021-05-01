@@ -65,7 +65,13 @@ export class Odb {
       .then(() => fse.ensureDir(join(options.commondir, 'refs')))
       .then(() => {
         odb.config = { ...defaultConfig };
-        return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(defaultConfig));
+
+        let config = { ...defaultConfig };
+        if (options.additionalConfig) {
+          config = Object.assign(config, { additionalConfig: options.additionalConfig });
+        }
+
+        return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(config));
       })
       .then(() => odb);
   }
