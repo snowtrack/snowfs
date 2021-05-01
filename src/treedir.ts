@@ -288,11 +288,15 @@ export function constructTree(
       return Promise.all(promises);
     })
     .then(() => {
-      // update all parents id hash with their children ids
+      // assign the parent 'tree' a hash of all its children
+      // and calculate their size
       const hash = crypto.createHash('sha256');
+      let size = 0;
       for (const r of tree.children) {
+        size += r.stats.size;
         hash.update(r.hash.toString());
       }
+      tree.stats.size = size;
       tree.hash = hash.digest('hex');
       return tree;
     });
