@@ -8,7 +8,7 @@ import {
 } from './path';
 import { Repository } from './repository';
 import {
-  FileInfo, getPartHash, HashBlock, MB20,
+  FileInfo, getPartHash, HashBlock, MB20, StatsSubset,
 } from './common';
 
 export const enum FILEMODE {
@@ -24,6 +24,7 @@ export class TreeEntry {
   constructor(
     public hash: string,
     public path: string,
+    public stats: StatsSubset,
   ) {
   }
 
@@ -39,14 +40,12 @@ export class TreeEntry {
 export class TreeFile extends TreeEntry {
   constructor(
     hash: string,
+    path: string,
+    stats: StatsSubset,
     public ext: string,
     public parent: TreeDir,
-    path: string,
-    public ctime: number,
-    public mtime: number,
-    public size: number,
   ) {
-    super(hash, path);
+    super(hash, path, stats);
   }
 
   toString(): string {
@@ -57,14 +56,15 @@ export class TreeFile extends TreeEntry {
       throw new Error('item must have path');
     }
 
-    const hash: string = this.hash.toString();
-    const { ctime } = this;
-    const { mtime } = this;
-    const { size } = this;
-    const { ext } = this;
-    const path: string = this.path;
     const output: any = {
-      ext, hash, ctime, mtime, size, path,
+      hash: this.hash,
+      path: this.path,
+      ext: this.ext,
+      stats: {
+        size: this.stats.size,
+        ctimeMs: this.stats.ctimeMs,
+        mtimeMs: this.stats.mtimeMs,
+      },
     };
     return JSON.stringify(output);
   }
@@ -73,17 +73,20 @@ export class TreeFile extends TreeEntry {
     const filepath = join(repo.workdir(), this.path);
     return fse.stat(filepath).then((value: fse.Stats) => {
       // first we check for for modification time and file size
-      if (this.size !== value.size) {
+      if (this.stats.size !== value.size) {
         return { file: this, modified: true };
       }
-      if (this.mtime !== value.mtime.getTime()) {
+      if (this.stats.mtimeMs !== value.mtimeMs) {
         // we hash compare every file that is smaller than 20 MB
         // Every file that is bigger than 20MB should better differ
         // in size to reflect a correct modification, otherwise
         // we simply present it as modified because it will be determined
         // when the user commits where we have more time for this
-        if (this.size < MB20) {
-          return getPartHash(filepath).then((hashBlock: HashBlock) => ({ file: this, modified: this.hash !== hashBlock.hash }));
+        if (this.stats.size < MB20) {
+          return getPartHash(filepath)
+            .then((hashBlock: HashBlock) => {
+              return { file: this, modified: this.hash !== hashBlock.hash };
+            });
         }
 
         return { file: this, modified: true };
@@ -101,13 +104,27 @@ export class TreeDir extends TreeEntry {
 
   children: (TreeEntry)[] = [];
 
-  constructor(public path: string | undefined, public parent: TreeDir = null) {
-    super(undefined, path);
+  constructor(public path: string,
+              public stats: StatsSubset,
+              public parent: TreeDir = null) {
+    super('', path, stats);
+  }
+
+  static createRootTree() {
+    return new TreeDir('', { size: 0, ctimeMs: 0, mtimeMs: 0 });
   }
 
   toString(includeChildren?: boolean): string {
+    if (!this.parent && this.path) {
+      throw new Error('parent has no path');
+    } else if (this.parent && (!this.path || this.path.length === 0)) {
+      // only the root path with no parent has no path
+      throw new Error('item must have path');
+    }
+
     const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
-    return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "children": [${children.join(',')}]}`;
+    const stats = JSON.stringify(this.stats);
+    return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "stats": ${stats}, "children": [${children.join(',')}]}`;
   }
 
   getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
@@ -215,7 +232,7 @@ export function constructTree(
   }
 
   if (!tree) {
-    tree = new TreeDir(undefined);
+    tree = TreeDir.createRootTree();
   }
 
   return new Promise<string[]>((resolve, reject) => {
@@ -241,6 +258,11 @@ export function constructTree(
             if (stat.isDirectory()) {
               const subtree: TreeDir = new TreeDir(
                 relative(root, absPath),
+                {
+                  ctimeMs: stat.ctimeMs,
+                  mtimeMs: stat.mtimeMs,
+                  size: stat.size,
+                },
                 tree,
               );
               tree.children.push(subtree);
@@ -249,7 +271,12 @@ export function constructTree(
             const fileinfo: FileInfo | null = processed?.get(relative(root, absPath));
             if (fileinfo) {
               const path: string = relative(root, absPath);
-              const entry: TreeFile = new TreeFile(fileinfo.hash, extname(path), tree, path, stat.ctime.getTime(), stat.mtime.getTime(), stat.size);
+              const entry: TreeFile = new TreeFile(fileinfo.hash,
+                path, {
+                  size: stat.size,
+                  ctimeMs: stat.ctimeMs,
+                  mtimeMs: stat.mtimeMs,
+                }, extname(path), tree);
               tree.children.push(entry);
             } else {
               // console.warn(`No hash for ${absPath}`);

@@ -15,7 +15,7 @@ export class DirItem {
   /** Relative path of dir item */
   relPath: string;
 
-  isdir: boolean;
+  stats: fse.Stats;
 
   /** If [[DirItem.isdir]] is `true`, this value indicates if the directory is empty or not. */
   isempty: boolean;
@@ -94,9 +94,9 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
           try {
             // While the function browses through a hierarchy,
             // the item might be inaccessible or existant anymore
-            const isDir: boolean = fse.statSync(absPath).isDirectory();
+            const stats: fse.Stats = fse.statSync(absPath);
             dirItemsTmp.push({
-              absPath, isdir: isDir, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
+              absPath, stats, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
             });
           } catch (_error) {
             // ignore error
@@ -109,11 +109,11 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
 
         const promises = [];
         for (const dirItem of dirItemsTmp) {
-          if ((dirItem.isdir && returnDirs) || (!dirItem.isdir && returnFiles)) {
+          if ((dirItem.stats.isDirectory() && returnDirs) || (!dirItem.stats.isDirectory() && returnFiles)) {
             dirItems.push(dirItem);
           }
 
-          if (dirItem.isdir && !(request & OSWALK.NO_RECURSIVE)) {
+          if (dirItem.stats.isDirectory() && !(request & OSWALK.NO_RECURSIVE)) {
             promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
@@ -171,9 +171,9 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
 export function hideItem(path: string): Promise<void> {
   if (winattr) {
     return new Promise<void>((resolve) => {
-      winattr.set(path, { hidden: true }, (error) => {
-        console.log(error);
+      winattr.set(path, { hidden: true }, (_error) => {
         // not being able to hide the directory shouldn't stop us here
+        // so we ignore the error
         resolve();
       });
     });

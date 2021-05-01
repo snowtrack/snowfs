@@ -12,6 +12,14 @@ export const MB10 = 10000000;
 export const MB2 = 2000000;
 export const MB1 = 1000000;
 
+export class StatsSubset {
+  size: number;
+
+  ctimeMs: number;
+
+  mtimeMs: number;
+}
+
 /**
  * A commonly used class which contains a hash and
  * file stats of a given file
@@ -21,12 +29,7 @@ export class FileInfo {
 
   ext: string; // including '.'
 
-  stat: {
-    size: number,
-    atime: number;
-    mtime: number;
-    ctime: number;
-  }
+  stat: StatsSubset;
 }
 
 /**

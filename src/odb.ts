@@ -298,9 +298,8 @@ export class Odb {
             hash: filehash,
             stat: {
               size: stat.size,
-              atime: stat.atime.getTime(),
-              mtime: stat.mtime.getTime(),
-              ctime: stat.ctime.getTime(),
+              ctimeMs: stat.ctimeMs,
+              mtimeMs: stat.mtimeMs,
             },
           },
         })))
