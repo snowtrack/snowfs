@@ -1107,14 +1107,21 @@ export class Repository {
     let odb: Odb = null;
     let commondirInside: string = null;
     let commondir: string = null;
-    return getSnowFSRepo(workdir).then((snowFSRepoPath: string | null) => {
-      if (!snowFSRepoPath) {
-        throw new Error('not a SnowFS repository (or any of the parent directories): .snow');
-      }
-      workdir = snowFSRepoPath;
-      commondirInside = join(workdir, '.snow');
-      return fse.stat(commondirInside);
-    })
+    return fse.pathExists(workdir)
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error('workdir doesn\'t exist');
+        }
+        return getSnowFSRepo(workdir);
+      })
+      .then((snowFSRepoPath: string | null) => {
+        if (!snowFSRepoPath) {
+          throw new Error('directory contains no .snow');
+        }
+        workdir = snowFSRepoPath;
+        commondirInside = join(workdir, '.snow');
+        return fse.stat(commondirInside);
+      })
       .then((stat: fse.Stats) => {
         if (stat.isFile()) {
           return fse.readFile(commondirInside).then((buf: Buffer) => buf.toString());
