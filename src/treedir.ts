@@ -69,14 +69,14 @@ export class TreeFile extends TreeEntry {
     return JSON.stringify(output);
   }
 
-  isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean}> {
+  isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {
     const filepath = join(repo.workdir(), this.path);
-    return fse.stat(filepath).then((value: fse.Stats) => {
+    return fse.stat(filepath).then((newStats: fse.Stats) => {
       // first we check for for modification time and file size
-      if (this.stats.size !== value.size) {
-        return { file: this, modified: true };
+      if (this.stats.size !== newStats.size) {
+        return { file: this, modified: true, newStats };
       }
-      if (this.stats.mtimeMs !== value.mtimeMs) {
+      if (this.stats.mtimeMs !== newStats.mtimeMs) {
         // we hash compare every file that is smaller than 20 MB
         // Every file that is bigger than 20MB should better differ
         // in size to reflect a correct modification, otherwise
@@ -85,14 +85,14 @@ export class TreeFile extends TreeEntry {
         if (this.stats.size < MB20) {
           return getPartHash(filepath)
             .then((hashBlock: HashBlock) => {
-              return { file: this, modified: this.hash !== hashBlock.hash };
+              return { file: this, modified: this.hash !== hashBlock.hash, newStats };
             });
         }
 
-        return { file: this, modified: true };
+        return { file: this, modified: true, newStats };
       }
 
-      return { file: this, modified: false };
+      return { file: this, modified: false, newStats };
     });
   }
 }
