@@ -776,10 +776,10 @@ test('performWriteLockChecks / no access', async (t) => {
     const ioContext = new IoContext();
     const error = await t.throwsAsync(() => ioContext.performWriteLockChecks(absDir, ['foo.txt']));
     if (error) {
-      if (process.platform === 'win32' && error.message.includes('permission denied')) {
+      if (process.platform === 'win32' && error.message.startsWith('EPERM: operation not permitted, access')) {
         t.log('succesfully detected foo.txt as not accessible');
         t.pass();
-      } else if (process.platform !== 'win32' && error.message.startsWith('EPERM: operation not permitted, access')) {
+      } else if (process.platform !== 'win32' && error.message.includes('permission denied')) {
         t.log('succesfully detected foo.txt as not accessible');
         t.pass();
       } else {
