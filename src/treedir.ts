@@ -20,6 +20,26 @@ export const enum FILEMODE {
   COMMIT = 57344,
 }
 
+export const enum DETECTIONMODE {
+  /**
+   * Only perform a size and mktime check. If the modified time differs between the commited file
+   * and the one in the working directory, the file is identified as modified.
+   * If the modified time is the same, the file is not identified as modified.
+   */
+  ONLY_SIZE_AND_MKTIME = 1,
+  
+  /**
+   * Perform a size and hash check for all files smaller than 20 MB.
+   */
+  SIZE_AND_HASH_FOR_SMALL_FILES = 2,
+  
+  /**
+   * Perform a size and hash check for all files. Please note, 
+   * that this is the slowest of all detection modes.
+   */
+  SIZE_AND_HASH_FOR_ALL_FILES = 3
+}
+
 export class TreeEntry {
   constructor(
     public hash: string,
@@ -69,7 +89,7 @@ export class TreeFile extends TreeEntry {
     return JSON.stringify(output);
   }
 
-  isFileModified(repo: Repository): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {
+  isFileModified(repo: Repository, detectionMode: DETECTIONMODE): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {
     const filepath = join(repo.workdir(), this.path);
     return fse.stat(filepath).then((newStats: fse.Stats) => {
       // first we check for for modification time and file size
@@ -77,19 +97,21 @@ export class TreeFile extends TreeEntry {
         return { file: this, modified: true, newStats };
       }
       if (this.stats.mtimeMs !== newStats.mtimeMs) {
-        // we hash compare every file that is smaller than 20 MB
-        // Every file that is bigger than 20MB should better differ
-        // in size to reflect a correct modification, otherwise
-        // we simply present it as modified because it will be determined
-        // when the user commits where we have more time for this
-        if (this.stats.size < MB20) {
-          return getPartHash(filepath)
-            .then((hashBlock: HashBlock) => {
-              return { file: this, modified: this.hash !== hashBlock.hash, newStats };
-            });
+        switch (detectionMode) {
+          case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
+            return { file: this, modified: true, newStats };
+          case DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES:
+            break;
+          case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
+            if (this.stats.size >= MB20) {
+              return { file: this, modified: true, newStats };
+            }
         }
-
-        return { file: this, modified: true, newStats };
+        
+        return getPartHash(filepath)
+          .then((hashBlock: HashBlock) => {
+            return { file: this, modified: this.hash !== hashBlock.hash, newStats };
+          });
       }
 
       return { file: this, modified: false, newStats };

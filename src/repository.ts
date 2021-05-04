@@ -18,7 +18,7 @@ import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Reference } from './reference';
 import {
-  constructTree, TreeDir, TreeEntry, TreeFile,
+  constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
 // eslint-disable-next-line import/order
@@ -107,6 +107,18 @@ export const enum RESET {
    */
   DETACH = 8,
 
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
+   */
+  DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
+
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
+   */
+  DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
+
   /** Default flag passed to [[Repository.restoreVersion]] */
   DEFAULT = RESTORE_MODIFIED_ITEMS | DELETE_NEW_ITEMS | RESTORE_DELETED_ITEMS
 }
@@ -144,7 +156,19 @@ export const enum FILTER {
   SORT_CASE_SENSITIVELY = 512,
 
   /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_SENSITIVELY. */
-  SORT_CASE_INSENSITIVELY = 1024
+  SORT_CASE_INSENSITIVELY = 1024,
+
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
+   */
+   DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
+
+   /**
+    * Overwrites the default detection mode, which is only to trust hte mktime.
+    * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
+    */
+   DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
 }
 
 /** Initialize a new [[StatusEntry]] */
@@ -739,6 +763,13 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
+    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
+    if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
+    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
+    }
+
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
@@ -825,7 +856,7 @@ export class Repository {
             const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
             if (tfile) {
               relPathChecks.push(tfile.path);
-              tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
+              tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
                 if (res.modified) {
                   const dst: string = join(this.repoWorkDir, res.file.path);
                   return this.repoOdb.readObject(res.file, dst, ioContext);
@@ -862,11 +893,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
+              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
             }
           } else {
             relPathChecks.push(candidate.path);
-            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
           }
         });
 
@@ -901,6 +932,14 @@ export class Repository {
     const statusResult = new Map<string, StatusEntry>();
 
     const ignore = new IgnoreManager();
+
+
+    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
+    if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
+    } else if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
+    }
 
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
@@ -989,7 +1028,7 @@ export class Repository {
 
           for (const existingEntry of entries) {
             if (existingEntry instanceof TreeFile) {
-              promises.push(existingEntry.isFileModified(this));
+              promises.push(existingEntry.isFileModified(this, detectionMode));
             }
           }
         }
