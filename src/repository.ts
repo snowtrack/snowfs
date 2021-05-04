@@ -652,6 +652,10 @@ export class Repository {
       throw new Error('cannot find commit');
     }
 
+    if (!commit.parent || commit.parent.length === 0) {
+      throw new Error('cannot delete first commit');
+    }
+
     const parentOfDeletedCommit = commit.parent;
 
     const updateCommits = [];
