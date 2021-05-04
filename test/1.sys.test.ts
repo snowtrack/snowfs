@@ -770,13 +770,16 @@ test('performWriteLockChecks / no access', async (t) => {
     const tmpFile = join(absDir, 'foo.txt');
     t.log(`Create ${tmpFile}`);
     fse.ensureFileSync(tmpFile);
-    t.log(`Set 0400 to ${tmpFile}`);
-    fse.chmodSync(tmpFile, fse.constants.S_IRUSR);
+    t.log(`Set chmod(444) for ${tmpFile}`);
+    fse.chmodSync(tmpFile, fse.constants.O_RDONLY);
 
     const ioContext = new IoContext();
     const error = await t.throwsAsync(() => ioContext.performWriteLockChecks(absDir, ['foo.txt']));
     if (error) {
-      if (error.message.includes('permission denied')) {
+      if (process.platform === 'win32' && error.message.includes('permission denied')) {
+        t.log('succesfully detected foo.txt as not accessible');
+        t.pass();
+      } else if (process.platform !== 'win32' && error.message.startsWith('EPERM: operation not permitted, access')) {
         t.log('succesfully detected foo.txt as not accessible');
         t.pass();
       } else {
