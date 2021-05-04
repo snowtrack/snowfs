@@ -933,7 +933,6 @@ export class Repository {
 
     const ignore = new IgnoreManager();
 
-
     let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
     if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;

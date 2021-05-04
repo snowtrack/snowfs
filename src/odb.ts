@@ -318,15 +318,15 @@ export class Odb {
     const objectFile: string = this.getAbsObjectPath(file);
 
     return fse.pathExists(objectFile)
-    .then((exists: boolean) => {
-      if (!exists) {
-        throw new Error(`object ${hash} not found`);
-      }
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error(`object ${hash} not found`);
+        }
 
-      return fse.ensureDir(dirname(dstAbsPath));
-    }).then(() => {
+        return fse.ensureDir(dirname(dstAbsPath));
+      }).then(() => {
         return ioContext.copyFile(objectFile, dstAbsPath);
-    }).then(() => {
+      }).then(() => {
         return new Promise<void>((resolve, reject) => {
           // restore mtimes
           fse.utimes(dstAbsPath, new Date(), new Date(file.stats.mtimeMs), (error) => {
@@ -337,6 +337,6 @@ export class Odb {
             }
           });
         });
-    });
+      });
   }
 }

@@ -27,14 +27,14 @@ export const enum DETECTIONMODE {
    * If the modified time is the same, the file is not identified as modified.
    */
   ONLY_SIZE_AND_MKTIME = 1,
-  
+
   /**
    * Perform a size and hash check for all files smaller than 20 MB.
    */
   SIZE_AND_HASH_FOR_SMALL_FILES = 2,
-  
+
   /**
-   * Perform a size and hash check for all files. Please note, 
+   * Perform a size and hash check for all files. Please note,
    * that this is the slowest of all detection modes.
    */
   SIZE_AND_HASH_FOR_ALL_FILES = 3
@@ -101,14 +101,16 @@ export class TreeFile extends TreeEntry {
         switch (detectionMode) {
           case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
             return { file: this, modified: true, newStats };
-          case DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES:
-            break;
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
             if (this.stats.size >= MB20) {
               return { file: this, modified: true, newStats };
             }
+            break;
+          case DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES:
+          default:
+            break;
         }
-        
+
         return getPartHash(filepath)
           .then((hashBlock: HashBlock) => {
             return { file: this, modified: this.hash !== hashBlock.hash, newStats };

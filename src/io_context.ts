@@ -433,7 +433,6 @@ export class IoContext {
    * @throws {AggregateError} Aggregated error of StacklessError
    */
   performWriteLockChecks(dir: string, relPaths: string[]): Promise<void> {
-
     function checkAccess(absPaths: string[]) {
       const promises = [];
 
@@ -489,7 +488,8 @@ export class IoContext {
           }
 
           return Promise.all(promises);
-        }).then((stats: fse.Stats[]) => {
+        })
+        .then((stats: fse.Stats[]) => {
           if (stats.length !== relPaths.length) {
             throw new Error('Internal error: stats != paths');
           }
@@ -511,7 +511,6 @@ export class IoContext {
     }
 
     function checkUnixLike(relPaths): Promise<void> {
-
       const absPaths = relPaths.map((p: string) => join(dir, p));
       return checkAccess(absPaths)
         .then(() => {
