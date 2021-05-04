@@ -96,7 +96,8 @@ export class TreeFile extends TreeEntry {
       if (this.stats.size !== newStats.size) {
         return { file: this, modified: true, newStats };
       }
-      if (this.stats.mtimeMs !== newStats.mtimeMs) {
+
+      if (Math.floor(this.stats.mtimeMs) !== Math.floor(newStats.mtimeMs)) {
         switch (detectionMode) {
           case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
             return { file: this, modified: true, newStats };
