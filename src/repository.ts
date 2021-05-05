@@ -14,7 +14,7 @@ import { Index } from './index';
 import {
   DirItem, hideItem, OSWALK, osWalk,
 } from './io';
-import { IoContext } from './io_context';
+import { IoContext, TEST_IF } from './io_context';
 import { Odb } from './odb';
 import { Reference } from './reference';
 import {
@@ -902,7 +902,7 @@ export class Repository {
           }
         });
 
-        return ioContext.performWriteLockChecks(this.workdir(), relPathChecks);
+        return ioContext.performFileAccessCheck(this.workdir(), relPathChecks, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
       })
       .then(() => {
         return PromisePool

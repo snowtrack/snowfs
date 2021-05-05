@@ -5,7 +5,7 @@ import {
   isAbsolute, join, relative, basename,
 } from './path';
 import * as fss from './fs-safe';
-import { IoContext } from './io_context';
+import { IoContext, TEST_IF } from './io_context';
 import { Odb } from './odb';
 import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
@@ -242,7 +242,7 @@ export class Index {
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
         }
-        return ioContext.performWriteLockChecks(this.repo.workdir(), unprocessedRelItems);
+        return ioContext.performFileAccessCheck(this.repo.workdir(), unprocessedRelItems, TEST_IF.FILE_CAN_BE_READ_FROM);
       }).then(() => {
         return PromisePool
           .withConcurrency(32)

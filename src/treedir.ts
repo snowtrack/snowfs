@@ -97,7 +97,13 @@ export class TreeFile extends TreeEntry {
         return { file: this, modified: true, newStats };
       }
 
-      if (Math.floor(this.stats.mtimeMs) !== Math.floor(newStats.mtimeMs)) {
+      // When a commit is checked out, 'mtime' of restored items is set by fse.utimes.
+      // The fractional part (microseconds) of mtime comes from JSON and might be
+      // clamped (rounding errors). It's also not guaranteed that all filesystems support
+      // microseconds. That's why all items are identified if the mtime from the commit
+      // and the mtime from the file on disk is greater than 1ms, everything below is
+      // considered equal.
+      if (Math.abs(this.stats.mtimeMs - newStats.mtimeMs) >= 1.0) {
         switch (detectionMode) {
           case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
             return { file: this, modified: true, newStats };
