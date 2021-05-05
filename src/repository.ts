@@ -953,7 +953,7 @@ export class Repository {
         walk |= filter & FILTER.INCLUDE_DIRECTORIES ? OSWALK.DIRS : 0;
         return osWalk(this.repoWorkDir, walk);
       })
-      .then((currentFilesInProj: DirItem[]) => {
+      .then((currentItemsInProj: DirItem[]) => {
         const targetCommit: Commit = commit ?? this.getCommitByHead();
         const promises = [];
 
@@ -963,13 +963,15 @@ export class Repository {
         }
 
         // Get all tree entries from HEAD
-        const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-        const curFilesMap: Map<string, DirItem> = new Map(currentFilesInProj.map((x: DirItem) => [x.relPath, x]));
+        const oldItemsMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+        const curItemsMap: Map<string, DirItem> = new Map(currentItemsInProj.map((x: DirItem) => [x.relPath, x]));
 
-        const oldFiles: TreeEntry[] = Array.from(oldFilesMap.values());
+        const oldItems: TreeEntry[] = Array.from(oldItemsMap.values());
 
         if (filter & FILTER.INCLUDE_IGNORED) {
-          const ignored: DirItem[] = currentFilesInProj.filter((value) => ignore.ignored(value.relPath));
+          const areIgnored: Set<string> = ignore.ignoredList(currentItemsInProj.map((item) => item.relPath));
+
+          const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.relPath, new StatusEntry({
@@ -982,10 +984,18 @@ export class Repository {
           }
         }
 
-        // Files which didn't exist before, but do now
+        // Items which didn't exist before, but do now
         if (filter & FILTER.INCLUDE_UNTRACKED) {
-          const entries: DirItem[] = currentFilesInProj.filter((value) => !oldFilesMap.has(value.relPath) && !ignore.ignored(value.relPath));
-          for (const entry of entries) {
+          // check which items are new and didn't exist in the old commit
+          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => !oldItemsMap.has(item.relPath));
+
+          /// check which items of the new items are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+
+          // get the list of new items which are not ignored
+          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
+
+          for (const entry of itemsStep2) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.relPath, new StatusEntry({
                 path: entry.relPath,
@@ -996,11 +1006,18 @@ export class Repository {
           }
         }
 
-        // Files which existed before but don't anymore
+        // Items which existed before but don't anymore
         if (filter & FILTER.INCLUDE_DELETED) {
-          const entries: TreeEntry[] = oldFiles.filter((value) => !curFilesMap.has(value.path) && !ignore.ignored(value.path));
+          // check which items are deleted now
+          const itemsStep1: TreeEntry[] = oldItems.filter((item) => !curItemsMap.has(item.path));
 
-          for (const entry of entries) {
+          /// check which items of the deleted items are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+
+          // get the list of deleted items which are not ignored
+          const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
+
+          for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.isDirectory()));
             }
@@ -1008,26 +1025,40 @@ export class Repository {
         }
 
         if (filter & FILTER.INCLUDE_DIRECTORIES) {
-          for (const entry of currentFilesInProj) {
-            if (entry.stats.isDirectory() && !statusResult.has(entry.relPath) && !ignore.ignored(entry.relPath)) {
-              // the status of this directory will later be overwritten in case
-              // the directory contains a file that is modified
-              statusResult.set(entry.relPath, new StatusEntry({
-                path: entry.relPath,
-                status: 0,
-                stats: entry.stats,
-              }, true));
-            }
+          // check which items are a directory
+          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
+
+          /// check which items of the directories are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+
+          // get the list of directories which are not ignored
+          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
+
+          for (const item of itemsStep2) {
+            // the status of this directory will later be overwritten in case
+            // the directory contains a file that is modified
+            statusResult.set(item.relPath, new StatusEntry({
+              path: item.relPath,
+              status: 0,
+              stats: item.stats,
+            }, true));
           }
         }
 
-        // Check which files were modified
+        // Check which items were modified
         if (filter & FILTER.INCLUDE_MODIFIED) {
-          const entries: TreeEntry[] = oldFiles.filter((value) => curFilesMap.has(value.path) && !ignore.ignored(value.path));
+          // check which items did exist before and now
+          const itemsStep1: TreeEntry[] = oldItems.filter((item) => curItemsMap.has(item.path));
 
-          for (const existingEntry of entries) {
-            if (existingEntry instanceof TreeFile) {
-              promises.push(existingEntry.isFileModified(this, detectionMode));
+          /// check which items of the still existing items are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+
+          // get the list of items which are not ignored
+          const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
+
+          for (const existingItem of itemsStep2) {
+            if (existingItem instanceof TreeFile) {
+              promises.push(existingItem.isFileModified(this, detectionMode));
             }
           }
         }
