@@ -62,7 +62,7 @@ async function createRandomBuffer() {
 async function createFile(dst: string, size: number, t = console) {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
 
-  const delimiter: string = `Create ${basename(dst)} file of ${size} bytes`;
+  const delimiter = `Create ${basename(dst)} file of ${size} bytes`;
   let t0 = new Date().getTime();
   let curSize: number = 0;
 

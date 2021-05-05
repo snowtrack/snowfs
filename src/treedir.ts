@@ -135,7 +135,7 @@ export class TreeDir extends TreeEntry {
     super('', path, stats);
   }
 
-  static createRootTree() {
+  static createRootTree(): TreeDir {
     return new TreeDir('', { size: 0, ctimeMs: 0, mtimeMs: 0 });
   }
 
@@ -216,7 +216,6 @@ export class TreeDir extends TreeEntry {
       }
     }
 
-    const tree: TreeEntry| null = null;
     // TODO: (Seb) return faster if found
     privateDelete(this, (entry: TreeEntry): boolean => {
       if (entry.path === relativePath) {
@@ -228,7 +227,7 @@ export class TreeDir extends TreeEntry {
   static walk(
     tree: TreeDir,
     cb: (entry: TreeDir | TreeFile, index: number, length: number) => void,
-  ) {
+  ): void {
     let i = 0;
     for (const entry of tree.children) {
       cb(<TreeFile>entry, i, tree.children.length);

@@ -50,7 +50,7 @@ export function rmDirRecursive(dir: string): Promise<void> {
   });
 }
 
-export function createRandomString(length: number) {
+export function createRandomString(length: number): string {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const charactersLength = characters.length;
@@ -93,7 +93,7 @@ export function exec(t, command: string, args?: string[], opts?: {cwd?: string},
 
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });
   return new Promise((resolve, reject) => {
-    let std: string = '';
+    let std = '';
     if (stdiopts & EXEC_OPTIONS.WRITE_STDIN) {
       p0.stdin.write(`${stdin}\n`);
       p0.stdin.end(); /// this call seems necessary, at least with plain node.js executable

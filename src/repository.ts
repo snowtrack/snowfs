@@ -49,6 +49,8 @@ export class RepositoryInitOptions {
 
   compress?: boolean;
 
+  additionalConfig?: any;
+
   /**
    * @param commondir Path outside the repository where the versions are stored
    * @param compress true or false if the repository shall be compressed. Still needs work.
@@ -817,11 +819,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
+              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
             }
           } else {
             relPathChecks.push(candidate.path);
-            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path)));
+            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
           }
         });
 

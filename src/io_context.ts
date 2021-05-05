@@ -69,7 +69,7 @@ export class FileHandle {
   filepath: string;
 }
 
-export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
+export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
   try {
     return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
       const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
@@ -137,7 +137,7 @@ export async function whichFilesInDirAreOpen(dirpath: string): Promise<Map<strin
     });
   } catch (error) {
     console.log(error);
-    return new Map();
+    return Promise.resolve(new Map());
   }
 }
 
@@ -563,12 +563,14 @@ export class IoContext {
    * Move a file into the trash of the operating system. `SnowFS` tends to avoid
    * destructive delete operations at all costs, and rather moves files into the trash.
    *
-   * @param path        The file to move to the trash.
+   * @param absPath     The file or directory to move to the trash.
+   * @param relPath     Optional path used in an error message in case the operation fails.
+   *                    Used to make error messages shorter.
    * @param execPath    If `SnowFS` is embedded in another application, the resource path
    *                    might be located somewhere else. Can be set so `SnowFS` can find
    *                    the executables.
   */
-  static putToTrash(path: string): Promise<void> {
+  static putToTrash(absPath: string, relPath?: string): Promise<void> {
     let trashPath: string = IoContext.trashExecPath;
     if (!trashPath) {
       switch (process.platform) {
@@ -614,14 +616,14 @@ export class IoContext {
       }
     }
 
-    return fse.pathExists(path)
+    return fse.pathExists(absPath)
       .then((exists: boolean) => {
         if (!exists) {
-          throw new Error(`${path} no such file or directory`);
+          throw new Error(`${absPath} no such file or directory`);
         }
 
         return new Promise((resolve, reject) => {
-          const proc = spawn(trashPath, [path]);
+          const proc = spawn(trashPath, [absPath]);
 
           proc.on('exit', (code: number) => {
             if (code === 0) {
@@ -631,7 +633,7 @@ export class IoContext {
               if (stderr) {
                 reject(stderr.toString());
               } else {
-                reject(code);
+                reject(new Error(`cannot move '${relPath ?? absPath}' to trash`));
               }
             }
           });

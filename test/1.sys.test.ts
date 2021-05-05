@@ -37,8 +37,8 @@ const exampleFiles = [
   join('y', '1', '2', 'file6'),
 ];
 
-const LOG_DIRECTORY: string = 'Check getRepoDetails(..) with directory path';
-const LOG_FILE: string = 'Check getRepoDetails(..) with  filepath:';
+const LOG_DIRECTORY = 'Check getRepoDetails(..) with directory path';
+const LOG_FILE = 'Check getRepoDetails(..) with  filepath:';
 
 async function createDirs(t, tmpDir: string, dirs: string[]) {
   if (dirs.length === 0) {
@@ -62,7 +62,7 @@ function getUniquePaths(dirSet: string[]): string[] {
 
   const visitedPaths: Set<string> = new Set();
   for (const dir of dirSet) {
-    let sumPath: string = '';
+    let sumPath = '';
     for (const p of dir.split('/')) {
       sumPath = join(sumPath, p);
       visitedPaths.add(sumPath);
@@ -151,7 +151,7 @@ test('osWalk test#2a', async (t) => {
     /// //////////////////////////////////////////////////////////////////////////
     t.log('Create a set of directories and files and verify with osWalk(returnDirs=true, returnFiles=true)');
     /// //////////////////////////////////////////////////////////////////////////
-    const tmpDir: string = `${await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'))}/`;
+    const tmpDir = `${await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'))}/`;
     await createDirs(t, tmpDir, exampleDirs);
     for (let file of exampleFiles) {
       file = join(tmpDir, file);
@@ -347,7 +347,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  function runTest(filepath: string = '', errorMessage?: string) {
+  function runTest(filepath = '', errorMessage?: string) {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -410,7 +410,7 @@ test('getRepoDetails (.git)', async (t) => {
   t.plan(4);
 
   let tmpDir: string;
-  async function runTest(filepath: string = '') {
+  async function runTest(filepath = '') {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -456,7 +456,7 @@ test('getRepoDetails (.git and .snow)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  async function runTest(filepath: string = '') {
+  async function runTest(filepath = '') {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -642,12 +642,12 @@ async function performWriteLockCheckTest(t, fileCount: number) {
 
   const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
 
-  const noFileHandleFile: string = 'no-file-handle.txt';
+  const noFileHandleFile = 'no-file-handle.txt';
   const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
   fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
   fileHandles.set(noFileHandleFile, null);
 
-  const readFileHandleFile: string = 'read-file-handle.txt';
+  const readFileHandleFile = 'read-file-handle.txt';
   const absReadFileHandleFile = join(absDir, readFileHandleFile);
   fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
   fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
