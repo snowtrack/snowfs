@@ -40,6 +40,11 @@ export class Drive {
   }
 }
 
+export enum TEST_IF {
+  FILE_CAN_BE_READ_FROM = 1,
+  FILE_CAN_BE_WRITTEN_TO = 2
+}
+
 export namespace unix {
 
 /**
@@ -425,20 +430,21 @@ export class IoContext {
   }
 
   /**
-   * Check if the given filepaths are write-locked by another process.
+   * Check if the given filepaths are accessibled by another process.
    * For more information, or to add comments visit https://github.com/Snowtrack/SnowFS/discussions/110
    *
    * @param dir               The root directory path to check
    * @param relPaths          Relative file paths inside the given directory.
+   * @param testIf	      Request which access test should be applied on the tests.
    * @throws {AggregateError} Aggregated error of StacklessError
    */
-  performWriteLockChecks(dir: string, relPaths: string[]): Promise<void> {
+  performFileAccessCheck(dir: string, relPaths: string[], testIf: TEST_IF): Promise<void> {
     function checkAccess(absPaths: string[]) {
       const promises = [];
 
       for (const absPath of absPaths) {
         promises.push(new Promise<void>((resolve, reject) => {
-          fse.access(absPath, fse.constants.W_OK, (error) => {
+          fse.access(absPath, testIf === TEST_IF.FILE_CAN_BE_READ_FROM ? fse.constants.R_OK : fse.constants.W_OK, (error) => {
             if (error) {
               reject(error);
             } else {
