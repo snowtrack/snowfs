@@ -9,7 +9,7 @@ import {
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
-import { IoContext } from '../src/io_context';
+import { IoContext, TEST_IF } from '../src/io_context';
 import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
@@ -683,7 +683,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
 
   const ioContext = new IoContext();
   try {
-    await ioContext.performWriteLockChecks(absDir, Array.from(fileHandles.keys()));
+    await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
     t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
       t.true(true); // to satisfy t.plan
@@ -715,7 +715,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   stop = true;
 }
 
-test('performWriteLockChecks / 0 file', async (t) => {
+test('performFileAccessCheck / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
@@ -724,7 +724,7 @@ test('performWriteLockChecks / 0 file', async (t) => {
   }
 });
 
-test('performWriteLockChecks / 1 file', async (t) => {
+test('performFileAccessCheck / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
@@ -733,7 +733,7 @@ test('performWriteLockChecks / 1 file', async (t) => {
   }
 });
 
-test('performWriteLockChecks / 10 file', async (t) => {
+test('performFileAccessCheck / 10 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 10);
   } catch (error) {
@@ -742,7 +742,7 @@ test('performWriteLockChecks / 10 file', async (t) => {
   }
 });
 
-test('performWriteLockChecks / 100 file', async (t) => {
+test('performFileAccessCheck / 100 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 100);
   } catch (error) {
@@ -751,7 +751,7 @@ test('performWriteLockChecks / 100 file', async (t) => {
   }
 });
 
-test('performWriteLockChecks / 1000 file', async (t) => {
+test('performFileAccessCheck / 1000 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1000);
   } catch (error) {
@@ -760,7 +760,7 @@ test('performWriteLockChecks / 1000 file', async (t) => {
   }
 });
 
-test('performWriteLockChecks / no access', async (t) => {
+test('performFileAccessCheck / no access', async (t) => {
   try {
     const tmp = join(process.cwd(), 'tmp');
     fse.ensureDirSync(tmp);
@@ -771,19 +771,22 @@ test('performWriteLockChecks / no access', async (t) => {
     t.log(`Create ${tmpFile}`);
     fse.ensureFileSync(tmpFile);
     t.log(`Set chmod(444) for ${tmpFile}`);
-    fse.chmodSync(tmpFile, fse.constants.O_RDONLY);
+    fse.chmodSync(tmpFile, fse.constants.S_IRUSR | fse.constants.S_IRGRP | fse.constants.S_IROTH);
 
     const ioContext = new IoContext();
-    const error = await t.throwsAsync(() => ioContext.performWriteLockChecks(absDir, ['foo.txt']));
-    if (error) {
-      if (process.platform === 'win32' && error.message.startsWith('EPERM: operation not permitted, access')) {
+
+    await t.notThrowsAsync(() => ioContext.performFileAccessCheck(absDir, ['foo.txt'], TEST_IF.FILE_CAN_BE_READ_FROM));
+
+    const error2 = await t.throwsAsync(() => ioContext.performFileAccessCheck(absDir, ['foo.txt'], TEST_IF.FILE_CAN_BE_WRITTEN_TO));
+    if (error2) {
+      if (process.platform === 'win32' && error2.message.startsWith('EPERM: operation not permitted, access')) {
         t.log('succesfully detected foo.txt as not accessible');
         t.pass();
-      } else if (process.platform !== 'win32' && error.message.includes('permission denied')) {
+      } else if (process.platform !== 'win32' && error2.message.includes('permission denied')) {
         t.log('succesfully detected foo.txt as not accessible');
         t.pass();
       } else {
-        throw new Error(`expected function to detect foo.txt as not accessible but received: ${error.message}`);
+        throw new Error(`expected function to detect foo.txt as not accessible but received: ${error2.message}`);
       }
     } else {
       throw new Error('expected function to detect foo.txt as not accessible but function succeeded');
