@@ -64,7 +64,7 @@ test('snow switch', async (t) => {
 
     // eslint-disable-next-line no-await-in-loop
     out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-    t.true((out as String).includes(`A branch 'branch-${i}' got created.`));
+    t.true((out as string).includes(`A branch 'branch-${i}' got created.`));
   }
 
   await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
@@ -163,7 +163,7 @@ test('snow checkout', async (t) => {
 
     // eslint-disable-next-line no-await-in-loop
     out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-    t.true((out as String).includes(`A branch 'branch-${i}' got created.`));
+    t.true((out as string).includes(`A branch 'branch-${i}' got created.`));
   }
 
   await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
@@ -275,7 +275,7 @@ test('snow branch foo-branch', async (t) => {
 
   // snow branch foo-branch
   out = await exec(t, snow, ['branch', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as String).includes("A branch 'foo-branch' got created."));
+  t.true((out as string).includes("A branch 'foo-branch' got created."));
 
   // the hash of 'foo-branch' must match the hash
   const repoAfter = await Repository.open(snowWorkdir);
@@ -289,7 +289,7 @@ test('snow branch foo-branch', async (t) => {
   // Create a branch with a different starting point
   // snow branch bar-branch 768FF3AA8273DFEB81E7A111572C823EA0850499
   out = await exec(t, snow, ['branch', 'bar-branch', firstCommit.hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as String).includes("A branch 'bar-branch' got created."));
+  t.true((out as string).includes("A branch 'bar-branch' got created."));
 
   // verify the target() and start() point are equal (in this case the
   // start-point and target are still the same since the branch didn't move forward)
@@ -305,9 +305,9 @@ test('snow branch foo-branch', async (t) => {
 
   // Delete foo-branch and bar branch
   out = await exec(t, snow, ['branch', '--delete', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as String).includes(`Deleted branch 'foo-branch' (was ${fooBranch.target()})`));
+  t.true((out as string).includes(`Deleted branch 'foo-branch' (was ${fooBranch.target()})`));
   out = await exec(t, snow, ['branch', '--delete', 'bar-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as String).includes(`Deleted branch 'bar-branch' (was ${barBranch.target()})`));
+  t.true((out as string).includes(`Deleted branch 'bar-branch' (was ${barBranch.target()})`));
 
   // Try to delete the HEAD branch which must fail
   error = await t.throwsAsync(async () =>
@@ -698,10 +698,10 @@ test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
   const outAddA = await exec(t, snow, ['add', 'a.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   const outAddB = await exec(t, snow, ['add', 'b.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
 
-  const indexAMatch = (outAddA as string).match(/Created new index:\s\[(\w*)\]/);
+  const indexAMatch = /Created new index:\s\[(\w*)\]/.exec(outAddA as string);
   t.true(Boolean(indexAMatch));
 
-  const indexBMatch = (outAddB as string).match(/Created new index:\s\[(\w*)\]/);
+  const indexBMatch = /Created new index:\s\[(\w*)\]/.exec(outAddB as string);
   t.true(Boolean(indexBMatch));
 
   t.log('Write dontcommit-c.txt'); // dummy file just to ensure file is not commited

@@ -20,6 +20,8 @@ const chalk = require('chalk');
 const drivelist = require('drivelist');
 const AggregateError = require('es-aggregate-error');
 
+const versionString = '0.9.1';
+
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
 }
@@ -114,7 +116,7 @@ async function parseOptions(opts: any) {
 }
 
 program
-  .version('0.9.1')
+  .version(versionString)
   .description('SnowFS - a fast, scalable version control file storage for graphic files.');
 
 program
@@ -124,7 +126,13 @@ program
   .action(async (path: string, commondir?: string, opts?: any) => {
     const repoPath: string = path ?? '.';
     try {
-      await Repository.initExt(repoPath, { commondir });
+      await Repository.initExt(repoPath, {
+        commondir,
+        additionalConfig: {
+          creator: 'snowfs-cli',
+          version: versionString,
+        },
+      });
     } catch (error) {
       if (opts.debug) {
         throw error;

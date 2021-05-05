@@ -73,14 +73,14 @@ export class Commit {
   /**
    * Add custom data to the commit object.
    */
-  addData(key: string, value: any) {
+  addData(key: string, value: any): void {
     this.userData[key] = value;
   }
 
   /**
    * Add custom tag to the commit object.
    */
-  addTag(tag: string) {
+  addTag(tag: string): void {
     if (tag.length === 0) {
       return;
     }
