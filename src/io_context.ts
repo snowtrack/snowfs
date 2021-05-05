@@ -433,18 +433,39 @@ export class IoContext {
    * @throws {AggregateError} Aggregated error of StacklessError
    */
   performWriteLockChecks(dir: string, relPaths: string[]): Promise<void> {
-    function checkWin32(relPaths): Promise<void> {
-      const absPaths = relPaths.map((p: string) => join(dir, p));
-
+    function checkAccess(absPaths: string[]) {
       const promises = [];
 
       for (const absPath of absPaths) {
-        promises.push(fse.stat(absPath));
+        promises.push(new Promise<void>((resolve, reject) => {
+          fse.access(absPath, fse.constants.W_OK, (error) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          });
+        }));
       }
+
+      return Promise.all(promises);
+    }
+
+    function checkWin32(relPaths): Promise<void> {
+      const absPaths = relPaths.map((p: string) => join(dir, p));
 
       const stats1 = new Map<string, number>();
 
-      return Promise.all(promises)
+      return checkAccess(absPaths)
+        .then(() => {
+          const promises = [];
+
+          for (const absPath of absPaths) {
+            promises.push(fse.stat(absPath));
+          }
+
+          return Promise.all(promises);
+        })
         .then((stats: fse.Stats[]) => {
           if (stats.length !== relPaths.length) {
             throw new Error('Internal error: stats != paths');
@@ -467,7 +488,8 @@ export class IoContext {
           }
 
           return Promise.all(promises);
-        }).then((stats: fse.Stats[]) => {
+        })
+        .then((stats: fse.Stats[]) => {
           if (stats.length !== relPaths.length) {
             throw new Error('Internal error: stats != paths');
           }
@@ -489,7 +511,20 @@ export class IoContext {
     }
 
     function checkUnixLike(relPaths): Promise<void> {
-      return unix.whichFilesInDirAreOpen(dir)
+      const absPaths = relPaths.map((p: string) => join(dir, p));
+      return checkAccess(absPaths)
+        .then(() => {
+          const promises = [];
+
+          for (const absPath of absPaths) {
+            promises.push(fse.stat(absPath));
+          }
+
+          return Promise.all(promises);
+        })
+        .then(() => {
+          return unix.whichFilesInDirAreOpen(dir);
+        })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
           const errors: Error[] = [];
 
