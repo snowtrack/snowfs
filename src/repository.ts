@@ -8,7 +8,7 @@ import {
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo } from './common';
+import { FileInfo, StatsSubset } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import {
@@ -18,7 +18,7 @@ import { IoContext } from './io_context';
 import { Odb } from './odb';
 import { Reference } from './reference';
 import {
-  constructTree, TreeDir, TreeEntry, TreeFile,
+  constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
 // eslint-disable-next-line import/order
@@ -101,6 +101,18 @@ export const enum RESET {
    */
   DETACH = 8,
 
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
+   */
+  DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
+
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
+   */
+  DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
+
   /** Default flag passed to [[Repository.restoreVersion]] */
   DEFAULT = RESTORE_MODIFIED_ITEMS | DELETE_NEW_ITEMS | RESTORE_DELETED_ITEMS
 }
@@ -138,7 +150,19 @@ export const enum FILTER {
   SORT_CASE_SENSITIVELY = 512,
 
   /** Sort return value case sensitively. Cannot be mixed with SORT_CASE_SENSITIVELY. */
-  SORT_CASE_INSENSITIVELY = 1024
+  SORT_CASE_INSENSITIVELY = 1024,
+
+  /**
+   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
+   */
+   DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
+
+   /**
+    * Overwrites the default detection mode, which is only to trust hte mktime.
+    * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
+    */
+   DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
 }
 
 /** Initialize a new [[StatusEntry]] */
@@ -148,6 +172,12 @@ export interface StatusItemOptionsCustom {
 
   /** Flags, which define the attributes of the item. */
   status?: STATUS;
+
+  /**
+   * Stats that represent the status items file/directory statistics.
+   * Null if [[StatusEntry.isDeleted]] is true.
+   */
+  stats: fse.Stats | null;
 }
 
 /**
@@ -163,10 +193,20 @@ export class StatusEntry {
   /** True if the item is a directory. */
   isdir: boolean;
 
+  stats: StatsSubset | null;
+
   constructor(data: StatusItemOptionsCustom, isdir: boolean) {
     this.path = data.path;
     this.status = data.status;
     this.isdir = isdir;
+
+    if (data.stats) {
+      this.stats = {
+        ctimeMs: data.stats.ctimeMs,
+        mtimeMs: data.stats.mtimeMs,
+        size: data.stats.size,
+      };
+    }
   }
 
   /** Return true if the object is new. */
@@ -217,9 +257,10 @@ function getSnowFSRepo(path: string): Promise<string | null> {
       return path;
     }
 
-    if (dirname(path) === path) {
-      return null;
+    if (dirname(path) === path) { // if arrived at root
+      throw new Error('workdir doesn\'t exist');
     }
+
     return getSnowFSRepo(dirname(path));
   });
 }
@@ -652,6 +693,13 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
+    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
+    if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
+    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
+    }
+
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
@@ -732,7 +780,7 @@ export class Repository {
             const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
             if (tfile) {
               relPathChecks.push(tfile.path);
-              tasks.push(() => tfile.isFileModified(this).then((res: {file: TreeFile, modified : boolean}) => {
+              tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
                 if (res.modified) {
                   const dst: string = join(this.repoWorkDir, res.file.path);
                   return this.repoOdb.readObject(res.file, dst, ioContext);
@@ -809,6 +857,13 @@ export class Repository {
 
     const ignore = new IgnoreManager();
 
+    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
+    if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
+    } else if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
+      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
+    }
+
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
     return fse.pathExists(snowtrackIgnoreDefault)
@@ -842,8 +897,13 @@ export class Repository {
 
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
-            if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.relPath, new StatusEntry({ path: entry.relPath, status: STATUS.WT_IGNORED }, entry.isdir));
+            if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
+              statusResult.set(entry.relPath, new StatusEntry({
+                path: entry.relPath,
+                status: STATUS.WT_IGNORED,
+                stats: entry.stats,
+              },
+              entry.stats.isDirectory()));
             }
           }
         }
@@ -860,11 +920,12 @@ export class Repository {
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
 
           for (const entry of itemsStep2) {
-            if (!entry.isdir || filter & FILTER.INCLUDE_DIRECTORIES) {
+            if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.relPath, new StatusEntry({
                 path: entry.relPath,
                 status: STATUS.WT_NEW,
-              }, entry.isdir));
+                stats: entry.stats,
+              }, entry.stats.isDirectory()));
             }
           }
         }
@@ -882,14 +943,14 @@ export class Repository {
 
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED }, entry.isDirectory()));
+              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.isDirectory()));
             }
           }
         }
 
         if (filter & FILTER.INCLUDE_DIRECTORIES) {
           // check which items are a directory
-          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.isdir && !statusResult.has(item.relPath));
+          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
 
           /// check which items of the directories are ignored
           const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
@@ -903,6 +964,7 @@ export class Repository {
             statusResult.set(item.relPath, new StatusEntry({
               path: item.relPath,
               status: 0,
+              stats: item.stats,
             }, true));
           }
         }
@@ -920,18 +982,28 @@ export class Repository {
 
           for (const existingItem of itemsStep2) {
             if (existingItem instanceof TreeFile) {
-              promises.push(existingItem.isFileModified(this));
+              promises.push(existingItem.isFileModified(this, detectionMode));
             }
           }
         }
         return Promise.all(promises);
       })
-      .then((existingFiles: {file: TreeFile; modified : boolean}[]) => {
-        for (const existingFile of existingFiles) {
-          if (existingFile.modified) {
-            statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.WT_MODIFIED }, false));
+      .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
+        for (const existingItem of existingItems) {
+          if (existingItem.modified) {
+            statusResult.set(existingItem.file.path,
+              new StatusEntry({
+                path: existingItem.file.path,
+                status: STATUS.WT_MODIFIED,
+                stats: existingItem.newStats,
+              }, false));
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
-            statusResult.set(existingFile.file.path, new StatusEntry({ path: existingFile.file.path, status: STATUS.UNMODIFIED }, false));
+            statusResult.set(existingItem.file.path,
+              new StatusEntry({
+                path: existingItem.file.path,
+                status: STATUS.UNMODIFIED,
+                stats: existingItem.newStats,
+              }, false));
           }
         }
 
@@ -991,7 +1063,9 @@ export class Repository {
           hash: value.hash,
           ext: extname(value.path),
           stat: {
-            size: value.size, atime: 0, mtime: value.mtime, ctime: value.ctime,
+            size: value.stats.size,
+            ctimeMs: value.stats.ctimeMs,
+            mtimeMs: value.stats.mtimeMs,
           },
         });
       });

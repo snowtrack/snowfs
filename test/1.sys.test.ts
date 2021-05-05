@@ -759,3 +759,37 @@ test('performWriteLockChecks / 1000 file', async (t) => {
     t.fail(error.message);
   }
 });
+
+test('performWriteLockChecks / no access', async (t) => {
+  try {
+    const tmp = join(process.cwd(), 'tmp');
+    fse.ensureDirSync(tmp);
+
+    const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
+
+    const tmpFile = join(absDir, 'foo.txt');
+    t.log(`Create ${tmpFile}`);
+    fse.ensureFileSync(tmpFile);
+    t.log(`Set chmod(444) for ${tmpFile}`);
+    fse.chmodSync(tmpFile, fse.constants.O_RDONLY);
+
+    const ioContext = new IoContext();
+    const error = await t.throwsAsync(() => ioContext.performWriteLockChecks(absDir, ['foo.txt']));
+    if (error) {
+      if (process.platform === 'win32' && error.message.startsWith('EPERM: operation not permitted, access')) {
+        t.log('succesfully detected foo.txt as not accessible');
+        t.pass();
+      } else if (process.platform !== 'win32' && error.message.includes('permission denied')) {
+        t.log('succesfully detected foo.txt as not accessible');
+        t.pass();
+      } else {
+        throw new Error(`expected function to detect foo.txt as not accessible but received: ${error.message}`);
+      }
+    } else {
+      throw new Error('expected function to detect foo.txt as not accessible but function succeeded');
+    }
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});

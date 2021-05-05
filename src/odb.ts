@@ -291,9 +291,8 @@ export class Odb {
             hash: filehash,
             stat: {
               size: stat.size,
-              atime: stat.atime.getTime(),
-              mtime: stat.mtime.getTime(),
-              ctime: stat.ctime.getTime(),
+              ctimeMs: stat.ctimeMs,
+              mtimeMs: stat.mtimeMs,
             },
           },
         })))
@@ -304,12 +303,26 @@ export class Odb {
     const hash: string = file.hash;
     const objectFile: string = this.getAbsObjectPath(file);
 
-    return fse.pathExists(objectFile).then((exists: boolean) => {
-      if (!exists) {
-        throw new Error(`object ${hash} not found`);
-      }
+    return fse.pathExists(objectFile)
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error(`object ${hash} not found`);
+        }
 
-      return fse.ensureDir(dirname(dstAbsPath)).then(() => ioContext.copyFile(objectFile, dstAbsPath));
-    });
+        return fse.ensureDir(dirname(dstAbsPath));
+      }).then(() => {
+        return ioContext.copyFile(objectFile, dstAbsPath);
+      }).then(() => {
+        return new Promise<void>((resolve, reject) => {
+          // restore mtimes
+          fse.utimes(dstAbsPath, new Date(), new Date(file.stats.mtimeMs), (error) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          });
+        });
+      });
   }
 }

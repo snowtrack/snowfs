@@ -539,9 +539,9 @@ program
             return {
               path: value.path,
               hash: value.hash,
-              ctime: value.ctime / 1000.0,
-              mtime: value.mtime / 1000.0,
-              size: value.size,
+              ctime: value.stats.ctimeMs,
+              mtime: value.stats.mtimeMs,
+              size: value.stats.size,
             };
           }
           if (value instanceof Reference) {
@@ -615,7 +615,7 @@ program
               if (value.isDirectory()) {
                 process.stdout.write(`      [${value.hash}] ${value.path}\n`);
               } else if (value instanceof TreeFile) {
-                process.stdout.write(`      [${value.hash}] ${value.path} (${value.size}B)\n`);
+                process.stdout.write(`      [${value.hash}] ${value.path} (${value.stats.size}B)\n`);
               }
             });
             if (files.size > 0) {
