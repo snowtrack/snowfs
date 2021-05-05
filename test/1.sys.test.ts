@@ -771,7 +771,7 @@ test('performFileAccessCheck / no access', async (t) => {
     t.log(`Create ${tmpFile}`);
     fse.ensureFileSync(tmpFile);
     t.log(`Set chmod(444) for ${tmpFile}`);
-    fse.chmodSync(tmpFile, fse.constants.O_RDONLY);
+    fse.chmodSync(tmpFile, fse.constants.S_IRUSR | fse.constants.S_IRGRP | fse.constants.S_IROTH);
 
     const ioContext = new IoContext();
 
