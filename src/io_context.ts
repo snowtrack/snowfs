@@ -435,7 +435,7 @@ export class IoContext {
    *
    * @param dir               The root directory path to check
    * @param relPaths          Relative file paths inside the given directory.
-   * @param testIf	      Request which access test should be applied on the tests.
+   * @param testIf            Request which access test should be applied on the tests.
    * @throws {AggregateError} Aggregated error of StacklessError
    */
   performFileAccessCheck(dir: string, relPaths: string[], testIf: TEST_IF): Promise<void> {
