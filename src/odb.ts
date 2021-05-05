@@ -179,10 +179,12 @@ export class Odb {
 
   readHeadReference(): Promise<string | null> {
     const refsDir: string = this.repo.options.commondir;
-    return fse.readFile(join(refsDir, 'HEAD')).then((buf: Buffer) => buf.toString()).catch((error) => {
-      console.log('No HEAD found');
-      return null;
-    });
+    return fse.readFile(join(refsDir, 'HEAD'))
+      .then((buf: Buffer) => buf.toString())
+      .catch((error) => {
+        console.log('No HEAD found');
+        return null;
+      });
   }
 
   getAbsObjectPath(file: TreeFile): string {

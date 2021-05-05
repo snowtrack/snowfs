@@ -31,7 +31,7 @@ export class Reference {
       return this.refName;
     }
 
-    setName(name: string) {
+    setName(name: string): void {
       this.refName = name;
     }
 

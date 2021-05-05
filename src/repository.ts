@@ -269,9 +269,10 @@ function getSnowFSRepo(path: string): Promise<string | null> {
       return path;
     }
 
-    if (dirname(path) === path) {
-      return null;
+    if (dirname(path) === path) { // if arrived at root
+      throw new Error('workdir doesn\'t exist');
     }
+
     return getSnowFSRepo(dirname(path));
   });
 }

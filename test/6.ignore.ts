@@ -1,7 +1,5 @@
 import test from 'ava';
 
-import * as crypto from 'crypto';
-import * as os from 'os';
 import * as fse from 'fs-extra';
 
 import { join } from '../src/path';
