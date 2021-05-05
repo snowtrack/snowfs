@@ -323,7 +323,7 @@ export class Odb {
       }).then(() => {
         return new Promise<void>((resolve, reject) => {
           // restore mtimes
-          fse.utimes(dstAbsPath, new Date(), new Date(file.stats.mtimeMs), (error) => {
+          fse.utimes(dstAbsPath, new Date(file.stats.mtimeMs), new Date(file.stats.mtimeMs), (error) => {
             if (error) {
               reject(error);
             } else {
