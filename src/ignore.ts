@@ -46,10 +46,11 @@ export class IgnoreManager {
       });
     }
 
-    ignored(filepath: string): boolean {
-      return nm.match(filepath, this.patterns, {
+    ignoredList(filepaths: string[]): Set<string> {
+      const ignored = nm(filepaths, this.patterns, {
         dot: true, // Match dotfiles
         nocase: true, // a case-insensitive regex for matching files
-      }).length > 0;
+      });
+      return new Set(ignored as string[]);
     }
 }
