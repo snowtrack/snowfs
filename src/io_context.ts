@@ -1,6 +1,5 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
-import * as fss from './fs-safe';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';

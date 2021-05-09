@@ -2,7 +2,6 @@
 /* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import * as fss from './fs-safe';
 import * as io from './io';
 
 import {
