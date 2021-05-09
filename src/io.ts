@@ -178,7 +178,7 @@ export function copyFile(src: PathLike, dest: PathLike, flags: number): Promise<
  * For more information check the module import ocmments above.
  * For more information about the API of [readdir] visit https://nodejs.org/api/fs.html#fs_fs_readdir_path_options_callback
  */
-export function readdir(path: PathLike, callback: (err: Error | null, files: string[]) => void) {
+export function readdir(path: PathLike, callback: (err: Error | null, files: string[]) => void): void {
   return fs.readdir(path, callback);
 }
 
