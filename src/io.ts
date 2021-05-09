@@ -12,8 +12,7 @@ export { PathLike, Stats } from 'fs-extra';
 // https://github.com/Snowtrack/SnowFS/issues/173
 let useOriginalFs = false;
 let fs;
-// eslint-disable-next-line no-prototype-builtins
-if (process.versions.hasOwnProperty('electron')) {
+if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
   // eslint-disable-next-line global-require, import/no-unresolved
   fs = require('original-fs');
   useOriginalFs = true;
