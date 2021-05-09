@@ -1,5 +1,7 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
+import * as io from './io';
+
 import {
   join, dirname,
 } from './path';
@@ -65,7 +67,7 @@ export function getPartHash(filepath: string, options?: {start?: number; end?: n
   return new Promise<HashBlock>((resolve, reject) => {
     const hash = crypto.createHash('sha256');
 
-    const fh = fse.createReadStream(filepath, {
+    const fh = io.createReadStream(filepath, {
       start: options?.start, end: options?.end, highWaterMark: options?.highWaterMark ?? MB2, autoClose: true,
     });
 
@@ -87,7 +89,7 @@ export function getPartHash(filepath: string, options?: {start?: number; end?: n
  * @param hashBlocks    Array of hashblock hashes if previously calculated.
  */
 export function compareFileHash(filepath: string, filehash: string, hashBlocks?: string[]): Promise<boolean> {
-  return fse.stat(filepath).then((stat: fse.Stats) => {
+  return io.stat(filepath).then((stat: fse.Stats) => {
     if (stat.size < MB20) {
       if (hashBlocks) {
         console.warn(`File ${filepath} should have no hash blocks because it's too small`);
@@ -147,7 +149,7 @@ export function compareFileHash(filepath: string, filehash: string, hashBlocks?:
  * @param filepath The path of the file where to calculate the hash from.
  */
 export function calculateFileHash(filepath: string): Promise<{filehash : string, hashBlocks?: HashBlock[]}> {
-  return fse.stat(filepath).then((stat: fse.Stats) => {
+  return io.stat(filepath).then((stat: fse.Stats) => {
     if (stat.size < MB20) {
       return getPartHash(filepath).then((oid: HashBlock) => ({ filehash: oid.hash }));
     }
@@ -187,13 +189,13 @@ export function calculateFileHash(filepath: string): Promise<{filehash : string,
  * @returns             Information about the directory. See [[LOADING_STATE]] for more information
  */
 export function getRepoDetails(repoPath: string): Promise<{state : LOADING_STATE; workdir : string | null; commondir : string | null;}> {
-  return fse.stat(repoPath)
+  return io.stat(repoPath)
     .then((stat: fse.Stats) => {
       // if the repo path is a file we treat the directory it is in as the repo path
       if (stat.isFile()) {
         repoPath = dirname(repoPath);
       }
-      return fse.pathExists(join(repoPath, '.git'));
+      return io.pathExists(join(repoPath, '.git'));
     })
     .then((exists: boolean) => {
       if (exists) {
@@ -203,7 +205,7 @@ export function getRepoDetails(repoPath: string): Promise<{state : LOADING_STATE
           commondir: null,
         };
       }
-      return fse.pathExists(join(repoPath, '.snow')).then((exists: boolean) => {
+      return io.pathExists(join(repoPath, '.snow')).then((exists: boolean) => {
         if (exists) {
           return Repository.open(repoPath).then((repo: any) => {
             const workdir: string = repo.workdir();

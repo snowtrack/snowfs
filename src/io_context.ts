@@ -1,5 +1,6 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
+import * as fss from './fs-safe';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
@@ -7,6 +8,7 @@ import {
   join, dirname, normalize, relative,
 } from './path';
 import { MB1 } from './common';
+import * as io from './io';
 
 const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
@@ -333,12 +335,12 @@ export class IoContext {
   }
 
   private copyFileApfs(src: string, dst: string): Promise<void> {
-    return fse.stat(src).then((stat: fse.Stats) => {
+    return io.stat(src).then((stat: fse.Stats) => {
       // TODO: (Need help)
       // It seems on APFS copying files smaller than 1MB is faster than using COW.
       // Could be a local hickup on my system, verification/citation needed
       if (stat.size < MB1) {
-        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       }
 
       const p0 = cp.spawn('cp', ['-c', src, dst]);
@@ -355,9 +357,9 @@ export class IoContext {
   }
 
   private copyFileRefs(src: string, dst: string): Promise<void> {
-    return fse.stat(src).then((stat: fse.Stats) => {
+    return io.stat(src).then((stat: fse.Stats) => {
       if (stat.size < MB1) {
-        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       }
 
       let cloneFileViaBlockClonePs1 = 'Clone-FileViaBlockClone.ps1';
@@ -366,8 +368,8 @@ export class IoContext {
       } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1))) {
         cloneFileViaBlockClonePs1 = join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1);
       } else {
-        console.warn(`unable to locate ${cloneFileViaBlockClonePs1}, fallback to fse.copyFile(..)`);
-        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+        console.warn(`unable to locate ${cloneFileViaBlockClonePs1}, fallback to fss.copyFile(..)`);
+        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       }
 
       const p0 = cp.spawn('powershell.exe', [cloneFileViaBlockClonePs1, src, dst]);
@@ -423,7 +425,7 @@ export class IoContext {
       case 'linux':
         // The copy operation will attempt to create a copy-on-write reflink.
         // If the platform does not support copy-on-write, then a fallback copy mechanism is used.
-        return fse.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
       default:
         throw new Error('Unsupported Operating System');
     }
@@ -467,7 +469,7 @@ export class IoContext {
           const promises = [];
 
           for (const absPath of absPaths) {
-            promises.push(fse.stat(absPath));
+            promises.push(io.stat(absPath));
           }
 
           return Promise.all(promises);
@@ -490,7 +492,7 @@ export class IoContext {
           const promises = [];
 
           for (const absPath of absPaths) {
-            promises.push(fse.stat(absPath));
+            promises.push(io.stat(absPath));
           }
 
           return Promise.all(promises);
@@ -523,7 +525,7 @@ export class IoContext {
           const promises = [];
 
           for (const absPath of absPaths) {
-            promises.push(fse.stat(absPath));
+            promises.push(io.stat(absPath));
           }
 
           return Promise.all(promises);
@@ -622,7 +624,7 @@ export class IoContext {
       }
     }
 
-    return fse.pathExists(absPath)
+    return io.pathExists(absPath)
       .then((exists: boolean) => {
         if (!exists) {
           throw new Error(`${absPath} no such file or directory`);

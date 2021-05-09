@@ -7,6 +7,7 @@ import {
 import {
   DirItem, OSWALK, osWalk, zipFile,
 } from './io';
+import * as io from './io';
 import * as fss from './fs-safe';
 
 import { Repository, RepositoryInitOptions } from './repository';
@@ -52,7 +53,7 @@ export class Odb {
 
   static create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
     const odb: Odb = new Odb(repo);
-    return fse.pathExists(options.commondir)
+    return io.pathExists(options.commondir)
       .then((exists: boolean) => {
         if (exists) {
           throw new Error('directory already exists');
@@ -259,7 +260,7 @@ export class Odb {
         filehash = res.filehash;
         hashBlocks = res.hashBlocks;
         dstFile = join(objects, filehash.substr(0, 2), filehash.substr(2, 2), filehash.toString() + extname(filepath));
-        return fse.pathExists(dstFile);
+        return io.pathExists(dstFile);
       })
       .then((exists: boolean) => {
         if (exists) {
@@ -291,7 +292,7 @@ export class Odb {
         }
         return Promise.resolve();
       })
-      .then(() => fse.stat(filepath)
+      .then(() => io.stat(filepath)
         .then((stat: fse.Stats) => ({
           file: relative(this.repo.repoWorkDir, filepath),
           fileinfo: {
@@ -311,7 +312,7 @@ export class Odb {
     const hash: string = file.hash;
     const objectFile: string = this.getAbsObjectPath(file);
 
-    return fse.pathExists(objectFile)
+    return io.pathExists(objectFile)
       .then((exists: boolean) => {
         if (!exists) {
           throw new Error(`object ${hash} not found`);

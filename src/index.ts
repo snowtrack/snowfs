@@ -4,6 +4,7 @@ import { difference } from 'lodash';
 import {
   isAbsolute, join, relative, basename,
 } from './path';
+import * as io from './io';
 import * as fss from './fs-safe';
 import { IoContext, TEST_IF } from './io_context';
 import { Odb } from './odb';
@@ -75,7 +76,7 @@ export class Index {
    */
   invalidate(): Promise<void> {
     // check if index exists, this can be false if the commit has no files (--allowEmpty)
-    return fse.pathExists(this.getAbsPath()).then((exists: boolean) => {
+    return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
       if (exists) { return fse.unlink(this.getAbsPath()); }
     }).then(() => {
       this.repo.removeIndex(this);

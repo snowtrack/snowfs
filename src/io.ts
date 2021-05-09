@@ -1,11 +1,38 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
+import { PathLike, Stats } from 'fs-extra';
 import { normalize } from './path';
+
+export { PathLike, Stats } from 'fs-extra';
+
+// Electron ships with its own patched version of the fs-module
+// to be able to browse ASAR files. This highly impacts the performance
+// of SnowFS inside an Electron app. Electron still has the original
+// filesystem onboard called 'original-fs'. For more information see
+// https://github.com/Snowtrack/SnowFS/issues/173
+let useOriginalFs = false;
+let fs;
+// eslint-disable-next-line no-prototype-builtins
+if (process.versions.hasOwnProperty('electron')) {
+  // eslint-disable-next-line global-require, import/no-unresolved
+  fs = require('original-fs');
+  useOriginalFs = true;
+} else {
+  // eslint-disable-next-line global-require
+  fs = require('fs');
+}
 
 let winattr;
 if (process.platform === 'win32') {
   // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
+}
+
+/**
+ * Return true if 'original-fs' is used as the underlying filesystem module.
+ */
+export function usesOriginalFs(): boolean {
+  return useOriginalFs;
 }
 
 export class DirItem {
@@ -59,8 +86,9 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
     }
 
     const dirItems = [];
+    const dirItemsTmp: DirItem[] = [];
     return new Promise<string[]>((resolve, reject) => {
-      fse.readdir(dirPath, (error, entries: string[]) => {
+      readdir(dirPath, (error, entries: string[]) => {
         if (error) {
           // While browsing through a sub-directory, readdir
           // might fail if the directory e.g. gets deleted at the same
@@ -77,45 +105,49 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
         resolve(entries.map(normalize));
       });
     })
-      .then((entries: string[]) => {
-        const dirItemsTmp: DirItem[] = [];
+      .then((items: string[]) => {
+        const promises = [];
 
-        for (const entry of entries) {
-          if (entry === '.DS_Store' || entry === 'thumbs.db') {
+        for (const item of items) {
+          if (item === '.DS_Store' || item === 'thumbs.db') {
             continue;
-          } else if (!browseRepo && (entry === '.snow' || entry === '.git')) {
+          } else if (!browseRepo && (item === '.snow' || item === '.git')) {
             continue;
-          } else if (!returnHidden && entry.startsWith('.')) {
+          } else if (!returnHidden && item.startsWith('.')) {
             continue;
           }
 
-          const absPath = `${dirPath}/${entry}`;
+          const absPath = `${dirPath}/${item}`;
 
-          try {
-            // While the function browses through a hierarchy,
-            // the item might be inaccessible or existant anymore
-            const stats: fse.Stats = fse.statSync(absPath);
-            dirItemsTmp.push({
-              absPath, stats, isempty: false, relPath: relPath.length === 0 ? entry : `${relPath}/${entry}`,
-            });
-          } catch (_error) {
-            // ignore error
+          const stats = stat(absPath);
+          promises.push(stats);
+          dirItemsTmp.push({
+            absPath,
+            isempty: false,
+            relPath: relPath.length === 0 ? item : `${relPath}/${item}`,
+            stats: null, // not resolved yet.. (*)
+          });
+        }
+
+        return Promise.all(promises);
+      }).then((itemStatArray: Stats[]) => {
+        const promises = [];
+        let i = 0;
+        for (const itemStats of itemStatArray) {
+          const dirItem = dirItemsTmp[i++];
+          dirItem.stats = itemStats; // (*)...update stats which are now resolved
+
+          if ((itemStats.isDirectory() && returnDirs) || (!itemStats.isDirectory() && returnFiles)) {
+            dirItems.push(dirItem);
+          }
+
+          if (itemStats.isDirectory() && !(request & OSWALK.NO_RECURSIVE)) {
+            promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
 
         if (dirItemRef) {
-          dirItemRef.isempty = entries.length === 0;
-        }
-
-        const promises = [];
-        for (const dirItem of dirItemsTmp) {
-          if ((dirItem.stats.isDirectory() && returnDirs) || (!dirItem.stats.isDirectory() && returnFiles)) {
-            dirItems.push(dirItem);
-          }
-
-          if (dirItem.stats.isDirectory() && !(request & OSWALK.NO_RECURSIVE)) {
-            promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
-          }
+          dirItemRef.isempty = itemStatArray.length === 0;
         }
 
         return Promise.all(promises);
@@ -179,4 +211,88 @@ export function hideItem(path: string): Promise<void> {
     });
   }
   return Promise.resolve();
+}
+
+/**
+ * Test whether or not the given path exists by checking with the file system.
+ * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
+ */
+export function pathExists(path: PathLike): Promise<boolean> {
+  return new Promise((resolve) => {
+    return fs.exists(path, (exists) => {
+      resolve(exists);
+    });
+  });
+}
+
+/**
+ * Retrieve the statistics about a directory item. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [stat] visit https://nodejs.org/api/fs.html#fs_fs_fstat_fd_options_callback
+ */
+export function stat(path: PathLike): Promise<Stats> {
+  return new Promise((resolve, reject) => {
+    return fs.stat(path, (error, stats: Stats) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(stats);
+      }
+    });
+  });
+}
+
+/**
+ * Asynchronously copies `src` to `dest`. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [copyFile] visit https://nodejs.org/api/fs.html#fs_fs_copyfilesync_src_dest_mode
+ */
+export function copyFile(src: PathLike, dest: PathLike, flags: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    return fs.copyFile(src, dest, flags, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Read the contents of a directory. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [readdir] visit https://nodejs.org/api/fs.html#fs_fs_readdir_path_options_callback
+ */
+export function readdir(path: PathLike, callback: (err: Error | null, files: string[]) => void) {
+  return fs.readdir(path, callback);
+}
+
+/**
+ * Open a read stream. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [createReadStream] visit https://nodejs.org/api/fs.html#fs_fs_createreadstream_path_options
+ */
+export function createReadStream(path: PathLike, options?: string | {
+  flags?: string;
+  encoding?: unknown;
+  fd?: number;
+  mode?: number;
+  autoClose?: boolean;
+  /**
+   * @default false
+   */
+  emitClose?: boolean;
+  start?: number;
+  end?: number;
+  highWaterMark?: number;
+}): fse.ReadStream {
+  return fs.createReadStream(path, options);
 }
