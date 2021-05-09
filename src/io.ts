@@ -111,7 +111,7 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
 export function hideItem(path: string): Promise<void> {
   if (winattr) {
     return new Promise<void>((resolve) => {
-      winattr.set(path, { hidden: true }, (_error) => {
+      winattr.set(path, { hidden: true }, () => {
         // not being able to hide the directory shouldn't stop us here
         // so we ignore the error
         resolve();
