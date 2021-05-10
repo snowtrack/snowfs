@@ -2,6 +2,7 @@
 /* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
+import * as io from './io';
 
 import {
   join, relative, normalize, extname,
@@ -91,7 +92,7 @@ export class TreeFile extends TreeEntry {
 
   isFileModified(repo: Repository, detectionMode: DETECTIONMODE): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {
     const filepath = join(repo.workdir(), this.path);
-    return fse.stat(filepath).then((newStats: fse.Stats) => {
+    return io.stat(filepath).then((newStats: fse.Stats) => {
       // first we check for for modification time and file size
       if (this.stats.size !== newStats.size) {
         return { file: this, modified: true, newStats };
@@ -266,7 +267,7 @@ export function constructTree(
   }
 
   return new Promise<string[]>((resolve, reject) => {
-    fse.readdir(dirPath, (error, entries: string[]) => {
+    io.readdir(dirPath, (error, entries: string[]) => {
       if (error) {
         reject(error);
         return;
@@ -284,7 +285,7 @@ export function constructTree(
 
         const absPath = `${dirPath}/${entry}`;
         promises.push(
-          fse.stat(absPath).then((stat: fse.Stats) => {
+          io.stat(absPath).then((stat: fse.Stats) => {
             if (stat.isDirectory()) {
               const subtree: TreeDir = new TreeDir(
                 relative(root, absPath),

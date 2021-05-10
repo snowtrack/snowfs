@@ -2,6 +2,7 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
+import * as io from './io';
 import {
   resolve, join, dirname, extname,
 } from './path';
@@ -254,7 +255,7 @@ export class StatusEntry {
 
 function getSnowFSRepo(path: string): Promise<string | null> {
   const snowInit: string = join(path, '.snow');
-  return fse.pathExists(snowInit).then((exists: boolean) => {
+  return io.pathExists(snowInit).then((exists: boolean) => {
     if (exists) {
       return path;
     }
@@ -868,7 +869,7 @@ export class Repository {
 
     // First iterate over all files and get their file stats
     const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
-    return fse.pathExists(snowtrackIgnoreDefault)
+    return io.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
           return ignore.loadFile(snowtrackIgnoreDefault);
@@ -1148,14 +1149,21 @@ export class Repository {
     let odb: Odb = null;
     let commondirInside: string = null;
     let commondir: string = null;
-    return getSnowFSRepo(workdir).then((snowFSRepoPath: string | null) => {
-      if (!snowFSRepoPath) {
-        throw new Error('not a SnowFS repository (or any of the parent directories): .snow');
-      }
-      workdir = snowFSRepoPath;
-      commondirInside = join(workdir, '.snow');
-      return fse.stat(commondirInside);
-    })
+    return io.pathExists(workdir)
+      .then((exists: boolean) => {
+        if (!exists) {
+          throw new Error('workdir doesn\'t exist');
+        }
+        return getSnowFSRepo(workdir);
+      })
+      .then((snowFSRepoPath: string | null) => {
+        if (!snowFSRepoPath) {
+          throw new Error('directory contains no .snow');
+        }
+        workdir = snowFSRepoPath;
+        commondirInside = join(workdir, '.snow');
+        return io.stat(commondirInside);
+      })
       .then((stat: fse.Stats) => {
         if (stat.isFile()) {
           return fse.readFile(commondirInside).then((buf: Buffer) => buf.toString());
@@ -1165,11 +1173,11 @@ export class Repository {
       })
       .then((commondirResult: string) => {
         commondir = commondirResult;
-        return fse.pathExists(commondir);
+        return io.pathExists(commondir);
       })
       .then((exists: boolean) => {
         if (!exists) throw new Error('commondir not found');
-        return fse.stat(commondir);
+        return io.stat(commondir);
       })
       .then((stat: fse.Stats) => {
         if (!stat.isDirectory()) throw new Error('commondir must be a directory');
