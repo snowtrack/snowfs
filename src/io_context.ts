@@ -461,7 +461,7 @@ export class IoContext {
     function checkWin32(relPaths): Promise<void> {
       const absPaths = relPaths.map((p: string) => join(dir, p));
 
-      const stats1 = new Map<string, number>();
+      const stats1 = new Map<string, fse.Stats>();
 
       return checkAccess(absPaths)
         .then(() => {
@@ -479,7 +479,7 @@ export class IoContext {
           }
 
           for (let i = 0; i < relPaths.length; ++i) {
-            stats1.set(relPaths[i], stats[i].size);
+            stats1.set(relPaths[i], stats[i]);
           }
 
           return new Promise<void>((resolve) => {
@@ -504,8 +504,13 @@ export class IoContext {
           const errors: Error[] = [];
 
           for (let i = 0; i < relPaths.length; ++i) {
-            const prevSize = stats1.get(relPaths[i]);
-            if (prevSize !== stats[i].size) {
+            const prevStats = stats1.get(relPaths[i]);
+            // When a file is written by another process, either...
+            // ... the size changes through time (e.g. simple write operation)
+            // and/or...
+            // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
+            // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
+            if (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime()) {
               const msg = `File '${relPaths[i]}' is written by another process`;
               errors.push(new StacklessError(msg));
             }
