@@ -900,15 +900,17 @@ export class Repository {
           } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
             deleteDirCandidates.set(status.path, status);
           } else if (reset & RESET.RESTORE_MODIFIED_ITEMS && status.isModified()) {
-            const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
+            const tfile = oldFilesMap.get(status.path);
             if (tfile) {
-              relPathChecks.push(tfile.path);
-              tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
-                if (res.modified) {
-                  const dst: string = join(this.repoWorkDir, res.file.path);
-                  return this.repoOdb.readObject(res.file, dst, ioContext);
-                }
-              }));
+              if (tfile instanceof TreeFile) {
+                relPathChecks.push(tfile.path);
+                tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
+                  if (res.modified) {
+                    const dst: string = join(this.repoWorkDir, res.file.path);
+                    return this.repoOdb.readObject(res.file, dst, ioContext);
+                  }
+                }));
+              }
             } else {
               throw new Error(`File '${tfile.path}' not found during last-modified-check`);
             }
