@@ -549,11 +549,11 @@ export class Repository {
           }
           for (let i = 0; i < iteration; ++i) {
             if (!commit.parent || commit.parent.length === 0) {
-              throw new Error(`commit ${commit.hash} has no parent`);
+              throw new Error(`commit hash '${hash}' out of history`);
             }
             commit = this.commitMap.get(commit.parent[0]);
             if (!commit) {
-              throw new Error(`commit hash '${hash}' out of history`);
+              throw new Error(`could not find commit with hash '${hash}'`);
             }
           }
         }
@@ -704,7 +704,7 @@ export class Repository {
           return this.repoOdb.writeCommit(c);
         });
       }
-      
+
       // Fill 'parentsOfCommitReferencedByOtherCommits' with all the commits
       // that are referenced indirectly by another commit
       const referencedCommits = c.parent.filter((parentCommit: string) => parentsOfDeletedCommit.includes(parentCommit));
@@ -716,7 +716,6 @@ export class Repository {
     // We need to update every branch that points to the commit
     const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitHash);
     if (branchesPointingToDeletedCommit.length > 0) {
-
       // If all parents of the deleted commit are indirectly referenced by other branches and commits,
       // we can safely delete the branch ...
       if (parentsOfDeletedCommit.length === parentsOfCommitReferencedByOtherCommits.size) {
@@ -728,13 +727,13 @@ export class Repository {
             }
 
             return this.deleteReference(REFERENCE_TYPE.BRANCH, b.getName());
-          }); 
+          });
         }
       } else { // ... otherwise it means the commit is not an orphan and we need to update all branches that pointed to it
         let headUpdated = false;
         for (const ref of branchesPointingToDeletedCommit) {
           ref.hash = commitToDelete.parent[0];
-          
+
           // if we are in a detached head, and we update a branch
           // that now points to the 'detached head', we switch from detached head
           // to the branch
