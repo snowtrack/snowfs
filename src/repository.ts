@@ -689,7 +689,7 @@ export class Repository {
     const parentsOfCommitReferencedByOtherCommits = new Set<string>();
     const parentsOfDeletedCommit: string[] = commitToDelete.parent;
 
-    const promise = Promise.resolve();
+    let promise: Promise<unknown> = Promise.resolve();
 
     this.commitMap.forEach((c: Commit) => {
       if (c.hash === commitHash) {
@@ -700,7 +700,7 @@ export class Repository {
       // deleted commit must be updated
       if (c.parent.includes(commitHash)) {
         c.parent = parentsOfDeletedCommit;
-        promise.then(() => {
+        promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
         });
       }
@@ -720,7 +720,7 @@ export class Repository {
       // we can safely delete the branch ...
       if (parentsOfDeletedCommit.length === parentsOfCommitReferencedByOtherCommits.size) {
         for (const b of branchesPointingToDeletedCommit) {
-          promise.then((): Promise<unknown> => {
+          promise = promise.then((): Promise<unknown> => {
             // ensure we dont delete the last reference
             if (this.references.length <= 1) {
               return Promise.resolve();
@@ -739,12 +739,12 @@ export class Repository {
           // to the branch
           if (this.head.isDetached() && ref.hash === this.getHead().hash && !headUpdated) {
             headUpdated = true; // we only do this with the first branch we encounter
-            promise.then(() => {
+            promise = promise.then(() => {
               this.head.refName = ref.getName();
               return this.repoOdb.writeHeadReference(this.getHead());
             });
           }
-          promise.then(() => {
+          promise = promise.then(() => {
             return this.repoOdb.writeReference(ref);
           });
         }
