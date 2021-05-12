@@ -271,7 +271,7 @@ function getSnowFSRepo(path: string): Promise<string | null> {
     }
 
     if (dirname(path) === path) { // if arrived at root
-      throw new Error('workdir doesn\'t exist');
+      throw new Error('commondir not found');
     }
 
     return getSnowFSRepo(dirname(path));
