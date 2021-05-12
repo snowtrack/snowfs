@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import * as io from './io';
 
 import {
-  join, relative, normalize, extname,
+  join, relative, normalize, extname, dirname,
 } from './path';
 import { Repository } from './repository';
 import {
@@ -248,7 +248,8 @@ export class TreeDir extends TreeEntry {
 // This function has the same basic functioanlity as io.osWalk(..) but works with Tree
 export function constructTree(
   dirPath: string,
-  processed: Map<string, FileInfo>,
+  processed: Map<string, string>,
+  dirSet?: Set<string>,
   tree?: TreeDir,
   root?: string,
 ): Promise<TreeDir> {
@@ -264,6 +265,15 @@ export function constructTree(
 
   if (!tree) {
     tree = TreeDir.createRootTree();
+    
+    // here we build a set of all directories that will be part of the commit
+    dirSet = new Set();
+    processed.forEach((_: string, path: string) => {
+      const dname = dirname(path);
+      if (dname.length > 0) {
+        dirSet.add(dname);
+      }
+    });
   }
 
   return new Promise<string[]>((resolve, reject) => {
@@ -284,9 +294,11 @@ export function constructTree(
         }
 
         const absPath = `${dirPath}/${entry}`;
+        const relPath = relative(root, absPath);
         promises.push(
           io.stat(absPath).then((stat: fse.Stats) => {
             if (stat.isDirectory()) {
+              // hash is later added to subtree (see next promise task)
               const subtree: TreeDir = new TreeDir(
                 relative(root, absPath),
                 {
@@ -296,21 +308,26 @@ export function constructTree(
                 },
                 tree,
               );
-              tree.children.push(subtree);
-              return constructTree(absPath, processed, subtree, root);
+
+              // Check if we go down that directory, there might be no file thats
+              // part of the commit anyway
+              if (dirSet.has(relPath)) {
+                tree.children.push(subtree);
+                return constructTree(absPath, processed, dirSet, subtree, root);
+              } else {
+                return Promise.resolve(null);
+              }
             }
-            const fileinfo: FileInfo | null = processed?.get(relative(root, absPath));
-            if (fileinfo) {
-              const path: string = relative(root, absPath);
-              const entry: TreeFile = new TreeFile(fileinfo.hash,
-                path, {
+
+            const filehash: string = processed?.get(relPath);
+            if (filehash) {
+              const entry: TreeFile = new TreeFile(filehash,
+                relPath, {
                   size: stat.size,
                   ctimeMs: stat.ctimeMs,
                   mtimeMs: stat.mtimeMs,
-                }, extname(path), tree);
+                }, extname(relPath), tree);
               tree.children.push(entry);
-            } else {
-              // console.warn(`No hash for ${absPath}`);
             }
           }),
         );
