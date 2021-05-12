@@ -977,6 +977,7 @@ export class Repository {
    */
   getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
     const statusResult = new Map<string, StatusEntry>();
+    const dirs = new Map<string, StatusEntry>();
 
     const ignore = new IgnoreManager();
 
@@ -1031,6 +1032,29 @@ export class Repository {
           }
         }
 
+        if (filter & FILTER.INCLUDE_DIRECTORIES) {
+          // check which items are a directory
+          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
+
+          /// check which items of the directories are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+
+          // get the list of directories which are not ignored
+          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
+
+          for (const item of itemsStep2) {
+            const dir = new StatusEntry({
+              path: item.relPath,
+              status: 0,
+              stats: item.stats,
+            }, true);
+            // the status of this directory will later be overwritten in case
+            // the directory contains a file that is modified
+            statusResult.set(item.relPath, dir);
+            dirs.set(item.relPath, dir);
+          }
+        }
+
         // Items which didn't exist before, but do now
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // check which items are new and didn't exist in the old commit
@@ -1067,28 +1091,17 @@ export class Repository {
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.isDirectory()));
+
+              // we bubble the bits up to each directory, by marking every dir as modified
+              const dname = dirname(entry.path);
+              dirs.forEach((item: StatusEntry, path: string) => {
+                if (path === dname) {
+                  // every directory that contains a deleted element is marked as deleted
+                  // first, unless 
+                  item.setStatusBit(STATUS.WT_MODIFIED);
+                }
+              });
             }
-          }
-        }
-
-        if (filter & FILTER.INCLUDE_DIRECTORIES) {
-          // check which items are a directory
-          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
-
-          /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
-
-          // get the list of directories which are not ignored
-          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
-
-          for (const item of itemsStep2) {
-            // the status of this directory will later be overwritten in case
-            // the directory contains a file that is modified
-            statusResult.set(item.relPath, new StatusEntry({
-              path: item.relPath,
-              status: 0,
-              stats: item.stats,
-            }, true));
           }
         }
 
@@ -1120,6 +1133,18 @@ export class Repository {
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
               }, false));
+
+              // we bubble the bits up to each directory, by marking every dir as modified
+              const dname = dirname(existingItem.file.path);
+              dirs.forEach((item: StatusEntry, path: string) => {
+                if (path === dname) {
+                  // if either no bit is set, or marked as deleted or new, we mark
+                  // the directory now as modified
+                  if (item.statusBit() === 0 || item.isDeleted() || item.isNew()) {
+                    item.setStatusBit(STATUS.WT_MODIFIED);
+                  }
+                }
+              });
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingItem.file.path,
               new StatusEntry({
@@ -1173,7 +1198,7 @@ export class Repository {
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const processedMap = new Map<string, FileInfo>();
+    const processedMap = new Map<string, string>();
 
     // head is not available when repo is initialized
     if (this.head?.hash) {
@@ -1182,21 +1207,13 @@ export class Repository {
 
       // store the current tree files in the processed map...
       currentTree.forEach((value: TreeFile) => {
-        processedMap.set(value.path, {
-          hash: value.hash,
-          ext: extname(value.path),
-          stat: {
-            size: value.stats.size,
-            ctimeMs: value.stats.ctimeMs,
-            mtimeMs: value.stats.mtimeMs,
-          },
-        });
+        processedMap.set(value.path, value.hash);
       });
     }
 
     // ... and overwrite the items with the new values from the index that just got commited
     index.getProcessedMap().forEach((value: FileInfo, path: string) => {
-      processedMap.set(path, value);
+      processedMap.set(path, value.hash);
     });
 
     return constructTree(this.repoWorkDir, processedMap)
