@@ -673,49 +673,95 @@ export class Repository {
   }
 
   async deleteCommit(commitHash: string) {
-    const commit: Commit = this.findCommitByHash(commitHash);
-    if (!commit) {
+    const commitToDelete: Commit = this.findCommitByHash(commitHash);
+    if (!commitToDelete) {
       throw new Error('cannot find commit');
     }
 
-    if (!commit.parent || commit.parent.length === 0) {
+    if (!commitToDelete.parent || commitToDelete.parent.length === 0) {
       throw new Error('cannot delete first commit');
     }
 
-    const parentOfDeletedCommit = commit.parent;
+    if (this.head.hash === commitHash) {
+      throw new Error('cannot delete commit that is checked out');
+    }
 
-    const updateCommits = [];
+    const parentsOfCommitReferencedByOtherCommits = new Set<string>();
+    const parentsOfDeletedCommit: string[] = commitToDelete.parent;
+
+    const promise = Promise.resolve();
+
     this.commitMap.forEach((c: Commit) => {
-      if (c.parent.includes(commitHash)) {
-        c.parent = parentOfDeletedCommit;
-        updateCommits.push(this.repoOdb.writeCommit(c));
+      if (c.hash === commitHash) {
+        return;
       }
+
+      // every commit that is a child commit (direct descendant) of the
+      // deleted commit must be updated
+      if (c.parent.includes(commitHash)) {
+        c.parent = parentsOfDeletedCommit;
+        promise.then(() => {
+          return this.repoOdb.writeCommit(c);
+        });
+      }
+      
+      // Fill 'parentsOfCommitReferencedByOtherCommits' with all the commits
+      // that are referenced indirectly by another commit
+      const referencedCommits = c.parent.filter((parentCommit: string) => parentsOfDeletedCommit.includes(parentCommit));
+      referencedCommits.forEach((parentHash: string) => {
+        parentsOfCommitReferencedByOtherCommits.add(parentHash);
+      });
     });
 
-    this.commitMap.delete(commitHash);
+    // We need to update every branch that points to the commit
+    const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitHash);
+    if (branchesPointingToDeletedCommit.length > 0) {
 
-    let promise: Promise<unknown>;
-    if (this.head.hash === commitHash) {
-      this.head.hash = commit.parent[0];
-      promise = this.repoOdb.writeHeadReference(this.head);
-    } else {
-      promise = Promise.resolve();
+      // If all parents of the deleted commit are indirectly referenced by other branches and commits,
+      // we can safely delete the branch ...
+      if (parentsOfDeletedCommit.length === parentsOfCommitReferencedByOtherCommits.size) {
+        for (const b of branchesPointingToDeletedCommit) {
+          promise.then((): Promise<unknown> => {
+            // ensure we dont delete the last reference
+            if (this.references.length <= 1) {
+              return Promise.resolve();
+            }
+
+            return this.deleteReference(REFERENCE_TYPE.BRANCH, b.getName());
+          }); 
+        }
+      } else { // ... otherwise it means the commit is not an orphan and we need to update all branches that pointed to it
+        let headUpdated = false;
+        for (const ref of branchesPointingToDeletedCommit) {
+          ref.hash = commitToDelete.parent[0];
+          
+          // if we are in a detached head, and we update a branch
+          // that now points to the 'detached head', we switch from detached head
+          // to the branch
+          if (this.head.isDetached() && ref.hash === this.getHead().hash && !headUpdated) {
+            headUpdated = true; // we only do this with the first branch we encounter
+            promise.then(() => {
+              this.head.refName = ref.getName();
+              return this.repoOdb.writeHeadReference(this.getHead());
+            });
+          }
+          promise.then(() => {
+            return this.repoOdb.writeReference(ref);
+          });
+        }
+      }
+    }
+
+    // we now delete the commit from the commit map and the commit array
+    this.commitMap.delete(commitHash);
+    const index = this.commits.findIndex((c) => c.hash === commitHash);
+    if (index > -1) {
+      this.commits.splice(index, 1);
     }
 
     return promise
       .then(() => {
-        const promises = [];
-        for (const ref of this.references) {
-          if (ref.hash === commitHash) {
-            ref.hash = commit.parent[0];
-            promises.push(this.repoOdb.writeReference(ref));
-          }
-        }
-        return Promise.all(promises);
-      }).then(() => {
-        return this.repoOdb.deleteCommit(commit);
-      }).then(() => {
-        return Promise.all(updateCommits);
+        return this.repoOdb.deleteCommit(commitToDelete);
       });
   }
 
@@ -1169,7 +1215,7 @@ export class Repository {
 
         return index.invalidate();
       }).then(() => {
-        commit = new Commit(this, message, new Date(), tree, [this.head ? this.head.hash : null]);
+        commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
 
         if (tags && tags.length > 0) {
           tags.forEach((tag: string) => {
