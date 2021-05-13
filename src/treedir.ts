@@ -175,26 +175,23 @@ export class TreeDir extends TreeEntry {
       return [size, hash.digest('hex')];
     }
 
-    function privateMergeTrees(source: TreeEntry, target: TreeEntry) {
+    function privateMergeTrees(source: TreeEntry, target: TreeEntry): TreeEntry[] {
       if (source instanceof TreeDir && target instanceof TreeDir) {
         let children = [];
         source.children.forEach((s: TreeEntry) => {
           target.children.forEach((t: TreeEntry) => {
             if (s.path === t.path) {
-              children = children.concat(this.mergeTrees(s, t));
+              children = children.concat(privateMergeTrees(s, t));
             }
           });
         });
 
-        // Update each items size and hash
-        const calcs = calculateSizeAndHash(target.children);
-        target.stats.size = calcs[0];
-        target.hash = calcs[1];
-
         // first arg has precedence, so in this case target
-        return unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
+        const unionChildren = unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
           return a.path === b.path;
         });
+
+        return unionChildren;
       }
 
       if (target instanceof TreeDir) {
@@ -208,6 +205,7 @@ export class TreeDir extends TreeEntry {
     const calcs = calculateSizeAndHash(children);
     root.stats.size = calcs[0];
     root.hash = calcs[1];
+    root.children = children;
     return root;
   }
 
@@ -385,16 +383,12 @@ export function constructTree(
       return Promise.all(promises);
     })
     .then(() => {
-      // assign the parent 'tree' a hash of all its children
-      // and calculate their size
-      const hash = crypto.createHash('sha256');
+      // calculate the size of the directory
       let size = 0;
       for (const r of tree.children) {
         size += r.stats.size;
-        hash.update(r.hash.toString());
       }
       tree.stats.size = size;
-      tree.hash = hash.digest('hex');
       return tree;
     });
 }
