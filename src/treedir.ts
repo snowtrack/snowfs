@@ -2,6 +2,7 @@
 /* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
+import { unionWith } from 'lodash';
 import * as io from './io';
 
 import {
@@ -146,6 +147,34 @@ export class TreeDir extends TreeEntry {
     return new TreeDir('', { size: 0, ctimeMs: 0, mtimeMs: 0 });
   }
 
+  /**
+   * Merge two trees, with target having the precedence in case
+   * the element is already located in 'source.
+   */
+  static mergeTrees(source: TreeEntry, target: TreeEntry) {
+    if (source instanceof TreeDir && target instanceof TreeDir) {
+      let children = [];
+      source.children.forEach((s: TreeEntry) => {
+        target.children.forEach((t: TreeEntry) => {
+          if (s.path === t.path) {
+            children = children.concat(this.mergeTrees(s, t));
+          }
+        });
+      });
+      // first arg has precedence, so in this case target
+      const un = unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
+        return a.path === b.path;
+      });
+      console.log(un);
+      return un;
+    }
+
+    if (target instanceof TreeDir) {
+      return [...target.children]; // target has precedence
+    }
+    return [target];
+  }
+
   toString(includeChildren?: boolean): string {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
@@ -248,7 +277,6 @@ export class TreeDir extends TreeEntry {
 // This function has the same basic functioanlity as io.osWalk(..) but works with Tree
 export function constructTree(
   dirPath: string,
-  processed: Map<string, string>,
   tree?: TreeDir,
   root?: string,
 ): Promise<TreeDir> {
@@ -279,7 +307,7 @@ export function constructTree(
       const promises: Promise<any>[] = [];
 
       for (const entry of entries) {
-        if (entry === '.snow' || entry === '.git' || entry === '.DS_Store' || entry == 'thumbs.db') {
+        if (entry === '.snow' || entry === '.git' || entry === '.DS_Store' || entry === 'thumbs.db') {
           continue;
         }
 
@@ -300,19 +328,16 @@ export function constructTree(
               );
 
               tree.children.push(subtree);
-              return constructTree(absPath, processed, subtree, root);
+              return constructTree(absPath, subtree, root);
             }
 
-            const filehash: string = processed?.get(relPath);
-            if (filehash) {
-              const entry: TreeFile = new TreeFile(filehash,
-                relPath, {
-                  size: stat.size,
-                  ctimeMs: stat.ctimeMs,
-                  mtimeMs: stat.mtimeMs,
-                }, extname(relPath), tree);
-              tree.children.push(entry);
-            }
+            const entry: TreeFile = new TreeFile('',
+              relPath, {
+                size: stat.size,
+                ctimeMs: stat.ctimeMs,
+                mtimeMs: stat.mtimeMs,
+              }, extname(relPath), tree);
+            tree.children.push(entry);
           }),
         );
       }
