@@ -13,6 +13,9 @@ import { IoContext, TEST_IF } from '../src/io_context';
 import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
+import {
+  constructTree, TreeDir, TreeEntry, TreeFile,
+} from '../src/treedir';
 
 const AggregateError = require('es-aggregate-error');
 
@@ -794,5 +797,109 @@ test('performFileAccessCheck / no access', async (t) => {
   } catch (error) {
     console.error(error);
     t.fail(error.message);
+  }
+});
+
+test('constructTree', async (t) => {
+  const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+
+  const relPaths = [
+    'foo',
+    'bar/baz',
+    'bar/goz',
+    'bar/subdir/file1',
+    'bar/subdir/file2',
+    'bar/subdir/file3',
+    'bar/subdir/file4',
+    'bar/subdir/subdir2/file1',
+    'bar/subdir/subdir2/file2',
+  ];
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+    fse.ensureFileSync(join(tmpDir, f));
+  }
+
+  t.log('Construct a TreeDir of dir');
+  const root = await constructTree(tmpDir);
+
+  for (const relPath of relPaths) {
+    const ditem = root.find(dirname(relPath));
+    t.log(`Find '${relPath}' and received: '${ditem?.path}'`);
+    t.true(ditem instanceof TreeDir);
+
+    const item = root.find(relPath);
+    t.log(`Find '${relPath}' and received: '${item?.path}'`);
+    t.true(!!item);
+    t.is(item?.path, relPath);
+  }
+});
+
+test('TreeDir.clone', async (t) => {
+  const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+
+  const relPaths = [
+    'foo',
+    'bar/baz',
+    'bar/goz',
+    'bar/subdir/file1',
+    'bar/subdir/file2',
+    'bar/subdir/file3',
+    'bar/subdir/file4',
+    'bar/subdir/subdir2/file1',
+    'bar/subdir/subdir2/file2',
+  ];
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+    fse.ensureFileSync(join(tmpDir, f));
+  }
+
+  t.log('Construct a TreeDir of dir');
+  const origRoot = await constructTree(tmpDir);
+  const newRoot = origRoot.clone();
+
+  // we modify each item in the original rooot tree to check
+  // if any element in the clone got modified by accident
+  TreeDir.walk(origRoot, (entry: TreeEntry) => {
+    entry.path += '.xyz';
+  });
+
+  // Now check if all the items still have their old path
+  for (const relPath of relPaths) {
+    const item = newRoot.find(relPath);
+    t.log(`Find '${relPath}' and received: '${item?.path}'`);
+    t.is(item?.path, relPath);
+  }
+});
+
+test('TreeDir.mergeTree 1', async (t) => {
+  const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+
+  const relPaths = [
+    'foo',
+    'bar',
+  ];
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+    fse.ensureFileSync(join(tmpDir, f));
+  }
+
+  t.log('Construct a TreeDir of dir');
+  const origRoot = await constructTree(tmpDir);
+  const newRoot = origRoot.clone();
+
+  // we modify each item in the original rooot tree to check
+  // if any element in the clone got modified by accident
+  TreeDir.walk(origRoot, (entry: TreeEntry) => {
+    entry.path += '.xyz';
+  });
+
+  // Now check if all the items still have their old path
+  for (const relPath of relPaths) {
+    const item = newRoot.find(relPath);
+    t.log(`Find '${relPath}' and received: '${item?.path}'`);
+    t.is(item?.path, relPath);
   }
 });

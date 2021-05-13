@@ -1099,7 +1099,7 @@ export class Repository {
               dirs.forEach((item: StatusEntry, path: string) => {
                 if (path === dname) {
                   // every directory that contains a deleted element is marked as deleted
-                  // first, unless 
+                  // first, unless
                   item.setStatusBit(STATUS.WT_MODIFIED);
                 }
               });
@@ -1136,17 +1136,17 @@ export class Repository {
                 stats: existingItem.newStats,
               }, false));
 
-              // we bubble the bits up to each directory, by marking every dir as modified
-              const dname = dirname(existingItem.file.path);
-              dirs.forEach((item: StatusEntry, path: string) => {
-                if (path === dname) {
-                  // if either no bit is set, or marked as deleted or new, we mark
-                  // the directory now as modified
-                  if (item.statusBit() === 0 || item.isDeleted() || item.isNew()) {
-                    item.setStatusBit(STATUS.WT_MODIFIED);
-                  }
+            // we bubble the bits up to each directory, by marking every dir as modified
+            const dname = dirname(existingItem.file.path);
+            dirs.forEach((item: StatusEntry, path: string) => {
+              if (path === dname) {
+                // if either no bit is set, or marked as deleted or new, we mark
+                // the directory now as modified
+                if (item.statusBit() === 0 || item.isDeleted() || item.isNew()) {
+                  item.setStatusBit(STATUS.WT_MODIFIED);
                 }
-              });
+              }
+            });
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingItem.file.path,
               new StatusEntry({
@@ -1200,76 +1200,72 @@ export class Repository {
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const processedMap = new Map<string, string>();
-
-
     let promise = Promise.resolve(TreeDir.createRootTree());
 
     // head is not available when repo is initialized
     if (this.head?.hash) {
-      const headCommit = this.getCommitByHead();
-      const currentTree: Map<string, TreeEntry> = headCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+      promise = constructTree(this.repoWorkDir)
+        .then((workdirTree: TreeDir) => {
+          const headCommit = this.getCommitByHead();
 
-      // store the current tree files in the processed map...
-      currentTree.forEach((value: TreeFile) => {
-        processedMap.set(value.path, value.hash);
-      });
+          const treeA: TreeDir = headCommit.root.clone();
 
-      // ... and overwrite the items with the new values from the index that just got commited
-      index.getProcessedMap().forEach((value: FileInfo, path: string) => {
-        processedMap.set(path, value.hash);
-      });
+          const commitAList: Map<string, TreeEntry> = treeA.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+          const workingDirList: Map<string, TreeEntry> = workdirTree.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-      // only create a tree when there is a hash, since the first commit shall be empty
-      promise = constructTree(this.repoWorkDir, processedMap);
+          const addedFiles = index.addRelPaths; // untitled folder/bas/foo copy
+          const delFiles = index.deleteRelPaths;
+
+          return workdirTree;
+        });
     }
 
     return promise.then((treeResult: TreeDir) => {
-        tree = treeResult;
+      tree = treeResult;
 
-        // the tree already contains the new files, added by constructTree
-        // through the processed hashmap
-        // index.addRelPaths.forEach(...) ...
+      // the tree already contains the new files, added by constructTree
+      // through the processed hashmap
+      // index.addRelPaths.forEach(...) ...
 
-        // remove the elements from the tree that were removed in the index
-        index.deleteRelPaths.forEach((relPath: string) => {
-          tree.remove(relPath);
+      // remove the elements from the tree that were removed in the index
+      index.deleteRelPaths.forEach((relPath: string) => {
+        tree.remove(relPath);
+      });
+
+      return index.invalidate();
+    }).then(() => {
+      commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
+
+      if (tags && tags.length > 0) {
+        tags.forEach((tag: string) => {
+          commit.addTag(tag);
         });
+      }
 
-        return index.invalidate();
-      }).then(() => {
-        commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
-
-        if (tags && tags.length > 0) {
-          tags.forEach((tag: string) => {
-            commit.addTag(tag);
-          });
+      if (userData) {
+        for (const [key, value] of Object.entries(userData)) {
+          commit.addData(key, value);
         }
+      }
 
-        if (userData) {
-          for (const [key, value] of Object.entries(userData)) {
-            commit.addData(key, value);
-          }
+      this.commits.push(commit);
+      this.commitMap.set(commit.hash.toString(), commit);
+
+      if (this.head.hash) {
+        this.head.hash = commit.hash;
+        // update the hash of the current head reference as well
+        const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
+        if (curRef) {
+          curRef.hash = commit.hash;
         }
+      } else {
+        this.head.setName(this.options.defaultBranchName ?? 'Main');
+        this.head.hash = commit.hash;
+        this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
+      }
 
-        this.commits.push(commit);
-        this.commitMap.set(commit.hash.toString(), commit);
-
-        if (this.head.hash) {
-          this.head.hash = commit.hash;
-          // update the hash of the current head reference as well
-          const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
-          if (curRef) {
-            curRef.hash = commit.hash;
-          }
-        } else {
-          this.head.setName(this.options.defaultBranchName ?? 'Main');
-          this.head.hash = commit.hash;
-          this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
-        }
-
-        return this.repoOdb.writeCommit(commit);
-      })
+      return this.repoOdb.writeCommit(commit);
+    })
       .then(() => {
         this.head.hash = commit.hash;
         // update .snow/HEAD

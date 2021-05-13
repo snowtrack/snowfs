@@ -42,7 +42,7 @@ export const enum DETECTIONMODE {
   SIZE_AND_HASH_FOR_ALL_FILES = 3
 }
 
-export class TreeEntry {
+export abstract class TreeEntry {
   constructor(
     public hash: string,
     public path: string,
@@ -57,6 +57,8 @@ export class TreeEntry {
   isFile(): boolean {
     return this instanceof TreeFile;
   }
+
+  abstract clone(parent?: TreeDir);
 }
 
 export class TreeFile extends TreeEntry {
@@ -68,6 +70,10 @@ export class TreeFile extends TreeEntry {
     public parent: TreeDir,
   ) {
     super(hash, path, stats);
+  }
+
+  clone(parent?: TreeDir): TreeFile {
+    return new TreeFile(this.hash, this.path, { ...this.stats }, this.ext, parent);
   }
 
   toString(): string {
@@ -147,32 +153,62 @@ export class TreeDir extends TreeEntry {
     return new TreeDir('', { size: 0, ctimeMs: 0, mtimeMs: 0 });
   }
 
+  clone(parent?: TreeDir): TreeDir {
+    const newTree = new TreeDir(this.path, { ...this.stats }, parent);
+    newTree.children = this.children.map((c: TreeEntry) => c.clone(newTree));
+    return newTree;
+  }
+
   /**
    * Merge two trees, with target having the precedence in case
    * the element is already located in 'source.
    */
   static mergeTrees(source: TreeEntry, target: TreeEntry) {
-    if (source instanceof TreeDir && target instanceof TreeDir) {
-      let children = [];
-      source.children.forEach((s: TreeEntry) => {
-        target.children.forEach((t: TreeEntry) => {
-          if (s.path === t.path) {
-            children = children.concat(this.mergeTrees(s, t));
-          }
-        });
-      });
-      // first arg has precedence, so in this case target
-      const un = unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
-        return a.path === b.path;
-      });
-      console.log(un);
-      return un;
+    function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
+      const hash = crypto.createHash('sha256');
+      let size = 0;
+      for (const r of items) {
+        size += r.stats.size;
+        hash.update(r.hash.toString());
+      }
+      target.stats.size = size;
+      return [size, hash.digest('hex')];
     }
 
-    if (target instanceof TreeDir) {
-      return [...target.children]; // target has precedence
+    function privateMergeTrees(source: TreeEntry, target: TreeEntry) {
+      if (source instanceof TreeDir && target instanceof TreeDir) {
+        let children = [];
+        source.children.forEach((s: TreeEntry) => {
+          target.children.forEach((t: TreeEntry) => {
+            if (s.path === t.path) {
+              children = children.concat(this.mergeTrees(s, t));
+            }
+          });
+        });
+
+        // Update each items size and hash
+        const calcs = calculateSizeAndHash(target.children);
+        target.stats.size = calcs[0];
+        target.hash = calcs[1];
+
+        // first arg has precedence, so in this case target
+        return unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
+          return a.path === b.path;
+        });
+      }
+
+      if (target instanceof TreeDir) {
+        return [...target.children]; // target has precedence
+      }
+      return [target];
     }
-    return [target];
+
+    const root = TreeDir.createRootTree();
+    const children = privateMergeTrees(source, target);
+    const calcs = calculateSizeAndHash(children);
+    root.stats.size = calcs[0];
+    root.hash = calcs[1];
+    return root;
   }
 
   toString(includeChildren?: boolean): string {
@@ -217,6 +253,10 @@ export class TreeDir extends TreeEntry {
   }
 
   find(relativePath: string): TreeEntry | null {
+    if (relativePath === this.path) {
+      return this;
+    }
+
     let tree: TreeEntry | null = null;
     // TODO: (Seb) return faster if found
     TreeDir.walk(this, (entry: TreeDir | TreeFile) => {

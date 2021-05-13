@@ -52,7 +52,7 @@ export class Index {
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  processed = new Map<string, FileInfo>();
+  processedFiles = new Map<string, FileInfo>();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
@@ -83,7 +83,7 @@ export class Index {
 
       this.addRelPaths = new Set();
       this.deleteRelPaths = new Set();
-      this.processed.clear();
+      this.processedFiles.clear();
       this.id = undefined;
       this.repo = null;
       this.odb = null;
@@ -132,7 +132,7 @@ export class Index {
     const userData: string = JSON.stringify({
       adds: this.addRelPaths,
       deletes: this.deleteRelPaths,
-      processed: this.processed,
+      processed: this.processedFiles,
     }, (key, value) => {
       if (value instanceof Map) {
         return Array.from(value.entries());
@@ -170,7 +170,7 @@ export class Index {
         const json: any = JSON.parse(content);
         index.addRelPaths = new Set(json.adds);
         index.deleteRelPaths = new Set(json.deletes);
-        index.processed = new Map(json.processed);
+        index.processedFiles = new Map(json.processed);
         parseIndexes.push(index);
       }
       return parseIndexes;
@@ -190,7 +190,7 @@ export class Index {
 
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
-      if (!this.processed.has(relPath)) {
+      if (!this.processedFiles.has(relPath)) {
         this.addRelPaths.add(relPath);
       }
     }
@@ -207,7 +207,7 @@ export class Index {
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
 
-      if (!this.processed.has(relPath)) {
+      if (!this.processedFiles.has(relPath)) {
         this.deleteRelPaths.add(relPath);
       }
     }
@@ -218,10 +218,10 @@ export class Index {
   /**
    * Hashes of files. Filled after [[Index.writeFiles]] has been called.
    */
-  getProcessedMap(): Map<string, FileInfo> {
+  getFileProcessedMap(): Map<string, FileInfo> {
     this.throwIfNotValid();
 
-    return this.processed;
+    return this.processedFiles;
   }
 
   /**
@@ -238,7 +238,7 @@ export class Index {
       .then(() => {
         const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
 
-        unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
+        unprocessedRelItems = relPaths.filter((p: string) => !this.processedFiles.has(p));
 
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
@@ -259,7 +259,7 @@ export class Index {
 
         // TODO: (Seb) Handle deleted files as well here
         for (const r of res.results) {
-          this.processed.set(r.file, r.fileinfo);
+          this.processedFiles.set(r.file, r.fileinfo);
         }
         return this.save();
       });
