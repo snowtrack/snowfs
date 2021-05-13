@@ -249,7 +249,6 @@ export class TreeDir extends TreeEntry {
 export function constructTree(
   dirPath: string,
   processed: Map<string, string>,
-  dirSet?: Set<string>,
   tree?: TreeDir,
   root?: string,
 ): Promise<TreeDir> {
@@ -265,15 +264,6 @@ export function constructTree(
 
   if (!tree) {
     tree = TreeDir.createRootTree();
-    
-    // here we build a set of all directories that will be part of the commit
-    dirSet = new Set();
-    processed.forEach((_: string, path: string) => {
-      const dname = dirname(path);
-      if (dname.length > 0) {
-        dirSet.add(dname);
-      }
-    });
   }
 
   return new Promise<string[]>((resolve, reject) => {
@@ -289,7 +279,7 @@ export function constructTree(
       const promises: Promise<any>[] = [];
 
       for (const entry of entries) {
-        if (entry === '.snow' || entry === '.git') {
+        if (entry === '.snow' || entry === '.git' || entry === '.DS_Store' || entry == 'thumbs.db') {
           continue;
         }
 
@@ -309,14 +299,8 @@ export function constructTree(
                 tree,
               );
 
-              // Check if we go down that directory, there might be no file thats
-              // part of the commit anyway
-              if (dirSet.has(relPath)) {
-                tree.children.push(subtree);
-                return constructTree(absPath, processed, dirSet, subtree, root);
-              } else {
-                return Promise.resolve(null);
-              }
+              tree.children.push(subtree);
+              return constructTree(absPath, processed, subtree, root);
             }
 
             const filehash: string = processed?.get(relPath);

@@ -1202,6 +1202,9 @@ export class Repository {
 
     const processedMap = new Map<string, string>();
 
+
+    let promise = Promise.resolve(TreeDir.createRootTree());
+
     // head is not available when repo is initialized
     if (this.head?.hash) {
       const headCommit = this.getCommitByHead();
@@ -1211,15 +1214,17 @@ export class Repository {
       currentTree.forEach((value: TreeFile) => {
         processedMap.set(value.path, value.hash);
       });
+
+      // ... and overwrite the items with the new values from the index that just got commited
+      index.getProcessedMap().forEach((value: FileInfo, path: string) => {
+        processedMap.set(path, value.hash);
+      });
+
+      // only create a tree when there is a hash, since the first commit shall be empty
+      promise = constructTree(this.repoWorkDir, processedMap);
     }
 
-    // ... and overwrite the items with the new values from the index that just got commited
-    index.getProcessedMap().forEach((value: FileInfo, path: string) => {
-      processedMap.set(path, value.hash);
-    });
-
-    return constructTree(this.repoWorkDir, processedMap)
-      .then((treeResult: TreeDir) => {
+    return promise.then((treeResult: TreeDir) => {
         tree = treeResult;
 
         // the tree already contains the new files, added by constructTree
