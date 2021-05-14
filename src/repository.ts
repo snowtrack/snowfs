@@ -1244,6 +1244,11 @@ export class Repository {
           // now merge both of them and save them
           const newTree = TreeDir.merge(commitTree, workdirTree);
 
+          // Sanitize the tree and delete all directories which have no children
+          TreeDir.remove(newTree, (entry: TreeEntry): boolean => {
+            return entry instanceof TreeDir && entry.children.length === 0;
+          });
+
           // TODO: (Seb) Move this to the index creation
           return newTree;
         });

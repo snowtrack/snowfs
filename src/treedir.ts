@@ -290,12 +290,12 @@ export class TreeDir extends TreeEntry {
    */
   static remove(tree: TreeDir,
     cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean): void {
-    tree.children = tree.children.filter((value: TreeEntry, index: number, array: TreeEntry[]) => !cb(value, index, array));
     for (const child of tree.children) {
       if (child instanceof TreeDir) {
         TreeDir.remove(child, cb);
       }
     }
+    tree.children = tree.children.filter((value: TreeEntry, index: number, array: TreeEntry[]) => !cb(value, index, array));
   }
 
   static walk(
