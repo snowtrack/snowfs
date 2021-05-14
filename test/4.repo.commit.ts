@@ -191,6 +191,30 @@ test('custom-commit-data', async (t) => {
   });
 });
 
+test.only('commit hash subdirectory test', async (t) => {
+  /*
+  createCommit contains a hash to ensure that all items commited have a hash, even in subdirectories.
+  This test ensures no exception is thrown.
+  */
+  const repoPath = getRandomPath();
+  let repo: Repository;
+
+  await Repository.initExt(repoPath).then((repoResult: Repository) => {
+    repo = repoResult;
+    return fse.ensureFile(join(repo.workdir(), 'a', 'b', 'c', 'd', 'e', 'foo.txt'));
+  }).then(() => {
+    const index = repo.ensureMainIndex();
+    index.addFiles(['a/b/c/d/e/foo.txt']);
+    return index.writeFiles();
+  }).then(() => {
+    const index = repo.getFirstIndex();
+    return repo.createCommit(index, 'This is a commit with several subdirectories');
+  })
+    .then(() => {
+      t.pass();
+    });
+});
+
 async function makeCommit(repo: Repository, message: string): Promise<Commit> {
   return fse.writeFile(join(repo.workdir(), 'foo.txt'), message)
     .then(() => {

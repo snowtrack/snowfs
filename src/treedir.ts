@@ -54,6 +54,12 @@ function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
 
 function generateSizeAndCaches(item: TreeEntry): [number, string] {
   if (item instanceof TreeDir) {
+    for (const subitem of item.children) {
+      if (subitem instanceof TreeDir) {
+        generateSizeAndCaches(subitem);
+      }
+    }
+
     const calcs = calculateSizeAndHash(item.children);
     item.stats.size = calcs[0];
     item.hash = calcs[1];
@@ -190,16 +196,10 @@ export class TreeDir extends TreeEntry {
       if (source instanceof TreeDir && target instanceof TreeDir) {
         const newItems = new Map<string, TreeEntry>();
         for (const child of source.children) {
-          const calcs = generateSizeAndCaches(child);
-          child.stats.size = calcs[0];
-          child.hash = calcs[1];
           newItems.set(child.path, child);
         }
 
         for (const child of target.children) {
-          const calcs = generateSizeAndCaches(child);
-          child.stats.size = calcs[0];
-          child.hash = calcs[1];
           newItems.set(child.path, child);
         }
 
@@ -213,7 +213,7 @@ export class TreeDir extends TreeEntry {
         }
         target.children = Array.from(newItems.values());
 
-        const calcs = calculateSizeAndHash(target.children);
+        const calcs = generateSizeAndCaches(target);
         target.stats.size = calcs[0];
         target.hash = calcs[1];
       }
