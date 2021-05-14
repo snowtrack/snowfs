@@ -898,7 +898,7 @@ async function createTree(t, relPaths: string[]): Promise<[TreeDir, string]> {
   return [tree, tmpDir];
 }
 
-test.only('TreeDir.mergeTree 1', async (t) => {
+test('TreeDir.mergeTree 1', async (t) => {
   // This test creates 1 tree, clones it, and merges it with itself
 
   const relPaths = [
@@ -924,7 +924,7 @@ test.only('TreeDir.mergeTree 1', async (t) => {
   t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths).length, 0);
 });
 
-test.only('TreeDir.mergeTree 2', async (t) => {
+test('TreeDir.mergeTree 2', async (t) => {
   // This test creates 2 trees, and merges them
 
   const relPaths0 = [
@@ -954,7 +954,7 @@ test.only('TreeDir.mergeTree 2', async (t) => {
   t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths0.concat(relPaths1)).length, 0);
 });
 
-test.only('TreeDir.mergeTree 3', async (t) => {
+test('TreeDir.mergeTree 3', async (t) => {
   // This test creates 2 trees, both with no intersection of subdirectories
 
   const relPaths0 = [
@@ -989,7 +989,7 @@ test.only('TreeDir.mergeTree 3', async (t) => {
   t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
 });
 
-test.only('TreeDir.mergeTree 4', async (t) => {
+test('TreeDir.mergeTree 4', async (t) => {
   // This test creates 2 trees, both with same subdirectory but different files.
   // Test is to ensure that the subdir will have the correct size
 
@@ -1015,7 +1015,7 @@ test.only('TreeDir.mergeTree 4', async (t) => {
   t.is(subdir?.stats.size, 10); // because of the filename 'xyz'(3) + 'foo-bar'(7)
 });
 
-test.only('TreeDir.mergeTree 5', async (t) => {
+test('TreeDir.mergeTree 5', async (t) => {
   // This test creates 2 trees, where the left is empty
 
   const relPaths0 = [
@@ -1057,7 +1057,7 @@ test.only('TreeDir.mergeTree 5', async (t) => {
   t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
 });
 
-test.only('TreeDir.mergeTree 6', async (t) => {
+test('TreeDir.mergeTree 6', async (t) => {
   // This test creates 2 trees, where the right is empty
 
   const relPaths0 = [
@@ -1099,7 +1099,7 @@ test.only('TreeDir.mergeTree 6', async (t) => {
   t.is(dir1?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
 });
 
-test.only('TreeDir.mergeTree 7', async (t) => {
+test('TreeDir.mergeTree 7', async (t) => {
   // This test creates 2 trees, where one elemtent is a dir in one tree, and a file in the other.
   // Expected is the merged tree to have a file located at 'foo/bar'
 
@@ -1141,7 +1141,7 @@ test.only('TreeDir.mergeTree 7', async (t) => {
   t.true(!mergedRoots.find('foo/bar/bas'));
 });
 
-test.only('TreeDir.mergeTree 8', async (t) => {
+test('TreeDir.mergeTree 8', async (t) => {
   // This test creates 2 bigger trees with new objects left and right and intersections
 
   const relPaths0 = [
@@ -1203,4 +1203,86 @@ test.only('TreeDir.mergeTree 8', async (t) => {
   t.is(root1Map.size, 17);
   t.log(`Expected 24 elements in the merged tree, received ${mergedRootsMap.size}`);
   t.is(mergedRootsMap.size, 24);
+});
+
+test('TreeDir.remove 1', async (t) => {
+  // test that nothing gets deleted
+
+  const relPaths0 = [
+    join('123/foo'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove nothing');
+  TreeDir.remove(root0, (): boolean => {
+    return false;
+  });
+
+  t.log(`Ensure that only one element is available and got ${root0.children.length}`);
+  t.is(root0.children.length, 1);
+  t.true(root0.children[0] instanceof TreeDir);
+  t.is(root0.children[0].path, '123');
+
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.true((root0.children[0] as TreeDir).children[0] instanceof TreeFile);
+  t.is((root0.children[0] as TreeDir).children[0].path, '123/foo');
+});
+
+test('TreeDir.remove 2', async (t) => {
+  // test that the single file gets deleted
+
+  const relPaths0 = [
+    join('123/foo'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove everyting');
+  TreeDir.remove(root0, (): boolean => {
+    return true;
+  });
+
+  t.is(root0.children.length, 0);
+});
+
+test('TreeDir.remove 3', async (t) => {
+  // test to delete a single file
+
+  const relPaths0 = [
+    join('123/foo'),
+    join('123/bar'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove 123/foo');
+  TreeDir.remove(root0, (item: TreeEntry): boolean => {
+    return item.path === '123/foo';
+  });
+
+  t.is(root0.children.length, 1);
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.is((root0.children[0] as TreeDir).children[0].path, '123/bar');
+});
+
+test('TreeDir.remove 4', async (t) => {
+  // test to delete a single file
+
+  const relPaths0 = [
+    join('foo/bar'),
+    join('foo/bas'),
+    join('xyz/123'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove foo');
+  TreeDir.remove(root0, (item: TreeEntry): boolean => {
+    return item.path === 'foo';
+  });
+
+  t.is(root0.children.length, 1);
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.is((root0.children[0] as TreeDir).children[0].path, 'xyz/123');
 });
