@@ -1252,7 +1252,20 @@ export class Repository {
     return promise.then((treeResult: TreeDir) => {
       tree = treeResult;
 
+      // Check hash and size for validty
       TreeDir.walk(treeResult, (item: TreeEntry) => {
+        if (!Number.isInteger(item.stats.size)) {
+          throw new Error(`Item ${item.path} has no valid size`);
+        }
+
+        if (!Number.isInteger(item.stats.ctimeMs)) {
+          throw new Error(`Item ${item.path} has no valid ctime`);
+        }
+
+        if (!Number.isInteger(item.stats.mtimeMs)) {
+          throw new Error(`Item ${item.path} has no valid mtime`);
+        }
+
         if (!item.hash.match(/[0-9a-f]{64}/i)) {
           throw new Error(`Item ${item.path} has no valid hash`);
         }
