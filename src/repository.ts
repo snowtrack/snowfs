@@ -1252,6 +1252,12 @@ export class Repository {
     return promise.then((treeResult: TreeDir) => {
       tree = treeResult;
 
+      TreeDir.walk(treeResult, (item: TreeEntry) => {
+        if (!item.hash.match(/[0-9a-f]{64}/i)) {
+          throw new Error(`Item ${item.path} has no valid hash`);
+        }
+      });
+
       return index.invalidate();
     }).then(() => {
       commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
