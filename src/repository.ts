@@ -1208,29 +1208,49 @@ export class Repository {
         .then((workdirTree: TreeDir) => {
           const headCommit = this.getCommitByHead();
 
-          const treeA: TreeDir = headCommit.root.clone();
+          // 1) Create the first tree with the items that got added
+          const added = new Set<string>();
+          for (const relPath of Array.from(index.addRelPaths.keys())) {
+            let dname = relPath;
+            do {
+              added.add(dname);
+              dname = dirname(dname);
+            } while (dname !== '');
+          }
 
-          const commitAList: Map<string, TreeEntry> = treeA.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-          const workingDirList: Map<string, TreeEntry> = workdirTree.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+          TreeDir.remove(workdirTree, (entry: TreeEntry): boolean => {
+            const remove = !added.has(entry.path);
+            if (remove) {
+              return true;
+            }
 
-          const addedFiles = index.addRelPaths; // untitled folder/bas/foo copy
-          const delFiles = index.deleteRelPaths;
+            // while we are at it, we update the file infos
+            const finfo: FileInfo = index.processedFiles.get(entry.path);
+            if (finfo) {
+              entry.hash = finfo.hash;
+              entry.stats = finfo.stat;
+            }
+            return false;
+          });
 
-          return workdirTree;
+          // 2) Now create a tree with items that got deleted
+
+          const commitTree = headCommit.root.clone();
+
+          TreeDir.remove(commitTree, (entry: TreeEntry): boolean => {
+            return index.deleteRelPaths.has(entry.path);
+          });
+
+          // now merge both of them and save them
+          const newTree = TreeDir.merge(commitTree, workdirTree);
+
+          // TODO: (Seb) Move this to the index creation
+          return newTree;
         });
     }
 
     return promise.then((treeResult: TreeDir) => {
       tree = treeResult;
-
-      // the tree already contains the new files, added by constructTree
-      // through the processed hashmap
-      // index.addRelPaths.forEach(...) ...
-
-      // remove the elements from the tree that were removed in the index
-      index.deleteRelPaths.forEach((relPath: string) => {
-        tree.remove(relPath);
-      });
 
       return index.invalidate();
     }).then(() => {

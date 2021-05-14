@@ -52,6 +52,17 @@ function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   return [size, hash.digest('hex')];
 }
 
+function generateSizeAndCaches(item: TreeEntry): [number, string] {
+  if (item instanceof TreeDir) {
+    const calcs = calculateSizeAndHash(item.children);
+    item.stats.size = calcs[0];
+    item.hash = calcs[1];
+    return [calcs[0], calcs[1]];
+  }
+
+  return [item.stats.size, item.hash];
+}
+
 export abstract class TreeEntry {
   constructor(
     public hash: string,
@@ -179,10 +190,16 @@ export class TreeDir extends TreeEntry {
       if (source instanceof TreeDir && target instanceof TreeDir) {
         const newItems = new Map<string, TreeEntry>();
         for (const child of source.children) {
+          const calcs = generateSizeAndCaches(child);
+          child.stats.size = calcs[0];
+          child.hash = calcs[1];
           newItems.set(child.path, child);
         }
 
         for (const child of target.children) {
+          const calcs = generateSizeAndCaches(child);
+          child.stats.size = calcs[0];
+          child.hash = calcs[1];
           newItems.set(child.path, child);
         }
 
@@ -267,13 +284,11 @@ export class TreeDir extends TreeEntry {
    */
   static remove(tree: TreeDir,
     cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean): void {
-    let i = 0;
     tree.children = tree.children.filter((value: TreeEntry, index: number, array: TreeEntry[]) => !cb(value, index, array));
     for (const child of tree.children) {
       if (child instanceof TreeDir) {
         TreeDir.remove(child, cb);
       }
-      i++;
     }
   }
 
