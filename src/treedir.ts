@@ -47,7 +47,12 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   let size = 0;
 
   // Here we ensure that the hash of the tree entries is not dependend on their order
-  items = items.sort((a: TreeEntry, b: TreeEntry) => a.path.localeCompare(b.path));
+  items = items.sort((a: TreeEntry, b: TreeEntry) => {
+    if (a.isDirectory() !== b.isDirectory()) {
+      return a.isDirectory() ? -1 : 1;
+    }
+    return a.path.localeCompare(b.path);
+  });
 
   for (const r of items) {
     size += r.stats.size;
