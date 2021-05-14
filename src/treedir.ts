@@ -42,6 +42,16 @@ export const enum DETECTIONMODE {
   SIZE_AND_HASH_FOR_ALL_FILES = 3
 }
 
+function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
+  const hash = crypto.createHash('sha256');
+  let size = 0;
+  for (const r of items) {
+    size += r.stats.size;
+    hash.update(r.hash.toString());
+  }
+  return [size, hash.digest('hex')];
+}
+
 export abstract class TreeEntry {
   constructor(
     public hash: string,
@@ -163,50 +173,37 @@ export class TreeDir extends TreeEntry {
    * Merge two trees, with target having the precedence in case
    * the element is already located in 'source.
    */
-  static mergeTrees(source: TreeEntry, target: TreeEntry) {
-    function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
-      const hash = crypto.createHash('sha256');
-      let size = 0;
-      for (const r of items) {
-        size += r.stats.size;
-        hash.update(r.hash.toString());
-      }
-      target.stats.size = size;
-      return [size, hash.digest('hex')];
-    }
-
-    function privateMergeTrees(source: TreeEntry, target: TreeEntry): TreeEntry[] {
+  static merge(source: TreeEntry, target: TreeEntry) {
+    function privateMerge(source: TreeEntry, target: TreeEntry) {
+      // walk source nodes...
       if (source instanceof TreeDir && target instanceof TreeDir) {
-        let children = target.children.map((c) => c.clone());
+        const newItems = new Map<string, TreeEntry>();
+        for (const child of source.children) {
+          newItems.set(child.path, child);
+        }
 
-        for (const s of source.children) {
-          for (const t of target.children) {
-            if (s.path === t.path) {
-              children = children.concat(privateMergeTrees(s, t));
+        for (const child of target.children) {
+          newItems.set(child.path, child);
+        }
+
+        for (const sourceItem of source.children) {
+          for (const targetItem of target.children) {
+            if (targetItem.path === sourceItem.path) {
+              const res = privateMerge(sourceItem, targetItem);
+              newItems.set(res.path, res);
             }
           }
         }
+        target.children = Array.from(newItems.values());
 
-        // first arg has precedence, so in this case target
-        children = unionWith(children, source.children.map((c) => c.clone()), (a: TreeEntry, b: TreeEntry) => {
-          return a.path === b.path;
-        });
-        return children;
+        const calcs = calculateSizeAndHash(target.children);
+        target.stats.size = calcs[0];
+        target.hash = calcs[1];
       }
-
-      if (target instanceof TreeDir) {
-        return [...target.children]; // target has precedence
-      }
-      return [target];
+      return target;
     }
 
-    const root = TreeDir.createRootTree();
-    const children = privateMergeTrees(source, target);
-    const calcs = calculateSizeAndHash(children);
-    root.stats.size = calcs[0];
-    root.hash = calcs[1];
-    root.children = children;
-    return root;
+    return privateMerge(source, target.clone()) as TreeDir;
   }
 
   toString(includeChildren?: boolean): string {
