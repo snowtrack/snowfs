@@ -5,7 +5,7 @@ import * as unzipper from 'unzipper';
 
 import test from 'ava';
 
-import { difference, differenceBy } from 'lodash';
+import { differenceBy } from 'lodash';
 import {
   join, dirname, normalize, normalizeExt, sep, basename,
 } from '../src/path';
@@ -813,8 +813,8 @@ test('constructTree', async (t) => {
     'bar/subdir/file2',
     'bar/subdir/file3',
     'bar/subdir/file4',
-    'bar/subdir/subdir2/file1',
-    'bar/subdir/subdir2/file2',
+    'bar/subdir/subdir1/file1',
+    'bar/subdir/subdir1/file2',
   ];
 
   for (const f of relPaths) {
@@ -848,8 +848,8 @@ test('TreeDir.clone', async (t) => {
     'bar/subdir/fileXX', // has 6 bytes
     'bar/subdir/fileXXX', // has 7 bytes
     'bar/subdir/fileXXXX', // has 8 bytes
-    'bar/subdir/subdir2/file1', // has 5 bytes
-    'bar/subdir/subdir2/file2', // has 5 bytes
+    'bar/subdir/subdir1/file1', // has 5 bytes
+    'bar/subdir/subdir1/file2', // has 5 bytes
   ];
 
   for (const f of relPaths) {
@@ -906,18 +906,18 @@ test.only('TreeDir.mergeTree 1', async (t) => {
     'xyz', // will have 3 bytes insides
   ];
 
-  const [root1, _] = await createTree(t, relPaths);
-  const root2 = root1.clone();
+  const [root0, _] = await createTree(t, relPaths);
+  const root1 = root0.clone();
 
-  const mergedRoots = TreeDir.mergeTrees(root1, root2);
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
 
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-  const root2Map = root2.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
   t.log(`Expected 2 elements in the tree, received ${mergedRootsMap.size}`);
+  t.is(root0Map.size, 2);
   t.is(root1Map.size, 2);
-  t.is(root2Map.size, 2);
   t.is(mergedRootsMap.size, 2);
 
   // there must be no difference between the merged array and our initial file list
@@ -927,120 +927,268 @@ test.only('TreeDir.mergeTree 1', async (t) => {
 test.only('TreeDir.mergeTree 2', async (t) => {
   // This test creates 2 trees, and merges them
 
-  const relPaths1 = [
+  const relPaths0 = [
     'foo-bar', // will have 7 bytes inside
   ];
-  const relPaths2 = [
+  const relPaths1 = [
     'xyz', // will have 3 bytes insides
   ];
 
+  const [root0, _dir0] = await createTree(t, relPaths0);
   const [root1, _dir1] = await createTree(t, relPaths1);
-  const [root2, _dir2] = await createTree(t, relPaths2);
 
-  const mergedRoots = TreeDir.mergeTrees(root1, root2);
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
 
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-  const root2Map = root2.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-  t.log(`Expected 2 elements in the first tree, received ${root1Map.size}`);
+  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 1);
+  t.log(`Expected 2 elements in the second tree, received ${root1Map.size}`);
   t.is(root1Map.size, 1);
-  t.log(`Expected 2 elements in the second tree, received ${root2Map.size}`);
-  t.is(root2Map.size, 1);
   t.log(`Expected 4 elements in the merged tree, received ${mergedRootsMap.size}`);
   t.is(mergedRootsMap.size, 2);
 
   // there must be no difference between the merged array and our initial file lists
-  t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths1.concat(relPaths2)).length, 0);
+  t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths0.concat(relPaths1)).length, 0);
 });
 
 test.only('TreeDir.mergeTree 3', async (t) => {
   // This test creates 2 trees, both with subdirectories
 
+  const relPaths0 = [
+    'subdir0/foo-bar', // will have 7 bytes inside
+  ];
   const relPaths1 = [
-    'subdir1/foo-bar', // will have 7 bytes inside
-  ];
-  const relPaths2 = [
-    'subdir2/xyz', // will have 3 bytes insides
+    'subdir1/xyz', // will have 3 bytes insides
   ];
 
+  const [root0, _dir0] = await createTree(t, relPaths0);
   const [root1, _dir1] = await createTree(t, relPaths1);
-  const [root2, _dir2] = await createTree(t, relPaths2);
 
-  const mergedRoots = TreeDir.mergeTrees(root1, root2);
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
 
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-  const root2Map = root2.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-  t.log(`Expected 2 elements in the first tree, received ${root1Map.size}`);
+  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 2);
+  t.log(`Expected 2 elements in the second tree, received ${root1Map.size}`);
   t.is(root1Map.size, 2);
-  t.log(`Expected 2 elements in the second tree, received ${root2Map.size}`);
-  t.is(root2Map.size, 2);
   t.log(`Expected 4 elements in the merged tree, received ${mergedRootsMap.size}`);
   t.is(mergedRootsMap.size, 4);
 
-  for (const dname of ['subdir1', 'subdir2']) {
+  for (const dname of ['subdir0', 'subdir1']) {
     const dir = mergedRootsMap.get(dname);
     const isdir = dir instanceof TreeDir;
     t.log(`Expect ${dname} to be a dir: ${isdir}`);
     t.true(isdir);
   }
 
-  for (const fname of ['subdir1/foo-bar', 'subdir2/xyz']) {
+  for (const fname of ['subdir0/foo-bar', 'subdir1/xyz']) {
     const file = mergedRootsMap.get(fname);
     const isfile = file instanceof TreeFile;
     t.log(`Expect ${fname} to be a file: ${isfile}`);
     t.true(isfile);
   }
 
-  const dir1 = mergedRoots.find('subdir1');
-  t.log(`Expect subdir1 in size of 7 bytes and got ${dir1?.stats.size} bytes`);
-  t.is(dir1?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
+  const dir0 = mergedRoots.find('subdir0');
+  t.log(`Expect subdir0 in size of 7 bytes and got ${dir0?.stats.size} bytes`);
+  t.is(dir0?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
 
-  const dir2 = mergedRoots.find('subdir2');
-  t.log(`Expect subdir2 in size of 3 bytes and got ${dir2?.stats.size} bytes`);
-  t.is(dir2?.stats.size, 3); // because of the filename 'foo-bar' we expect 7 bytes
+  const dir1 = mergedRoots.find('subdir1');
+  t.log(`Expect subdir1 in size of 3 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
 });
 
 test.only('TreeDir.mergeTree 4', async (t) => {
   // This test creates 2 trees, where the left is empty
 
+  const relPaths0 = [
+  ];
   const relPaths1 = [
-  ];
-  const relPaths2 = [
-    'subdir2/xyz', // will have 3 bytes insides
+    'subdir1/xyz', // will have 3 bytes insides
   ];
 
+  const [root0, _dir0] = await createTree(t, relPaths0);
   const [root1, _dir1] = await createTree(t, relPaths1);
-  const [root2, _dir2] = await createTree(t, relPaths2);
 
-  const mergedRoots = TreeDir.mergeTrees(root1, root2);
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
 
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
-  const root2Map = root2.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-  t.log(`Expected 0 elements in the first tree, received ${root1Map.size}`);
-  t.is(root1Map.size, 0);
-  t.log(`Expected 2 elements in the second tree, received ${root2Map.size}`);
-  t.is(root2Map.size, 2);
+  t.log(`Expected 0 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 0);
+  t.log(`Expected 2 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 2);
   t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
   t.is(mergedRootsMap.size, 2);
 
-  const dname = 'subdir2';
+  const dname = 'subdir1';
   const dir = mergedRootsMap.get(dname);
   const isdir = dir instanceof TreeDir;
   t.log(`Expect ${dname} to be a dir: ${isdir}`);
   t.true(isdir);
 
-  const fname = relPaths2[0];
+  const fname = relPaths1[0];
   const file = mergedRootsMap.get(fname);
   const isfile = file instanceof TreeFile;
   t.log(`Expect ${fname} to be a file: ${isfile}`);
   t.true(isfile);
 
-  const dir2 = mergedRoots.find('subdir2');
-  t.log(`Expect subdir2 in size of 3 bytes and got ${dir2?.stats.size} bytes`);
-  t.is(dir2?.stats.size, 3); // because of the filename 'foo-bar' we expect 7 bytes
+  const dir1 = mergedRoots.find('subdir1');
+  t.log(`Expect subdir1 in size of 3 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
+});
+
+test.only('TreeDir.mergeTree 5', async (t) => {
+  // This test creates 2 trees, where the right is empty
+
+  const relPaths0 = [
+    'subdir0/foo-bar', // will have 7 bytes inside
+  ];
+  const relPaths1 = [
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 2);
+  t.log(`Expected 0 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 0);
+  t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 2);
+
+  const dname = 'subdir0';
+  const dir = mergedRootsMap.get(dname);
+  const isdir = dir instanceof TreeDir;
+  t.log(`Expect ${dname} to be a dir: ${isdir}`);
+  t.true(isdir);
+
+  const fname = relPaths0[0];
+  const file = mergedRootsMap.get(fname);
+  const isfile = file instanceof TreeFile;
+  t.log(`Expect ${fname} to be a file: ${isfile}`);
+  t.true(isfile);
+
+  const dir1 = mergedRoots.find('subdir0');
+  t.log(`Expect subdir1 in size of 7 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
+});
+
+test.only('TreeDir.mergeTree 6', async (t) => {
+  // This test creates 2 trees, where one elemtent is a dir in one tree, and a file in the other.
+  // Expected is the merged tree to have a file located at 'foo/bar'
+
+  const relPaths0 = [
+    'foo/bar/bas',
+    'foo/xyz',
+  ];
+  const relPaths1 = [
+    'foo/bar',
+    'foo/123',
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 3 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 4);
+  t.log(`Expected 3 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 3);
+  t.log(`Expected 4 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 4);
+
+  t.log("Check that 'foo' is a directory");
+  t.true(mergedRoots.find('foo') instanceof TreeDir);
+
+  t.log("Check that 'foo/xyz' is a file");
+  t.true(mergedRoots.find('foo/xyz') instanceof TreeFile);
+
+  t.log("Check that 'foo/123' is a file");
+  t.true(mergedRoots.find('foo/123') instanceof TreeFile);
+
+  t.log("Check that directory 'foo/bar' was replaced by the file 'foo/bar'");
+  t.true(!mergedRoots.find('foo/bar/bas'));
+});
+
+test.only('TreeDir.mergeTree 7', async (t) => {
+  // This test creates 2 bigger trees with new objects left and right and intersections
+
+  const relPaths0 = [
+    // conflict
+    join('123/foo'),
+    // intersections
+    join('foo/a/file1'),
+    join('bar/b/c/file2'),
+    join('bar/b/d/file1'),
+    // new
+    join('x/file5'),
+    join('y/1/file4'),
+    join('y/1/2/file6'),
+  ];
+  const relPaths1 = [
+    // conflict
+    join('123'), // must survive
+    // intersections
+    join('foo/a/file1'),
+    join('bar/b/c/file2'),
+    join('bar/b/d/file1'),
+    // new
+    join('a/file5'),
+    join('b/3/file4'),
+    join('b/3/1/file6'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.mergeTrees(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log('First Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(root0, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+  t.log('Second Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(root1, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+  t.log('Merged Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(mergedRoots, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+
+  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 18);
+  t.log(`Expected 0 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 17);
+  t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 24);
 });

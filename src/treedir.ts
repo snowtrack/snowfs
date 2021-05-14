@@ -177,21 +177,20 @@ export class TreeDir extends TreeEntry {
 
     function privateMergeTrees(source: TreeEntry, target: TreeEntry): TreeEntry[] {
       if (source instanceof TreeDir && target instanceof TreeDir) {
-        let children = [];
-        source.children.forEach((s: TreeEntry) => {
-          target.children.forEach((t: TreeEntry) => {
+        let children = target.children.map((c) => c.clone());
+
+        for (const s of source.children) {
+          for (const t of target.children) {
             if (s.path === t.path) {
               children = children.concat(privateMergeTrees(s, t));
             }
-          });
-        });
+          }
+        }
 
         // first arg has precedence, so in this case target
-        const unionChildren = unionWith(target.children, source.children, (a: TreeEntry, b: TreeEntry) => {
+        return unionWith(children, source.children.map((c) => c.clone()), (a: TreeEntry, b: TreeEntry) => {
           return a.path === b.path;
         });
-
-        return unionChildren;
       }
 
       if (target instanceof TreeDir) {
