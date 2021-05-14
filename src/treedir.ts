@@ -263,36 +263,18 @@ export class TreeDir extends TreeEntry {
   }
 
   /**
-   * Browse through the entire hierarchy of the tree and remove the given file.
-   * Doesn't throw an error if the element is not found.
-   *
-   * @param relativePath      The relative file path to remove.
+   * Browse through the entire hierarchy of the tree and remove the given item.
    */
-  remove(relativePath: string): void {
-    function privateDelete(
-      tree: TreeDir,
-      cb: (entry: TreeEntry, index: number, length: number) => boolean,
-    ) {
-      let i = 0;
-
-      for (const entry of tree.children) {
-        if (cb(entry, i, tree.children.length)) {
-          tree.children.splice(i, 1);
-          return;
-        }
-        if (entry.isDirectory()) {
-          privateDelete(entry as TreeDir, cb);
-        }
-        i++;
+  static remove(tree: TreeDir,
+    cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean): void {
+    let i = 0;
+    tree.children = tree.children.filter((value: TreeEntry, index: number, array: TreeEntry[]) => !cb(value, index, array));
+    for (const child of tree.children) {
+      if (child instanceof TreeDir) {
+        TreeDir.remove(child, cb);
       }
+      i++;
     }
-
-    // TODO: (Seb) return faster if found
-    privateDelete(this, (entry: TreeEntry): boolean => {
-      if (entry.path === relativePath) {
-        return true;
-      }
-    });
   }
 
   static walk(
@@ -302,8 +284,8 @@ export class TreeDir extends TreeEntry {
     let i = 0;
     for (const entry of tree.children) {
       cb(<TreeFile>entry, i, tree.children.length);
-      if (entry.isDirectory()) {
-        TreeDir.walk(entry as TreeDir, cb);
+      if (entry instanceof TreeDir) {
+        TreeDir.walk(entry, cb);
       }
       i++;
     }
