@@ -10,8 +10,10 @@ import {
 } from './path';
 import { Repository } from './repository';
 import {
-  FileInfo, getPartHash, HashBlock, MB20, StatsSubset,
+  getPartHash, HashBlock, MB20, StatsSubset,
 } from './common';
+
+const sortPaths = require('sort-paths');
 
 export const enum FILEMODE {
   UNREADABLE = 0,
@@ -47,12 +49,7 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   let size = 0;
 
   // Here we ensure that the hash of the tree entries is not dependend on their order
-  items = items.sort((a: TreeEntry, b: TreeEntry) => {
-    if (a.isDirectory() !== b.isDirectory()) {
-      return a.isDirectory() ? -1 : 1;
-    }
-    return a.path.localeCompare(b.path);
-  });
+  items = sortPaths(items, (item) => item.path, '/');
 
   for (const r of items) {
     size += r.stats.size;

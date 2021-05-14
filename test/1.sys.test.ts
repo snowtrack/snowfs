@@ -22,6 +22,8 @@ import {
 
 const AggregateError = require('es-aggregate-error');
 
+const sortPaths = require('sort-paths');
+
 const exampleDirs = [
   join('foo', 'a'),
   join('bar', 'b', 'c'),
@@ -1309,21 +1311,39 @@ function shuffle(arr) {
 }
 
 test.only('TreeDir hash stability 1', async (t) => {
+  /*
+  Python verification:
+  import hashlib
+  hasher = hashlib.sha256()
+  hasher.update("9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E".encode("utf8")) # foo copy
+  hasher.update("831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c".encode("utf8")) # foo1
+  hasher.update("E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E".encode("utf8")) # foo
+  hasher.update("6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0".encode("utf8")) # foo3/abc
+  dgst = hasher.hexdigest()
+  print(dgst, dgst == '803b778e162664a586c5d720ab80a0f730211fd76e09be82325112c6c0bdd8ab')
+  */
+
   const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
     'foo1', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
   const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
-    'foo2', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+    'foo copy', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
   const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
-    'foo3', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+    'foo3/abc', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
   const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
     'foo4', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
 
-  const hash = '5630a2e009a68378c66529ba0e823d6f0bcd6dbcb09b72286881da3ae099b8e8';
+  const hash = '75859dac2c7ece838134f7c50b67f119ec0636073a9fd19d0dc5ee0438c212d2';
   t.log(`All files must have the following hash: ${hash}`);
 
   for (let i = 0; i < 20; ++i) {
-    const res = calculateSizeAndHash(shuffle([tree1, tree2, tree3, tree4]));
-    t.log(`Run ${i} => ${res[1]}`);
+    const shuffledArray = shuffle([tree1, tree2, tree3, tree4]);
+    const res = calculateSizeAndHash(shuffledArray);
+
+    // Here we ensure that the hash of the tree entries is not dependend on their order
+    const sortedArray = sortPaths(shuffledArray, (item) => item.path, '/');
+
+    t.log(`Run ${i}: ${shuffledArray.map((item) => item.path).join(', ')} => ${sortedArray.map((item) => item.path)}`);
+    t.log(res[1]);
     t.is(res[1], hash);
   }
 });
