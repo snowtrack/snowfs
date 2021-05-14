@@ -898,7 +898,7 @@ async function createTree(t, relPaths: string[]): Promise<[TreeDir, string]> {
   return [tree, tmpDir];
 }
 
-test.only('TreeDir.mergeTree 1', async (t) => {
+test('TreeDir.mergeTree 1', async (t) => {
   // This test creates 1 tree, clones it, and merges it with itself
 
   const relPaths = [
@@ -924,7 +924,7 @@ test.only('TreeDir.mergeTree 1', async (t) => {
   t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths).length, 0);
 });
 
-test.only('TreeDir.mergeTree 2', async (t) => {
+test('TreeDir.mergeTree 2', async (t) => {
   // This test creates 2 trees, and merges them
 
   const relPaths0 = [
@@ -954,7 +954,7 @@ test.only('TreeDir.mergeTree 2', async (t) => {
   t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths0.concat(relPaths1)).length, 0);
 });
 
-test.only('TreeDir.mergeTree 3', async (t) => {
+test('TreeDir.mergeTree 3', async (t) => {
   // This test creates 2 trees, both with subdirectories
 
   const relPaths0 = [
@@ -1003,7 +1003,7 @@ test.only('TreeDir.mergeTree 3', async (t) => {
   t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
 });
 
-test.only('TreeDir.mergeTree 4', async (t) => {
+test('TreeDir.mergeTree 4', async (t) => {
   // This test creates 2 trees, where the left is empty
 
   const relPaths0 = [
@@ -1045,7 +1045,7 @@ test.only('TreeDir.mergeTree 4', async (t) => {
   t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
 });
 
-test.only('TreeDir.mergeTree 5', async (t) => {
+test('TreeDir.mergeTree 5', async (t) => {
   // This test creates 2 trees, where the right is empty
 
   const relPaths0 = [
@@ -1087,7 +1087,7 @@ test.only('TreeDir.mergeTree 5', async (t) => {
   t.is(dir1?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
 });
 
-test.only('TreeDir.mergeTree 6', async (t) => {
+test('TreeDir.mergeTree 6', async (t) => {
   // This test creates 2 trees, where one elemtent is a dir in one tree, and a file in the other.
   // Expected is the merged tree to have a file located at 'foo/bar'
 
@@ -1129,7 +1129,7 @@ test.only('TreeDir.mergeTree 6', async (t) => {
   t.true(!mergedRoots.find('foo/bar/bas'));
 });
 
-test.only('TreeDir.mergeTree 7', async (t) => {
+test('TreeDir.mergeTree 7', async (t) => {
   // This test creates 2 bigger trees with new objects left and right and intersections
 
   const relPaths0 = [

@@ -188,9 +188,10 @@ export class TreeDir extends TreeEntry {
         }
 
         // first arg has precedence, so in this case target
-        return unionWith(children, source.children.map((c) => c.clone()), (a: TreeEntry, b: TreeEntry) => {
+        children = unionWith(children, source.children.map((c) => c.clone()), (a: TreeEntry, b: TreeEntry) => {
           return a.path === b.path;
         });
+        return children;
       }
 
       if (target instanceof TreeDir) {
