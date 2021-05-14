@@ -191,7 +191,7 @@ test('custom-commit-data', async (t) => {
   });
 });
 
-test.only('commit hash subdirectory test', async (t) => {
+test('commit hash subdirectory test', async (t) => {
   /*
   createCommit contains a hash to ensure that all items commited have a hash, even in subdirectories.
   This test ensures no exception is thrown.
