@@ -1258,11 +1258,11 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid size: ${item.stats.size}`);
         }
 
-        if (!Number.isInteger(item.stats.ctimeMs)) {
+        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.ctimeMs < 0.0) {
           throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctimeMs}`);
         }
 
-        if (!Number.isInteger(item.stats.mtimeMs)) {
+        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.mtimeMs < 0.0) {
           throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtimeMs}`);
         }
 
