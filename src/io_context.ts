@@ -589,12 +589,17 @@ export class IoContext {
    *                    the executables.
   */
   static putToTrash(absPath: string, relPath?: string): Promise<void> {
-    if (typeof IoContext.trashExecutor !== 'string') {
+    if (IoContext.trashExecutor && typeof IoContext.trashExecutor !== 'string') {
       IoContext.trashExecutor(absPath);
       return Promise.resolve();
     }
 
-    let trashPath = IoContext.trashExecutor;
+    let trashPath: string;
+
+    if (typeof IoContext.trashExecutor === 'string') {
+      trashPath = typeof IoContext.trashExecutor;
+    }
+
     if (!trashPath) {
       switch (process.platform) {
         case 'darwin': {
