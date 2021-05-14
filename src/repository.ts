@@ -1255,19 +1255,19 @@ export class Repository {
       // Check hash and size for validty
       TreeDir.walk(treeResult, (item: TreeEntry) => {
         if (!Number.isInteger(item.stats.size)) {
-          throw new Error(`Item ${item.path} has no valid size`);
+          throw new Error(`Item '${item.path}' has no valid size: ${item.stats.size}`);
         }
 
         if (!Number.isInteger(item.stats.ctimeMs)) {
-          throw new Error(`Item ${item.path} has no valid ctime`);
+          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctimeMs}`);
         }
 
         if (!Number.isInteger(item.stats.mtimeMs)) {
-          throw new Error(`Item ${item.path} has no valid mtime`);
+          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtimeMs}`);
         }
 
         if (!item.hash.match(/[0-9a-f]{64}/i)) {
-          throw new Error(`Item ${item.path} has no valid hash`);
+          throw new Error(`Item '${item.path}' has no valid hash: ${item.hash}`);
         }
       });
 
