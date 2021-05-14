@@ -6,7 +6,7 @@ import { unionWith } from 'lodash';
 import * as io from './io';
 
 import {
-  join, relative, normalize, extname, dirname,
+  join, relative, normalize, extname, dirname, basename,
 } from './path';
 import { Repository } from './repository';
 import {
@@ -42,9 +42,13 @@ export const enum DETECTIONMODE {
   SIZE_AND_HASH_FOR_ALL_FILES = 3
 }
 
-function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
+export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   const hash = crypto.createHash('sha256');
   let size = 0;
+
+  // Here we ensure that the hash of the tree entries is not dependend on their order
+  items = items.sort((a: TreeEntry, b: TreeEntry) => a.path.localeCompare(b.path));
+
   for (const r of items) {
     size += r.stats.size;
     hash.update(r.hash.toString());

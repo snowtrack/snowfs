@@ -16,6 +16,7 @@ import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
 import {
+  calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from '../src/treedir';
 
@@ -1287,4 +1288,42 @@ test('TreeDir.remove 4', async (t) => {
   t.is(root0.children.length, 1);
   t.is((root0.children[0] as TreeDir).children.length, 1);
   t.is((root0.children[0] as TreeDir).children[0].path, 'xyz/123');
+});
+
+function shuffle(arr) {
+  let len = arr.length;
+  const d = len;
+  const array = [];
+  let k; let
+    i;
+  for (i = 0; i < d; i++) {
+    k = Math.floor(Math.random() * len);
+    array.push(arr[k]);
+    arr.splice(k, 1);
+    len = arr.length;
+  }
+  for (i = 0; i < d; i++) {
+    arr[i] = array[i];
+  }
+  return arr;
+}
+
+test.only('TreeDir hash stability 1', async (t) => {
+  const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
+    'foo1', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+  const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
+    'foo2', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+  const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
+    'foo3', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+  const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
+    'foo4', { size: 0, ctimeMs: 0, mtimeMs: 0 }, '.ext', null);
+
+  const hash = '5630a2e009a68378c66529ba0e823d6f0bcd6dbcb09b72286881da3ae099b8e8';
+  t.log(`All files must have the following hash: ${hash}`);
+
+  for (let i = 0; i < 20; ++i) {
+    const res = calculateSizeAndHash(shuffle([tree1, tree2, tree3, tree4]));
+    t.log(`Run ${i} => ${res[1]}`);
+    t.is(res[1], hash);
+  }
 });
