@@ -943,9 +943,9 @@ test('TreeDir.mergeTree 2', async (t) => {
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.log(`Expected 1 elements in the first tree, received ${root0Map.size}`);
   t.is(root0Map.size, 1);
-  t.log(`Expected 2 elements in the second tree, received ${root1Map.size}`);
+  t.log(`Expected 1 elements in the second tree, received ${root1Map.size}`);
   t.is(root1Map.size, 1);
   t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
   t.is(mergedRootsMap.size, 2);
@@ -1121,7 +1121,7 @@ test('TreeDir.mergeTree 7', async (t) => {
   const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
   const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
-  t.log(`Expected 3 elements in the first tree, received ${root0Map.size}`);
+  t.log(`Expected 4 elements in the first tree, received ${root0Map.size}`);
   t.is(root0Map.size, 4);
   t.log(`Expected 3 elements in the second tree, received ${root1Map.size}`);
   t.is(root1Map.size, 3);
