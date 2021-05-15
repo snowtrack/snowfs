@@ -597,7 +597,7 @@ export class IoContext {
     let trashPath: string;
 
     if (typeof IoContext.trashExecutor === 'string') {
-      trashPath = typeof IoContext.trashExecutor;
+      trashPath = IoContext.trashExecutor;
     }
 
     if (!trashPath) {
