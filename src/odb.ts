@@ -59,12 +59,12 @@ export class Odb {
         if (exists) {
           throw new Error('directory already exists');
         }
-        return fse.ensureDir(options.commondir);
+        return io.ensureDir(options.commondir);
       })
-      .then(() => fse.ensureDir(join(options.commondir, 'objects')))
-      .then(() => fse.ensureDir(join(options.commondir, 'versions')))
-      .then(() => fse.ensureDir(join(options.commondir, 'hooks')))
-      .then(() => fse.ensureDir(join(options.commondir, 'refs')))
+      .then(() => io.ensureDir(join(options.commondir, 'objects')))
+      .then(() => io.ensureDir(join(options.commondir, 'versions')))
+      .then(() => io.ensureDir(join(options.commondir, 'hooks')))
+      .then(() => io.ensureDir(join(options.commondir, 'refs')))
       .then(() => {
         odb.config = { ...defaultConfig };
 
@@ -326,20 +326,12 @@ export class Odb {
           throw new Error(`object ${hash} not found`);
         }
 
-        return fse.ensureDir(dirname(dstAbsPath));
+        return io.ensureDir(dirname(dstAbsPath));
       }).then(() => {
         return ioContext.copyFile(objectFile, dstAbsPath);
       }).then(() => {
-        return new Promise<void>((resolve, reject) => {
-          // restore mtimes
-          fse.utimes(dstAbsPath, new Date(file.stats.mtimeMs), new Date(file.stats.mtimeMs), (error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          });
-        });
+        // atime will be set as mtime because thats the time we accessed the file
+        return io.utimes(dstAbsPath, new Date(file.stats.mtimeMs), new Date(file.stats.mtimeMs));
       });
   }
 }

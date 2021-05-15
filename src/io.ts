@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 import { PathLike, Stats } from 'fs-extra';
-import { normalize } from './path';
+import { normalize, parse } from './path';
 
 export { PathLike, Stats } from 'fs-extra';
 
@@ -120,6 +120,68 @@ export function hideItem(path: string): Promise<void> {
   return Promise.resolve();
 }
 
+function checkPath(pth): void {
+  if (process.platform === 'win32') {
+    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(parse(pth).root, ''))
+
+    if (pathHasInvalidWinCharacters) {
+      const error = new Error(`Path contains invalid characters: ${pth}`);
+      (error as any).code = 'EINVAL'
+      throw error
+    }
+  }
+}
+
+const getMode = options => {
+  const defaults = { mode: 0o777 }
+  if (typeof options === 'number') return options
+  return ({ ...defaults, ...options }).mode
+}
+
+/**
+ * Ensures that the directory exists. If the directory structure does not exist, it is created.
+ * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
+ */
+export function ensureDir(dir: string, options?: number | any): Promise<void> {
+  checkPath(dir);
+
+  return new Promise<void>((resolve, reject) => {
+    fs.mkdir(dir, {
+      mode: getMode(options),
+      recursive: true
+    }, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  })
+}
+
+
+/**
+ * Tests a user's permissions for the file or directory specified by path.
+ * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
+ */
+export function access(path: PathLike, mode: number | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fs.access(path, mode, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 /**
  * Test whether or not the given path exists by checking with the file system.
  * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
@@ -129,8 +191,26 @@ export function hideItem(path: string): Promise<void> {
  */
 export function pathExists(path: PathLike): Promise<boolean> {
   return new Promise((resolve) => {
-    return fs.exists(path, (exists) => {
+    fs.exists(path, (exists) => {
       resolve(exists);
+    });
+  });
+}
+
+/**
+ * Change the file system timestamps of the object referenced by the <FileHandle> then resolves the promise with no arguments upon success.
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import ocmments above.
+ * For more information about the API of [createReadStream] visit https://nodejs.org/api/fs.html#fs_fs_createreadstream_path_options
+ */
+export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fs.utimes(path, atime, mtime, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
     });
   });
 }
@@ -143,7 +223,7 @@ export function pathExists(path: PathLike): Promise<boolean> {
  */
 export function stat(path: PathLike): Promise<Stats> {
   return new Promise((resolve, reject) => {
-    return fs.stat(path, (error, stats: Stats) => {
+    fs.stat(path, (error, stats: Stats) => {
       if (error) {
         reject(error);
       } else {
@@ -161,7 +241,7 @@ export function stat(path: PathLike): Promise<Stats> {
  */
 export function copyFile(src: PathLike, dest: PathLike, flags: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    return fs.copyFile(src, dest, flags, (error) => {
+    fs.copyFile(src, dest, flags, (error) => {
       if (error) {
         reject(error);
       } else {

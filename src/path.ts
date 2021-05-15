@@ -63,3 +63,7 @@ export function relative(from: string, to: string): string {
 export function extname(p: string): string {
   return path.extname(p);
 }
+
+export function parse(p: string): path.ParsedPath {
+  return path.parse(p);
+}

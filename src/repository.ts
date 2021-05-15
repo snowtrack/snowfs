@@ -895,7 +895,7 @@ export class Repository {
                 parent = dirname(parent);
               }
             } else {
-              tasks.push(() => fse.ensureDir(dst));
+              tasks.push(() => io.ensureDir(dst));
             }
           } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
             deleteDirCandidates.set(status.path, status);
@@ -1447,7 +1447,7 @@ export class Repository {
       opts.commondir = join(workdir, '.snow');
     }
 
-    return fse.ensureDir(workdir)
+    return io.ensureDir(workdir)
       .then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;
