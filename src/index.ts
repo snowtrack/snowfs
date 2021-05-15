@@ -75,19 +75,21 @@ export class Index {
    * or can be useful to discard any added or deleted files from the index object.
    */
   invalidate(): Promise<void> {
-    // check if index exists, this can be false if the commit has no files (--allowEmpty)
-    return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
-      if (exists) { return fse.unlink(this.getAbsPath()); }
-    }).then(() => {
-      this.repo.removeIndex(this);
+    if (this.id) {
+      // check if index exists, this can be false if the commit has no files (--allowEmpty)
+      return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
+        if (exists) { return fse.unlink(this.getAbsPath()); }
+      }).then(() => {
+        this.repo.removeIndex(this);
 
-      this.addRelPaths = new Set();
-      this.deleteRelPaths = new Set();
-      this.processedFiles.clear();
-      this.id = undefined;
-      this.repo = null;
-      this.odb = null;
-    });
+        this.addRelPaths = new Set();
+        this.deleteRelPaths = new Set();
+        this.processedFiles.clear();
+        this.id = undefined;
+        this.repo = null;
+        this.odb = null;
+      });
+    }
   }
 
   /**
