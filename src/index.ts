@@ -75,7 +75,7 @@ export class Index {
    * or can be useful to discard any added or deleted files from the index object.
    */
   invalidate(): Promise<void> {
-    if (this.id) {
+    if (this.repo) {
       // check if index exists, this can be false if the commit has no files (--allowEmpty)
       return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
         if (exists) { return fse.unlink(this.getAbsPath()); }
