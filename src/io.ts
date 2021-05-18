@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 import { PathLike, Stats } from 'fs-extra';
-import { normalize, parse } from './path';
+import { join, normalize, parse } from './path';
 
 export { PathLike, Stats } from 'fs-extra';
 
@@ -122,21 +122,21 @@ export function hideItem(path: string): Promise<void> {
 
 function checkPath(pth): void {
   if (process.platform === 'win32') {
-    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(parse(pth).root, ''))
+    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(parse(pth).root, ''));
 
     if (pathHasInvalidWinCharacters) {
       const error = new Error(`Path contains invalid characters: ${pth}`);
-      (error as any).code = 'EINVAL'
-      throw error
+      (error as any).code = 'EINVAL';
+      throw error;
     }
   }
 }
 
-const getMode = options => {
-  const defaults = { mode: 0o777 }
-  if (typeof options === 'number') return options
-  return ({ ...defaults, ...options }).mode
-}
+const getMode = (options) => {
+  const defaults = { mode: 0o777 };
+  if (typeof options === 'number') return options;
+  return ({ ...defaults, ...options }).mode;
+};
 
 /**
  * Ensures that the directory exists. If the directory structure does not exist, it is created.
@@ -151,7 +151,7 @@ export function ensureDir(dir: string, options?: number | any): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     fs.mkdir(dir, {
       mode: getMode(options),
-      recursive: true
+      recursive: true,
     }, (error) => {
       if (error) {
         reject(error);
@@ -159,9 +159,8 @@ export function ensureDir(dir: string, options?: number | any): Promise<void> {
         resolve();
       }
     });
-  })
+  });
 }
-
 
 /**
  * Tests a user's permissions for the file or directory specified by path.
@@ -213,6 +212,22 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
       }
     });
   });
+}
+
+export async function rmdir(dir) {
+  const entries = await fs.readdir(dir);
+  const results = await Promise.all(entries.map((entry) => {
+    const fullPath = join(dir, entry.name);
+    const task = entry.isDirectory() ? rmdir(fullPath) : fs.unlink(fullPath);
+    return task.catch((error) => ({ error }));
+  }));
+  results.forEach((result: Error & { error: { code: string} }) => {
+    // Ignore missing files/directories; bail on other errors
+    if (result && result.error.code !== 'ENOENT') {
+      throw result.error;
+    }
+  });
+  await fs.rmdir(dir);
 }
 
 /**
