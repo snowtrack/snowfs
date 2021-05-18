@@ -414,7 +414,7 @@ test('snow add bar.txt', async (t) => {
   t.is(true, true);
 });
 
-test('snow rm foo.txt', async (t) => {
+test.only('snow rm foo.txt', async (t) => {
   const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
   const subdir = join(snowWorkdir, 'subdir');

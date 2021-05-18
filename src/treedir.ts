@@ -188,7 +188,7 @@ export class TreeDir extends TreeEntry {
   }
 
   clone(parent?: TreeDir): TreeDir {
-    const newTree = new TreeDir(this.path, { ...this.stats }, parent);
+    const newTree = new TreeDir(this.path, StatsSubset.clone(this.stats), parent);
     newTree.children = this.children.map((c: TreeEntry) => c.clone(newTree));
     return newTree;
   }
