@@ -17,9 +17,9 @@ export const MB1 = 1000000;
 export class StatsSubset {
   size: number;
 
-  ctimeMs: number;
+  ctime: Date;
 
-  mtimeMs: number;
+  mtime: Date;
 }
 
 /**

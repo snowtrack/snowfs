@@ -1,5 +1,6 @@
 /* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
 
+import * as fs from 'fs-extra';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
@@ -9,7 +10,7 @@ import {
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo, StatsSubset } from './common';
+import { calculateFileHash, FileInfo, HashBlock, StatsSubset } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import {
@@ -208,8 +209,8 @@ export class StatusEntry {
 
     if (data.stats) {
       this.stats = {
-        ctimeMs: data.stats.ctimeMs,
-        mtimeMs: data.stats.mtimeMs,
+        ctime: data.stats.ctime,
+        mtime: data.stats.mtime,
         size: data.stats.size,
       };
     }
@@ -1275,12 +1276,12 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid size: ${item.stats.size}`);
         }
 
-        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.ctimeMs < 0.0) {
-          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctimeMs}`);
+          if (!(item.stats.ctime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctime}`);
         }
 
-        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.mtimeMs < 0.0) {
-          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtimeMs}`);
+        if (!(item.stats.mtime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
         }
 
         if (!item.hash.match(/[0-9a-f]{64}/i)) {

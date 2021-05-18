@@ -547,8 +547,8 @@ program
             return {
               path: value.path,
               hash: value.hash,
-              ctime: value.stats.ctimeMs,
-              mtime: value.stats.mtimeMs,
+              ctime: value.stats.ctime,
+              mtime: value.stats.mtime,
               size: value.stats.size,
             };
           }
