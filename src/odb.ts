@@ -242,27 +242,23 @@ export class Odb {
     const commitSha256: string = commit.hash;
     const dstFile: string = join(objectsDir, commitSha256);
 
+    // json content
+    const parent = commit.parent ? commit.parent : null;
+    const root = commit.root.toJsonObject(true);
+    const tags = commit.tags?.length > 0 ? commit.tags.join(', ') : undefined;
+    const userData = commit.userData && Object.keys(commit.userData).length > 0 ? commit.userData : undefined;
+
     const stream = fse.createWriteStream(dstFile, { flags: 'w' });
-    const parent = commit.parent ? `"${commit.parent.join('","')}"` : '';
-    stream.write('{');
-    stream.write(`"hash": "${commit.hash}",
-                  "message": "${commit.message}",
-                  "date": ${commit.date.getTime()},
-                  "parent": [${parent}], "root":`);
-    stream.write(commit.root.toString(true));
-    if (commit.tags) {
-      stream.write(',"tags": [');
-      let seperator = ' ';
-      commit.tags.forEach((tag) => {
-        stream.write(`${seperator}"${tag}"`);
-        seperator = ', ';
-      });
-      stream.write(' ]');
-    }
-    if (commit.userData) {
-      stream.write(`,"userData": ${JSON.stringify(commit.userData)}`);
-    }
-    stream.write('}');
+    const content = JSON.stringify({
+      hash: commit.hash,
+      message: commit.message,
+      date: commit.date.getTime(),
+      parent,
+      root,
+      tags,
+      userData,
+    }, null, '\t');
+    stream.write(content);
 
     return new Promise((resolve, reject) => {
       stream.on('finish', resolve);

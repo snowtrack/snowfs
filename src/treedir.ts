@@ -110,7 +110,7 @@ export class TreeFile extends TreeEntry {
       this.path, StatsSubset.clone(this.stats), this.ext, parent);
   }
 
-  toString(): string {
+  toJsonObject(): any {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && !this.path) {
@@ -128,7 +128,7 @@ export class TreeFile extends TreeEntry {
         mtime: this.stats.mtime.getTime(),
       },
     };
-    return JSON.stringify(output);
+    return output;
   }
 
   isFileModified(repo: Repository, detectionMode: DETECTIONMODE): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {
@@ -230,7 +230,7 @@ export class TreeDir extends TreeEntry {
     return privateMerge(source, target.clone()) as TreeDir;
   }
 
-  toString(includeChildren?: boolean): string {
+  toJsonObject(includeChildren?: boolean): any {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && (!this.path || this.path.length === 0)) {
@@ -238,15 +238,17 @@ export class TreeDir extends TreeEntry {
       throw new Error('item must have path');
     }
 
-    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
+    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toJsonObject(includeChildren));
 
-    const stats: any = JSON.stringify({
+    const stats: any = {
       size: this.stats.size,
       ctime: this.stats.ctime.getTime(),
       mtime: this.stats.mtime.getTime(),
-    });
+    };
 
-    return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "stats": ${stats}, "children": [${children.join(',')}]}`;
+    return {
+      hash: this.hash, path: this.path ?? '', stats, children,
+    };
   }
 
   getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
