@@ -909,7 +909,13 @@ export class Repository {
                 tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
                   if (res.modified) {
                     const dst: string = join(this.repoWorkDir, res.file.path);
-                    return this.repoOdb.readObject(res.file, dst, ioContext);
+
+                    // We first delete or trash the file before writing to ensure an item that has never been saved
+                    // to the object database will end in the trash and will not be simply overwritten by [Odb.readObject].
+                    return deleteOrTrash(this, dst, res.file.path)
+                      .then(() => {
+                        return this.repoOdb.readObject(res.file, dst, ioContext);
+                      });
                   }
                 }));
               }
