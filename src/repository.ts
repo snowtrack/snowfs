@@ -1045,11 +1045,10 @@ export class Repository {
 
     // For each deleted status item, we flag its parent directory as modified.
     function markParentsAsModified(itemPath: string) {
-
       // Create the parent strings from the status path and call flagDirAsModified
       // E.g. for hello/foo/bar/texture.psd we flag hello, hello/foo/ hello/foo/bar
-      let parents = [];
-      dirname(itemPath).split("/").reduce((a, b) => {
+      const parents = [];
+      dirname(itemPath).split('/').reduce((a, b) => {
         const constructedPath = a ? `${a}/${b}` : b;
         parents.push(constructedPath);
         return constructedPath;
@@ -1058,7 +1057,7 @@ export class Repository {
       for (const parent of parents) {
         const dirItem = currentDirs.get(parent);
         dirItem?.setStatusBit(STATUS.WT_MODIFIED);
-      };
+      }
     }
 
     // First iterate over all files and get their file stats
@@ -1150,7 +1149,6 @@ export class Repository {
             if (!entry.stats.isDirectory()
             || (filter & FILTER.INCLUDE_DIRECTORIES && !entry.isempty) // we don't include empty directories
             ) {
-
               statusResult.set(entry.relPath, new StatusEntry({
                 path: entry.relPath,
                 status: STATUS.WT_NEW,
@@ -1201,7 +1199,6 @@ export class Repository {
         return Promise.all(promises);
       })
       .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
-
         for (const existingItem of existingItems) {
           if (existingItem.modified) {
             statusResult.set(existingItem.file.path,
@@ -1212,7 +1209,6 @@ export class Repository {
               }, false));
 
             markParentsAsModified(existingItem.file.path);
-
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingItem.file.path,
               new StatusEntry({
