@@ -1,5 +1,7 @@
 import test from 'ava';
 import * as fse from 'fs-extra';
+import * as io from '../src/io';
+import { Index } from '../src';
 import { join } from '../src/path';
 
 import {
@@ -107,5 +109,67 @@ test('simple status test with new repo', async (t) => {
       t.true(!statuses[1].isdir);
       t.is(statuses[1].statusBit(), STATUS.WT_NEW);
       t.is(statuses[1].stats.size, 6);
+    });
+});
+
+test.only('100.000 files status test', async (t) => {
+  // This test has two intentions. First, to ensure getStatus works with 100.000 files in general.
+  // More specifically, by creating 100.000 files is a nice distribution of timestamps and therefore
+  // we can also ensure all the timestamp handling within getStatus works as expected as well.
+  const repoPath = getRandomPath();
+
+  const subdir = join(repoPath, 'subdir1', 'subdir2');
+
+  const fileSample = 100;
+
+  let testFile1: string;
+  let testFile2: string;
+  let testFile3: string;
+
+  let repo: Repository;
+  let index: Index;
+  await Repository.initExt(repoPath)
+    .then((repoResult: Repository) => {
+      repo = repoResult;
+
+      const addedFiles: string[] = [];
+      index = repo.ensureMainIndex();
+
+      fse.ensureDirSync(subdir);
+      t.log("Write 'subdir1/subdir2/foo' with 9 bytes");
+      for (let i = 0; i < fileSample; ++i) {
+        const relPath = join(subdir, `foo${i}`);
+        addedFiles.push(relPath);
+        if (i === 5000) {
+          testFile1 = relPath;
+        } else if (i === 5001) {
+          testFile2 = relPath;
+        } else if (i === 5002) {
+          testFile3 = relPath;
+        }
+        fse.writeFileSync(relPath, i.toString());
+      }
+
+      index.addFiles(addedFiles);
+
+      return index.writeFiles();
+    }).then(() => {
+      return repo.createCommit(index, 'Foo');
+    }).then(() => {
+      t.log('getStatus on all elements, including directories');
+      return repo.getStatus(FILTER.ALL);
+    })
+    .then((statuses: StatusEntry[]) => {
+      t.is(statuses.length, fileSample + 2); // + 2 for the subdirectories subdir1 + subdir2
+
+      t.log('getStatus on all elements, excluding directories');
+      return repo.getStatus(FILTER.INCLUDE_UNTRACKED
+                            | FILTER.INCLUDE_MODIFIED
+                            | FILTER.INCLUDE_DELETED);
+    })
+    .then((statuses: StatusEntry[]) => {
+      t.is(statuses.length, 0);
+      // modify the test file
+      return io.utimes(testFile1, new Date(), new Date());
     });
 });
