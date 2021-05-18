@@ -362,26 +362,13 @@ export function constructTree(
           io.stat(absPath).then((stat: fse.Stats) => {
             if (stat.isDirectory()) {
               // hash is later added to subtree (see next promise task)
-              const subtree: TreeDir = new TreeDir(
-                relative(root, absPath),
-                {
-                  ctime: stat.ctime,
-                  mtime: stat.mtime,
-                  size: stat.size,
-                },
-                tree,
-              );
+              const subtree: TreeDir = new TreeDir(relative(root, absPath), StatsSubset.clone(stat), tree);
 
               tree.children.push(subtree);
               return constructTree(absPath, subtree, root);
             }
 
-            const entry: TreeFile = new TreeFile('',
-              relPath, {
-                size: stat.size,
-                ctime: stat.ctime,
-                mtime: stat.mtime,
-              }, extname(relPath), tree);
+            const entry: TreeFile = new TreeFile('', relPath, StatsSubset.clone(stat), extname(relPath), tree);
             tree.children.push(entry);
           }),
         );

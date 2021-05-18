@@ -15,7 +15,7 @@ import { Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import {
-  calculateFileHash, FileInfo, HashBlock,
+  calculateFileHash, FileInfo, HashBlock, StatsSubset,
 } from './common';
 import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
@@ -328,11 +328,7 @@ export class Odb {
           fileinfo: {
             ext: extname(filepath),
             hash: filehash,
-            stat: {
-              size: stat.size,
-              ctime: stat.ctime,
-              mtime: stat.mtime,
-            },
+            stat: StatsSubset.clone(stat),
           },
         })))
       .then((res) => this.repo.modified(res));
