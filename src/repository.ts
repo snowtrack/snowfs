@@ -1256,15 +1256,34 @@ export class Repository {
 
     let promise = Promise.resolve(TreeDir.createRootTree());
 
-    // head is not available when repo is initialized
     if (this.head?.hash) {
       promise = constructTree(this.repoWorkDir)
         .then((workdirTree: TreeDir) => {
           const headCommit = this.getCommitByHead();
 
-          // 1) Create the first tree with the items that got added
+          /* 1) We first generate a full tree of the working directory. Result:
+
+                  root-dir
+                      |
+                     /\
+                    /  \
+           subdir-a ▼   ▼ subdir-b
+                   /    |
+          file.bas(A)   /\
+                       /  \
+                      ▼   ▼
+              file.foo    file.bar (A)
+          */
+
+          // 2) For each item we marked as "added/modified" in the index,
+          // we add them and their parent directories to an "added" set.
           const added = new Set<string>();
           for (const relPath of Array.from(index.addRelPaths.keys())) {
+            // Skip every item that hasn't been processed yet
+            if (!index.processed.has(relPath)) {
+              continue;
+            }
+
             let dname = relPath;
             do {
               added.add(dname);
@@ -1272,33 +1291,47 @@ export class Repository {
             } while (dname !== '');
           }
 
+          /* 3) Now we remove every item from the worktree that didn't get "added". Result:
+                  root-dir
+                      |
+                      /\
+                     /  \
+            subdir-a ▼   ▼ subdir-b
+                    /    |
+           file.bas(A)  /\
+                          \
+                           ▼
+                            file.bar (A)
+          */
           TreeDir.remove(workdirTree, (entry: TreeEntry): boolean => {
-            const remove = !added.has(entry.path);
-            if (remove) {
+            const removeItem = !added.has(entry.path);
+            if (removeItem) {
               return true;
             }
 
-            // while we are at it, we update the file infos
             const finfo: FileInfo = index.processed.get(entry.path);
             if (finfo) {
+              // while we are at it, we update the file infos
               entry.hash = finfo.hash;
               entry.stats = finfo.stat;
             }
             return false;
           });
 
-          // 2) Now create a tree with items that got deleted
-
+          // 3) Now we take the tree from the latest-commit and remove every item
+          //    that got deleted. No directories are touched here, as the tree will
+          //    be sanitized later.
           const commitTree = headCommit.root.clone();
-
           TreeDir.remove(commitTree, (entry: TreeEntry): boolean => {
-            return index.deleteRelPaths.has(entry.path);
+            return index.deleteRelPaths.has(entry.path) && index.processed.has(entry.path);
           });
 
-          // now merge both of them and save them
+          // 4) Merge the tree with the added/modified items and the old commit tree.
+          //    If there are any node conflicts in the tree, the items of the working tree
+          //    have a higher precedence. This is done by the behaviour of TreeDir.merge(lowerPrec, higherPrec).
           const newTree = TreeDir.merge(commitTree, workdirTree);
 
-          // Sanitize the tree and delete all directories which have no children
+          // 5) Remove any empty directory from the new tree
           TreeDir.remove(newTree, (entry: TreeEntry): boolean => {
             return entry instanceof TreeDir && entry.children.length === 0;
           });
