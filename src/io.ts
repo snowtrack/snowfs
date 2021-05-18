@@ -214,20 +214,32 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
   });
 }
 
-export async function rmdir(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const results = await Promise.all(entries.map((entry) => {
-    const fullPath = join(dir, entry.name);
-    const task = entry.isDirectory() ? rmdir(fullPath) : fs.unlink(fullPath);
-    return task.catch((error) => ({ error }));
-  }));
-  results.forEach((result: Error & { error: { code: string} }) => {
-    // Ignore missing files/directories; bail on other errors
-    if (result && result.error.code !== 'ENOENT') {
-      throw result.error;
-    }
+export async function rmdir(dir): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    fs.readdir(dir, { withFileTypes: true }, async (error, entries) => {
+      if (error) {
+        reject();
+      }
+
+      const results = await Promise.all(entries.map((entry) => {
+        const fullPath = join(dir, entry.name);
+        const task = entry.isDirectory() ? rmdir(fullPath)
+          : new Promise<void>((resolve, reject) => fs.unlink(fullPath, (error) => (error ? reject(error) : resolve())));
+        return task.catch((error) => ({ error }));
+      }));
+
+      results.forEach((result: Error & { error: { code: string} }) => {
+        // Ignore missing files/directories; bail on other errors
+        if (result && result.error.code !== 'ENOENT') {
+          throw result.error;
+        }
+      });
+
+      return new Promise<void>((resolve, reject) => {
+        fs.rmdir(dir, (error) => (error ? reject(error) : resolve()));
+      }).then(() => resolve());
+    });
   });
-  await fs.rmdir(dir);
 }
 
 /**
