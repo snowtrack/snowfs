@@ -112,7 +112,7 @@ test('simple status test with new repo', async (t) => {
     });
 });
 
-test.only('100.000 files status test', async (t) => {
+test('100.000 files status test', async (t) => {
   // This test has two intentions. First, to ensure getStatus works with 100.000 files in general.
   // More specifically, by creating 100.000 files is a nice distribution of timestamps and therefore
   // we can also ensure all the timestamp handling within getStatus works as expected as well.
@@ -120,7 +120,7 @@ test.only('100.000 files status test', async (t) => {
 
   const subdir = join(repoPath, 'subdir1', 'subdir2');
 
-  const fileSample = 100;
+  const fileSample = 10000;
 
   let testFile1: string;
   let testFile2: string;
