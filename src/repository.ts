@@ -1280,7 +1280,7 @@ export class Repository {
           const added = new Set<string>();
           for (const relPath of Array.from(index.addRelPaths.keys())) {
             // Skip every item that hasn't been processed yet
-            if (!index.processed.has(relPath)) {
+            if (!index.processedAdded.has(relPath)) {
               continue;
             }
 
@@ -1309,7 +1309,7 @@ export class Repository {
               return true;
             }
 
-            const finfo: FileInfo = index.processed.get(entry.path);
+            const finfo: FileInfo = index.processedAdded.get(entry.path);
             if (finfo) {
               // while we are at it, we update the file infos
               entry.hash = finfo.hash;
@@ -1323,7 +1323,7 @@ export class Repository {
           //    be sanitized later.
           const commitTree = headCommit.root.clone();
           TreeDir.remove(commitTree, (entry: TreeEntry): boolean => {
-            return index.deleteRelPaths.has(entry.path) && index.processed.has(entry.path);
+            return index.deleteRelPaths.has(entry.path);
           });
 
           // 4) Merge the tree with the added/modified items and the old commit tree.
@@ -1331,7 +1331,7 @@ export class Repository {
           //    have a higher precedence. This is done by the behaviour of TreeDir.merge(lowerPrec, higherPrec).
           const newTree = TreeDir.merge(commitTree, workdirTree);
 
-          // 5) Remove any empty directory from the new tree
+          // 5) Remove any empty directory from the new
           TreeDir.remove(newTree, (entry: TreeEntry): boolean => {
             return entry instanceof TreeDir && entry.children.length === 0;
           });
