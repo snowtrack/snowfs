@@ -1310,7 +1310,7 @@ function shuffle(arr) {
   return arr;
 }
 
-test.only('TreeDir hash stability 1', async (t) => {
+test('TreeDir hash stability 1', async (t) => {
   /*
   Python verification:
   import hashlib
