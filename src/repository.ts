@@ -1,5 +1,6 @@
 /* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
 
+import * as fs from 'fs-extra';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
@@ -9,7 +10,7 @@ import {
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo, StatsSubset } from './common';
+import { calculateFileHash, FileInfo, HashBlock, StatsSubset } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import {
@@ -208,8 +209,8 @@ export class StatusEntry {
 
     if (data.stats) {
       this.stats = {
-        ctimeMs: data.stats.ctimeMs,
-        mtimeMs: data.stats.mtimeMs,
+        ctime: data.stats.ctime,
+        mtime: data.stats.mtime,
         size: data.stats.size,
       };
     }
@@ -930,6 +931,59 @@ export class Repository {
           }
         });
 
+        function deleteOrTrash(repo: Repository, absPath: string, relPath: string): Promise<void> {
+          let isDirectory: boolean;
+          return io.stat(absPath)
+            .then((stat: fse.Stats) => {
+              isDirectory = stat.isDirectory();
+
+              let promises = [];
+              if (stat.isDirectory()) {
+                return io.osWalk(absPath, io.OSWALK.FILES)
+                  .then((items: io.DirItem[]) => {
+                    for (const item of items) {
+                      promises.push(calculateFileHash(item.absPath)
+                        .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                          return { absPath: item.absPath, filehash: res.filehash };
+                        }));
+                    }
+                    return Promise.all(promises);
+                  });
+              } else {
+                promises.push(calculateFileHash(absPath)
+                .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                  return { absPath, filehash: res.filehash };
+                }));
+              }
+              return Promise.all(promises);
+            }).then((res: {absPath: string, filehash: string}[]) => {
+              let promises = [];
+              for (const r of res) {
+                promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
+              }
+              return Promise.all(promises);
+            }).then((stats: (fse.Stats | null)[]) => {
+              if (stats.includes(null)) {
+                // if there is one null stats object, it means that file isn't stored
+                // in the object database, and therefore needs to go to the trash
+                return IoContext.putToTrash(absPath);
+              } else {
+                if (isDirectory) {
+                  return new Promise((resolve, reject) => {
+                    fs.rmdir(absPath, { recursive: true }, (err) => {
+                      if (err) {
+                        reject(err);
+                      }
+                      resolve();
+                    });
+                  });
+                } else {
+                  return fse.remove(absPath);
+                }
+              }
+            })
+        }
+
         deleteDirCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
           if (candidate.isDirectory()) {
@@ -942,11 +996,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
             }
           } else {
             relPathChecks.push(candidate.path);
-            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
           }
         });
 
@@ -1275,12 +1329,12 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid size: ${item.stats.size}`);
         }
 
-        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.ctimeMs < 0.0) {
-          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctimeMs}`);
+          if (!(item.stats.ctime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctime}`);
         }
 
-        if (!Number.isFinite(item.stats.mtimeMs) || item.stats.mtimeMs < 0.0) {
-          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtimeMs}`);
+        if (!(item.stats.mtime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
         }
 
         if (!item.hash.match(/[0-9a-f]{64}/i)) {

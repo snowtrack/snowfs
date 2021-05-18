@@ -123,8 +123,8 @@ export class TreeFile extends TreeEntry {
       ext: this.ext,
       stats: {
         size: this.stats.size,
-        ctimeMs: this.stats.ctimeMs,
-        mtimeMs: this.stats.mtimeMs,
+        ctime: this.stats.ctime.getTime(),
+        mtime: this.stats.mtime.getTime(),
       },
     };
     return JSON.stringify(output);
@@ -144,7 +144,7 @@ export class TreeFile extends TreeEntry {
       // microseconds. That's why all items are identified if the mtime from the commit
       // and the mtime from the file on disk is greater than 1ms, everything below is
       // considered equal.
-      if (Math.abs(this.stats.mtimeMs - newStats.mtimeMs) >= 1.0) {
+      if (Math.abs(+this.stats.mtime - (+newStats.mtime)) >= 1.0) {
         switch (detectionMode) {
           case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
             return { file: this, modified: true, newStats };
@@ -183,7 +183,7 @@ export class TreeDir extends TreeEntry {
   }
 
   static createRootTree(): TreeDir {
-    return new TreeDir('', { size: 0, ctimeMs: 0, mtimeMs: 0 });
+    return new TreeDir('', { size: 0, ctime: new Date(0), mtime: new Date(0) });
   }
 
   clone(parent?: TreeDir): TreeDir {
@@ -358,8 +358,8 @@ export function constructTree(
               const subtree: TreeDir = new TreeDir(
                 relative(root, absPath),
                 {
-                  ctimeMs: stat.ctimeMs,
-                  mtimeMs: stat.mtimeMs,
+                  ctime: stat.ctime,
+                  mtime: stat.mtime,
                   size: stat.size,
                 },
                 tree,
@@ -372,8 +372,8 @@ export function constructTree(
             const entry: TreeFile = new TreeFile('',
               relPath, {
                 size: stat.size,
-                ctimeMs: stat.ctimeMs,
-                mtimeMs: stat.mtimeMs,
+                ctime: stat.ctime,
+                mtime: stat.mtime,
               }, extname(relPath), tree);
             tree.children.push(entry);
           }),

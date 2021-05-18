@@ -100,6 +100,21 @@ export class Odb {
             return o;
           }
 
+          if (obj.stats) {
+            if (obj.stats.ctimeMs) {
+              // backwards compatibility because item was called cTimeMs before
+              obj.stats.ctime = obj.stats.cTimeMs;
+            }
+  
+            if (obj.stats.mtimeMs) {
+              // backwards compatibility because item was called mtimeMs before
+              obj.stats.mtime = obj.stats.mtimeMs;
+            }
+  
+            obj.stats.mtime = new Date(obj.stats.mtime);
+            obj.stats.ctime = new Date(obj.stats.ctime);
+          }
+
           const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
           o.parent = parent;
           if (obj.hash) {
@@ -191,6 +206,13 @@ export class Odb {
   getAbsObjectPath(file: TreeFile): string {
     const objects: string = join(this.repo.options.commondir, 'objects');
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
+  }
+
+  getObjectByHash(hash: string, extname: string): Promise<fse.Stats> {
+    const objects: string = join(this.repo.options.commondir, 'objects');
+    const object = join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
+    return io.stat(object)
+      .catch((error) => null); // if the file is not available, we return null
   }
 
   writeReference(ref: Reference): Promise<void> {
@@ -308,8 +330,8 @@ export class Odb {
             hash: filehash,
             stat: {
               size: stat.size,
-              ctimeMs: stat.ctimeMs,
-              mtimeMs: stat.mtimeMs,
+              ctime: stat.ctime,
+              mtime: stat.mtime,
             },
           },
         })))
@@ -331,7 +353,7 @@ export class Odb {
         return ioContext.copyFile(objectFile, dstAbsPath);
       }).then(() => {
         // atime will be set as mtime because thats the time we accessed the file
-        return io.utimes(dstAbsPath, new Date(file.stats.mtimeMs), new Date(file.stats.mtimeMs));
+        return io.utimes(dstAbsPath, file.stats.mtime, file.stats.mtime);
       });
   }
 }
