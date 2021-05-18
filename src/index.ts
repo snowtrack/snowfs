@@ -131,20 +131,22 @@ export class Index {
   private save(): Promise<void> {
     this.throwIfNotValid();
 
-    const userData: string = JSON.stringify({
-      adds: this.addRelPaths,
-      deletes: this.deleteRelPaths,
-      processed: this.processedFiles,
-    }, (key, value) => {
-      if (value instanceof Map) {
-        return Array.from(value.entries());
-      }
-      if (value instanceof Set) {
-        return Array.from(value);
-      }
-      return value;
+    const processed = Array.from(this.processedFiles.entries()).map((res: [string, FileInfo]) => {
+      const size: number = res[1].stat.size;
+      const ctime: number = res[1].stat.ctime.getTime();
+      const mtime: number = res[1].stat.mtime.getTime();
+      return {
+        name: res[0], hash: res[1].hash, ext: res[1].ext, stat: { size, ctime, mtime },
+      };
     });
-    return fse.ensureDir(Index.getAbsDir(this.repo)).then(() => fss.writeSafeFile(this.getAbsPath(), userData))
+
+    const userData: string = JSON.stringify({
+      adds: Array.from(this.addRelPaths),
+      deletes: Array.from(this.deleteRelPaths),
+      processed,
+    });
+    return fse.ensureDir(Index.getAbsDir(this.repo))
+      .then(() => fss.writeSafeFile(this.getAbsPath(), userData))
       .then(() => this.repo.modified());
   }
 
@@ -170,9 +172,20 @@ export class Index {
         const index = new Index(repo, odb, isMainIndex ? '' : indexName.substr(6, indexName.length - 6)); // set 'abc123' as index id
         const content: string = parseIndex[1].toString();
         const json: any = JSON.parse(content);
+
         index.addRelPaths = new Set(json.adds);
         index.deleteRelPaths = new Set(json.deletes);
-        index.processedFiles = new Map(json.processed);
+
+        index.processedFiles = new Map(json.processed.map((item: any) => {
+          const size: number = item.stat.size;
+          const ctime: Date = new Date(item.stat.ctime);
+          const mtime: Date = new Date(item.stat.mtime);
+          return [item.name, {
+            hash: item.hash,
+            ext: item.ext,
+            stat: { size, ctime, mtime },
+          }];
+        }));
         parseIndexes.push(index);
       }
       return parseIndexes;

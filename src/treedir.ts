@@ -106,7 +106,8 @@ export class TreeFile extends TreeEntry {
   }
 
   clone(parent?: TreeDir): TreeFile {
-    return new TreeFile(this.hash, this.path, { ...this.stats }, this.ext, parent);
+    return new TreeFile(this.hash,
+      this.path, StatsSubset.clone(this.stats), this.ext, parent);
   }
 
   toString(): string {
@@ -238,7 +239,13 @@ export class TreeDir extends TreeEntry {
     }
 
     const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toString(includeChildren));
-    const stats = JSON.stringify(this.stats);
+
+    const stats: any = JSON.stringify({
+      size: this.stats.size,
+      ctime: this.stats.ctime.getTime(),
+      mtime: this.stats.mtime.getTime(),
+    });
+
     return `{"hash": "${this.hash.toString()}", "path": "${this.path ?? ''}", "stats": ${stats}, "children": [${children.join(',')}]}`;
   }
 

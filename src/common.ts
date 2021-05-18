@@ -20,6 +20,14 @@ export class StatsSubset {
   ctime: Date;
 
   mtime: Date;
+
+  static clone(stats: StatsSubset) {
+    return {
+      size: stats.size,
+      ctime: new Date(stats.ctime),
+      mtime: new Date(stats.mtime),
+    };
+  }
 }
 
 /**

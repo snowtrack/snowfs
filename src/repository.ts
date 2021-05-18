@@ -1,6 +1,5 @@
 /* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
 
-import * as fs from 'fs-extra';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';

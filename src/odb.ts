@@ -101,16 +101,16 @@ export class Odb {
           }
 
           if (obj.stats) {
+            // backwards compatibility because item was called cTimeMs before
             if (obj.stats.ctimeMs) {
-              // backwards compatibility because item was called cTimeMs before
               obj.stats.ctime = obj.stats.cTimeMs;
             }
-  
+
+            // backwards compatibility because item was called mtimeMs before
             if (obj.stats.mtimeMs) {
-              // backwards compatibility because item was called mtimeMs before
               obj.stats.mtime = obj.stats.mtimeMs;
             }
-  
+
             obj.stats.mtime = new Date(obj.stats.mtime);
             obj.stats.ctime = new Date(obj.stats.ctime);
           }
