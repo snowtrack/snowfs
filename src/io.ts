@@ -215,7 +215,7 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
 }
 
 export async function rmdir(dir) {
-  const entries = await fs.readdir(dir);
+  const entries = await fs.readdir(dir, { withFileTypes: true });
   const results = await Promise.all(entries.map((entry) => {
     const fullPath = join(dir, entry.name);
     const task = entry.isDirectory() ? rmdir(fullPath) : fs.unlink(fullPath);
