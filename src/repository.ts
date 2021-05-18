@@ -1279,7 +1279,7 @@ export class Repository {
             }
 
             // while we are at it, we update the file infos
-            const finfo: FileInfo = index.processedFiles.get(entry.path);
+            const finfo: FileInfo = index.processed.get(entry.path);
             if (finfo) {
               entry.hash = finfo.hash;
               entry.stats = finfo.stat;

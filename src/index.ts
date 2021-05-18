@@ -52,7 +52,7 @@ export class Index {
   /** Hash map of hashes and files. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
    */
-  processedFiles = new Map<string, FileInfo>();
+  processed = new Map<string, FileInfo>();
 
   /**
    * A set of filepaths of new files that will be part of the new commit.
@@ -84,7 +84,7 @@ export class Index {
 
         this.addRelPaths = new Set();
         this.deleteRelPaths = new Set();
-        this.processedFiles.clear();
+        this.processed.clear();
         this.id = undefined;
         this.repo = null;
         this.odb = null;
@@ -131,7 +131,7 @@ export class Index {
   private save(): Promise<void> {
     this.throwIfNotValid();
 
-    const processed = Array.from(this.processedFiles.entries()).map((res: [string, FileInfo]) => {
+    const processed = Array.from(this.processed.entries()).map((res: [string, FileInfo]) => {
       const size: number = res[1].stat.size;
       const ctime: number = res[1].stat.ctime.getTime();
       const mtime: number = res[1].stat.mtime.getTime();
@@ -176,7 +176,7 @@ export class Index {
         index.addRelPaths = new Set(json.adds);
         index.deleteRelPaths = new Set(json.deletes);
 
-        index.processedFiles = new Map(json.processed.map((item: any) => {
+        index.processed = new Map(json.processed.map((item: any) => {
           const size: number = item.stat.size;
           const ctime: Date = new Date(item.stat.ctime);
           const mtime: Date = new Date(item.stat.mtime);
@@ -205,7 +205,7 @@ export class Index {
 
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
-      if (!this.processedFiles.has(relPath)) {
+      if (!this.processed.has(relPath)) {
         this.addRelPaths.add(relPath);
       }
     }
@@ -222,7 +222,7 @@ export class Index {
     for (const filepath of filepaths) {
       const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
 
-      if (!this.processedFiles.has(relPath)) {
+      if (!this.processed.has(relPath)) {
         this.deleteRelPaths.add(relPath);
       }
     }
@@ -236,7 +236,7 @@ export class Index {
   getFileProcessedMap(): Map<string, FileInfo> {
     this.throwIfNotValid();
 
-    return this.processedFiles;
+    return this.processed;
   }
 
   /**
@@ -253,7 +253,7 @@ export class Index {
       .then(() => {
         const relPaths: string[] = difference(Array.from(this.addRelPaths), Array.from(this.deleteRelPaths));
 
-        unprocessedRelItems = relPaths.filter((p: string) => !this.processedFiles.has(p));
+        unprocessedRelItems = relPaths.filter((p: string) => !this.processed.has(p));
 
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
@@ -274,7 +274,7 @@ export class Index {
 
         // TODO: (Seb) Handle deleted files as well here
         for (const r of res.results) {
-          this.processedFiles.set(r.file, r.fileinfo);
+          this.processed.set(r.file, r.fileinfo);
         }
         return this.save();
       });
