@@ -694,7 +694,7 @@ export class Repository {
     let promise: Promise<unknown> = Promise.resolve();
 
     this.commitMap.forEach((c: Commit) => {
-      if (c.hash === commitHash) {
+      if (c.hash === commitHash || !c.parent || c.parent.length === 0) {
         return;
       }
 
