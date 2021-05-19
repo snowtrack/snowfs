@@ -122,7 +122,7 @@ export function hideItem(path: string): Promise<void> {
 
 function checkPath(pth): void {
   if (process.platform === 'win32') {
-    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(parse(pth).root, ''));
+    const pathHasInvalidWinCharacters = /[<>:"|?*]/u.test(pth.replace(parse(pth).root, ''));
 
     if (pathHasInvalidWinCharacters) {
       const error = new Error(`Path contains invalid characters: ${pth}`);
@@ -214,7 +214,7 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
   });
 }
 
-export async function rmdir(dir): Promise<void> {
+export async function rmdir(dir: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     fs.readdir(dir, { withFileTypes: true }, async (error, entries) => {
       if (error) {
