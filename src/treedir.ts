@@ -260,7 +260,7 @@ export class TreeDir extends TreeEntry {
         if (opt.includeDirs) {
           map.set(obj.path, obj);
         }
-        return (obj as TreeDir).children.forEach((c: any) => visit(c, map));
+        return obj.children.forEach((c: any) => visit(c, map));
       }
       map.set(obj.path, obj);
     };
