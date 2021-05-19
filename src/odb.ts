@@ -93,12 +93,6 @@ export class Odb {
           if (Array.isArray(obj)) {
             return obj.map((c: any) => visit(c, parent));
           }
-          if (obj.children) {
-            const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
-            o.children = obj.children.map((t: any) => visit(t, o));
-            o.parent = parent;
-            return o;
-          }
 
           if (obj.stats) {
             // backwards compatibility because item was called cTimeMs before
@@ -113,6 +107,13 @@ export class Odb {
 
             obj.stats.mtime = new Date(obj.stats.mtime);
             obj.stats.ctime = new Date(obj.stats.ctime);
+          }
+
+          if (obj.children) {
+            const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
+            o.children = obj.children.map((t: any) => visit(t, o));
+            o.parent = parent;
+            return o;
           }
 
           const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
