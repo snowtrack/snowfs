@@ -9,7 +9,9 @@ import {
 
 import { Log } from './log';
 import { Commit } from './commit';
-import { FileInfo, StatsSubset } from './common';
+import {
+  calculateFileHash, FileInfo, HashBlock, StatsSubset,
+} from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
 import {
@@ -266,6 +268,53 @@ function getSnowFSRepo(path: string): Promise<string | null> {
 
     return getSnowFSRepo(dirname(path));
   });
+}
+
+/**
+ * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
+ */
+function deleteOrTrash(repo: Repository, absPath: string, relPath: string): Promise<void> {
+  let isDirectory: boolean;
+  return io.stat(absPath)
+    .then((stat: fse.Stats) => {
+      isDirectory = stat.isDirectory();
+
+      const promises = [];
+      if (stat.isDirectory()) {
+        return io.osWalk(absPath, io.OSWALK.FILES)
+          .then((items: io.DirItem[]) => {
+            for (const item of items) {
+              promises.push(calculateFileHash(item.absPath)
+                .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                  return { absPath: item.absPath, filehash: res.filehash };
+                }));
+            }
+            return Promise.all(promises);
+          });
+      }
+      promises.push(calculateFileHash(absPath)
+        .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+          return { absPath, filehash: res.filehash };
+        }));
+
+      return Promise.all(promises);
+    }).then((res: {absPath: string, filehash: string}[]) => {
+      const promises = [];
+      for (const r of res) {
+        promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
+      }
+      return Promise.all(promises);
+    }).then((stats: (fse.Stats | null)[]) => {
+      if (stats.includes(null)) {
+        // if there is one null stats object, it means that file isn't stored
+        // in the object database, and therefore needs to go to the trash
+        return IoContext.putToTrash(absPath, relPath);
+      }
+      if (isDirectory) {
+        return io.rmdir(absPath);
+      }
+      return fse.remove(absPath);
+    });
 }
 
 /**
@@ -780,15 +829,23 @@ export class Repository {
           } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
             deleteDirCandidates.set(status.path, status);
           } else if (reset & RESET.RESTORE_MODIFIED_ITEMS && status.isModified()) {
-            const tfile: TreeFile = oldFilesMap.get(status.path) as TreeFile;
+            const tfile = oldFilesMap.get(status.path);
             if (tfile) {
-              relPathChecks.push(tfile.path);
-              tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
-                if (res.modified) {
-                  const dst: string = join(this.repoWorkDir, res.file.path);
-                  return this.repoOdb.readObject(res.file, dst, ioContext);
-                }
-              }));
+              if (tfile instanceof TreeFile) {
+                relPathChecks.push(tfile.path);
+                tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
+                  if (res.modified) {
+                    const dst: string = join(this.repoWorkDir, res.file.path);
+
+                    // We first delete or trash the file before writing to ensure an item that has never been saved
+                    // to the object database will end in the trash and will not be simply overwritten by [Odb.readObject].
+                    return deleteOrTrash(this, dst, res.file.path)
+                      .then(() => {
+                        return this.repoOdb.readObject(res.file, dst, ioContext);
+                      });
+                  }
+                }));
+              }
             } else {
               throw new Error(`File '${tfile.path}' not found during last-modified-check`);
             }
@@ -820,11 +877,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
             }
           } else {
             relPathChecks.push(candidate.path);
-            tasks.push(() => IoContext.putToTrash(join(this.workdir(), candidate.path), candidate.path));
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
           }
         });
 

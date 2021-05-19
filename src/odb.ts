@@ -185,6 +185,13 @@ export class Odb {
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
   }
 
+  getObjectByHash(hash: string, extname: string): Promise<fse.Stats> {
+    const objects: string = join(this.repo.options.commondir, 'objects');
+    const object = join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
+    return io.stat(object)
+      .catch(() => null); // if the file is not available, we return null
+  }
+
   writeReference(ref: Reference): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
 
