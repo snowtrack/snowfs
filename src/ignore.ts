@@ -15,14 +15,14 @@ export class IgnoreManager {
         '**/.snowignore',
         '**/backup/**',
         '**/*.bkp',
-        '**/bkp/**',
+        '**/**/bkp/**',
+        '**/Backup_of*', // Auto backup by Corel Draw
         '**/*_bak[0-9]*.[A-Za-z0-9]+',
         '**/**/*.tmp',
         '**/tmp/**',
         '**/temp/**',
         '**/cache/**',
         '**/*.lnk',
-        '**/*.log',
         '**/.idea/**',
         '**/.Spotlight-V100',
 
