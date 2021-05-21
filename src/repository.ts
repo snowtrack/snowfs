@@ -985,50 +985,6 @@ export class Repository {
           }
         });
 
-        function deleteOrTrash(repo: Repository, absPath: string, relPath: string): Promise<void> {
-          let isDirectory: boolean;
-          return io.stat(absPath)
-            .then((stat: fse.Stats) => {
-              isDirectory = stat.isDirectory();
-
-              const promises = [];
-              if (stat.isDirectory()) {
-                return io.osWalk(absPath, io.OSWALK.FILES)
-                  .then((items: io.DirItem[]) => {
-                    for (const item of items) {
-                      promises.push(calculateFileHash(item.absPath)
-                        .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                          return { absPath: item.absPath, filehash: res.filehash };
-                        }));
-                    }
-                    return Promise.all(promises);
-                  });
-              }
-              promises.push(calculateFileHash(absPath)
-                .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                  return { absPath, filehash: res.filehash };
-                }));
-
-              return Promise.all(promises);
-            }).then((res: {absPath: string, filehash: string}[]) => {
-              const promises = [];
-              for (const r of res) {
-                promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
-              }
-              return Promise.all(promises);
-            }).then((stats: (fse.Stats | null)[]) => {
-              if (stats.includes(null)) {
-                // if there is one null stats object, it means that file isn't stored
-                // in the object database, and therefore needs to go to the trash
-                return IoContext.putToTrash(absPath);
-              }
-              if (isDirectory) {
-                return io.rmdir(absPath);
-              }
-              return fse.remove(absPath);
-            });
-        }
-
         deleteDirCandidates.forEach((candidate: StatusEntry, relPath: string) => {
           // Check if the delete operation got revoked for the directory
           if (candidate.isDirectory()) {
