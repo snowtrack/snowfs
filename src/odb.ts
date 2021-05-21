@@ -213,7 +213,7 @@ export class Odb {
     const objects: string = join(this.repo.options.commondir, 'objects');
     const object = join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
     return io.stat(object)
-      .catch((error) => null); // if the file is not available, we return null
+      .catch(() => null); // if the file is not available, we return null
   }
 
   writeReference(ref: Reference): Promise<void> {
