@@ -394,7 +394,7 @@ export class IoContext {
    * @param winAccessPath   Absolute path to 'win-access.exe'
    * @throws                An error is raised if the passed file does not exist.
    */
-  static setWin32AccessPath(winAccessPath: string) {
+  static setWin32AccessPath(winAccessPath: string): void {
     if (!fse.pathExistsSync(winAccessPath)) {
       throw new Error(`path ${winAccessPath} does not exist`);
     }

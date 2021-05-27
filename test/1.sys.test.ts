@@ -765,7 +765,6 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 0);
     } catch (error) {
-      console.error(error);
       t.fail(error.message);
     }
   });
@@ -774,7 +773,6 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 1);
     } catch (error) {
-      console.error(error);
       t.fail(error.message);
     }
   });
@@ -783,7 +781,6 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 100);
     } catch (error) {
-      console.error(error);
       t.fail(error.message);
     }
   });
@@ -792,7 +789,6 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 1000);
     } catch (error) {
-      console.error(error);
       t.fail(error.message);
     }
   });
