@@ -24,24 +24,39 @@ export const enum FILEMODE {
   COMMIT = 57344,
 }
 
+const textFileExtensions = new Set([
+  '.txt', '.html', '.plist', '.htm', '.css', '.js',
+  '.jsx', '.less', '.scss', '.wasm', '.php', '.c',
+  '.cc', '.class', '.clj', '.cpp', '.cs', '.cxx',
+  '.el', '.go', '.h', '.java', '.lua', '.m', '.m4',
+  '.php', '.pl', '.po', '.py', '.rb', '.rs',
+  '.sh', '.swift', '.vb', '.vcxproj', '.xcodeproj',
+  '.xml', '.diff', '.patch', '.html', '.js', '.ts',
+]);
+
 export const enum DETECTIONMODE {
+  /**
+   * Uses SIZE_AND_HASH_FOR_SMALL_FILES for all known text files and ONLY_SIZE_AND_MKTIME for everything else.
+   */
+  DEFAULT = 1,
+
   /**
    * Only perform a size and mktime check. If the modified time differs between the commited file
    * and the one in the working directory, the file is identified as modified.
    * If the modified time is the same, the file is not identified as modified.
    */
-  ONLY_SIZE_AND_MKTIME = 1,
+  ONLY_SIZE_AND_MKTIME = 2,
 
   /**
    * Perform a size and hash check for all files smaller than 20 MB.
    */
-  SIZE_AND_HASH_FOR_SMALL_FILES = 2,
+  SIZE_AND_HASH_FOR_SMALL_FILES = 3,
 
   /**
    * Perform a size and hash check for all files. Please note,
    * that this is the slowest of all detection modes.
    */
-  SIZE_AND_HASH_FOR_ALL_FILES = 3
+  SIZE_AND_HASH_FOR_ALL_FILES = 4
 }
 
 export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
@@ -147,13 +162,25 @@ export class TreeFile extends TreeEntry {
       // considered equal.
       if (Math.abs(+this.stats.mtime - (+newStats.mtime)) >= 1.0) {
         switch (detectionMode) {
-          case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
-            return { file: this, modified: true, newStats };
+          case DETECTIONMODE.DEFAULT:
+            const ext = extname(filepath);
+            // Text files are more prone to mtime changes than other files,
+            // so by default text files are checked for content changes than rather relying only on mtime.
+            if (!textFileExtensions.has(ext)) {
+              // If not a text file, use same heuristics as ONLY_SIZE_AND_MKTIME
+              return { file: this, modified: true, newStats };
+            }
+            // If a text file, fallthrough to SIZE_AND_HASH_FOR_SMALL_FILES
+
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
+            // A file bigger than 20 MB is considered as changed if the mtime is different ...
             if (this.stats.size >= MB20) {
               return { file: this, modified: true, newStats };
             }
+            // ... otherwise break and check the file hash.
             break;
+          case DETECTIONMODE.ONLY_SIZE_AND_MKTIME:
+            return { file: this, modified: true, newStats };
           case DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES:
           default:
             break;
