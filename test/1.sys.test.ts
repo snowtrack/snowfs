@@ -742,17 +742,20 @@ async function performReadLockCheckTest(t, fileCount: number) {
   fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
   fileHandles.set(noFileHandleFile, null);
 
-  const readFileHandleFile = 'read-file-handle.txt';
-  const absReadFileHandleFile = join(absDir, readFileHandleFile);
-  fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
-  fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
-
   for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
 
     fse.writeFileSync(absFile, `file path content: ${absFile}`);
-    fileHandles.set(relName, fse.createWriteStream(absFile, { flags: 'w' }));
+  }
+
+  if (fileCount > 0) {
+    // we create X files and add a file handler to the last file
+    // because 'win-access.exe' was slow if only the last element
+    // had the file handle
+    const relName = `foo${fileCount - 1}.txt`;
+    const absFile = join(absDir, relName);
+    fileHandles.set(relName, fse.createReadStream(absFile, { flags: 'r' }));
   }
 
   await sleep(500); // just to ensure on GitHub runners that all files were written to
@@ -802,6 +805,14 @@ if (process.platform === 'win32') {
   test('performFileAccessCheck (read/write) / 1000 file', async (t) => {
     try {
       await performReadLockCheckTest(t, 1000);
+    } catch (error) {
+      t.fail(error.message);
+    }
+  });
+
+  test('performFileAccessCheck (read/write) / 10000 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 10000);
     } catch (error) {
       t.fail(error.message);
     }
