@@ -721,6 +721,10 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   }
 
   stop = true;
+
+  for (const [_, handle] of fileHandles) {
+    handle?.close();
+  }
 }
 
 async function performReadLockCheckTest(t, fileCount: number) {
@@ -741,21 +745,21 @@ async function performReadLockCheckTest(t, fileCount: number) {
   const readFileHandleFile = 'read-file-handle.txt';
   const absReadFileHandleFile = join(absDir, readFileHandleFile);
   fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
-
-  const singleFileHandle = fse.createReadStream(absReadFileHandleFile, { flags: 'r' });
+  fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
 
   for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
 
     fse.writeFileSync(absFile, `file path content: ${absFile}`);
+    fileHandles.set(relName, fse.createWriteStream(absFile, { flags: 'w' }));
   }
 
   await sleep(500); // just to ensure on GitHub runners that all files were written to
 
   const ioContext = new IoContext();
   try {
-    await ioContext.performFileAccessCheck(absDir, [readFileHandleFile], TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+    await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_WRITTEN_TO);
     t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
       t.true(true); // to satisfy t.plan
@@ -765,7 +769,9 @@ async function performReadLockCheckTest(t, fileCount: number) {
     t.true(error.message.includes('Your files are accessed by'));
   }
 
-  singleFileHandle.close();
+  for (const [_, handle] of fileHandles) {
+    handle?.close();
+  }
 }
 
 if (process.platform === 'win32') {
