@@ -819,7 +819,7 @@ export class Repository {
    * @param target    Reference, commit or commit hash.
    * @param reset     Options for the restore operation.
    */
-  checkout(target: string|Reference|Commit, reset: RESET, limitToPath?: string): Promise<void> {
+  checkout(target: string|Reference|Commit, reset: RESET, limitTo?: StatusEntry): Promise<void> {
     let targetRef: Reference = null;
     let targetCommit: Commit = null;
     if (typeof target === 'string') {
@@ -899,9 +899,13 @@ export class Repository {
           return [] as any; // as any otherwise TS doesn't like it
         }
 
-        if (limitToPath) {
+        if (limitTo) {
           statusResult = statusResult.filter((status: StatusEntry) => {
-            return status.path.startsWith(limitToPath);
+            if (limitTo.isDirectory()) {
+              return status.path.startsWith(limitTo.path + '/') || status.path === limitTo.path;
+            } else {
+              return status.path === limitTo.path;
+            }
           });
         }
 
