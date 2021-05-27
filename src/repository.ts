@@ -913,7 +913,7 @@ export class Repository {
    */
   getStatus(filter?: FILTER, commit?: Commit): Promise<StatusEntry[]> {
     const statusResult = new Map<string, StatusEntry>();
-
+    const currentDirs = new Map<string, StatusEntry>();
     const ignore = new IgnoreManager();
 
     let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
@@ -921,6 +921,23 @@ export class Repository {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
     } else if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
+    }
+
+    // For each deleted status item, we flag its parent directory as modified.
+    function markParentsAsModified(itemPath: string) {
+      // Create the parent strings from the status path and call flagDirAsModified
+      // E.g. for hello/foo/bar/texture.psd we flag hello, hello/foo/ hello/foo/bar
+      const parents = [];
+      dirname(itemPath).split('/').reduce((a, b) => {
+        const constructedPath = a ? `${a}/${b}` : b;
+        parents.push(constructedPath);
+        return constructedPath;
+      }, null);
+
+      for (const parent of parents) {
+        const dirItem = currentDirs.get(parent);
+        dirItem?.setStatusBit(STATUS.WT_MODIFIED);
+      }
     }
 
     // First iterate over all files and get their file stats
@@ -967,6 +984,36 @@ export class Repository {
           }
         }
 
+        if (filter & FILTER.INCLUDE_DIRECTORIES) {
+          // check which items are a directory
+          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
+
+          /// check which items of the directories are ignored
+          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+
+          // get the list of directories which are not ignored
+          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
+
+          for (const item of itemsStep2) {
+            const dir = new StatusEntry({
+              path: item.relPath,
+              status: 0,
+              stats: item.stats,
+            }, true);
+            // the status of this directory will later be overwritten in case
+            // the directory contains a file that is modified. See 'markParentsAsModified'.
+            statusResult.set(item.relPath, dir);
+
+            // We want to achieve the following use cases (e.g:  foo/bar/bas/texture.psd)
+            // 1) If the texture + hierarchy is completely new, all directories shall be marked as 'new'.
+            // 1) If a hierarchy is NOT new, but the file is deleted/modified all directories shall be marked as 'modified'.
+            // That's why statusResult is not used here, because 'currentDirs' is used to mark all dirs as 'modified',
+            // but if the directory is new, it will be replaced in 'statusResult' below by FILTER.INCLUDE_UNTRACKED
+            // with WT_NEW, which will end up in the returned array
+            currentDirs.set(item.relPath, dir);
+          }
+        }
+
         // Items which didn't exist before, but do now
         if (filter & FILTER.INCLUDE_UNTRACKED) {
           // check which items are new and didn't exist in the old commit
@@ -979,12 +1026,15 @@ export class Repository {
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
 
           for (const entry of itemsStep2) {
-            if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
+            if (!entry.stats.isDirectory()
+            || (filter & FILTER.INCLUDE_DIRECTORIES && !entry.isempty) // we don't include empty directories
+            ) {
               statusResult.set(entry.relPath, new StatusEntry({
                 path: entry.relPath,
                 status: STATUS.WT_NEW,
                 stats: entry.stats,
               }, entry.stats.isDirectory()));
+              markParentsAsModified(entry.relPath);
             }
           }
         }
@@ -1003,28 +1053,9 @@ export class Repository {
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
               statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.isDirectory()));
+
+              markParentsAsModified(entry.path);
             }
-          }
-        }
-
-        if (filter & FILTER.INCLUDE_DIRECTORIES) {
-          // check which items are a directory
-          const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
-
-          /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
-
-          // get the list of directories which are not ignored
-          const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
-
-          for (const item of itemsStep2) {
-            // the status of this directory will later be overwritten in case
-            // the directory contains a file that is modified
-            statusResult.set(item.relPath, new StatusEntry({
-              path: item.relPath,
-              status: 0,
-              stats: item.stats,
-            }, true));
           }
         }
 
@@ -1056,6 +1087,8 @@ export class Repository {
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
               }, false));
+
+            markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
             statusResult.set(existingItem.file.path,
               new StatusEntry({
