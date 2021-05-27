@@ -715,6 +715,89 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   stop = true;
 }
 
+async function performReadLockCheckTest(t, fileCount: number) {
+  t.plan(1); // every test results in 1 checked test
+
+  const tmp = join(process.cwd(), 'tmp');
+  fse.ensureDirSync(tmp);
+
+  const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
+
+  const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
+
+  const noFileHandleFile = 'no-file-handle.txt';
+  const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
+  fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
+  fileHandles.set(noFileHandleFile, null);
+
+  const readFileHandleFile = 'read-file-handle.txt';
+  const absReadFileHandleFile = join(absDir, readFileHandleFile);
+  fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
+
+  const singleFileHandle = fse.createReadStream(absReadFileHandleFile, { flags: 'r' });
+
+  for (let i = 0; i < fileCount; ++i) {
+    const relName = `foo${i}.txt`;
+    const absFile = join(absDir, relName);
+
+    fse.writeFileSync(absFile, `file path content: ${absFile}`);
+  }
+
+  await sleep(500); // just to ensure on GitHub runners that all files were written to
+
+  const ioContext = new IoContext();
+  try {
+    await ioContext.performFileAccessCheck(absDir, [readFileHandleFile], TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+    t.log('Ensure no file is reported as being written to');
+    if (fileCount === 0) {
+      t.true(true); // to satisfy t.plan
+    }
+  } catch (error) {
+    t.log('Ensure that files are accessed by another process.');
+    t.true(error.message.includes('Your files are accessed by'));
+  }
+
+  singleFileHandle.close();
+}
+
+if (process.platform === 'win32') {
+  test('performFileAccessCheck (read/write) / 0 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 0);
+    } catch (error) {
+      console.error(error);
+      t.fail(error.message);
+    }
+  });
+
+  test('performFileAccessCheck (read/write) / 1 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 1);
+    } catch (error) {
+      console.error(error);
+      t.fail(error.message);
+    }
+  });
+
+  test('performFileAccessCheck (read/write) / 100 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 100);
+    } catch (error) {
+      console.error(error);
+      t.fail(error.message);
+    }
+  });
+
+  test('performFileAccessCheck (read/write) / 1000 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 1000);
+    } catch (error) {
+      console.error(error);
+      t.fail(error.message);
+    }
+  });
+}
+
 test('performFileAccessCheck / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
@@ -761,6 +844,7 @@ test('performFileAccessCheck / 1000 file', async (t) => {
 });
 
 test('performFileAccessCheck / no access', async (t) => {
+  // Test to check if IoContext.performFileAccessCheck detects a file not being accessible because of missing chmod
   try {
     const tmp = join(process.cwd(), 'tmp');
     fse.ensureDirSync(tmp);
