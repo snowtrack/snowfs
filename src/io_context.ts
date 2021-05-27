@@ -134,8 +134,8 @@ export namespace win32 {
    * @param relPaths  Relative paths of files to check.
    * @throws          Throws an AggregateError with a description of the effected files.
    */
-  export function checkWriteAccess(absPaths: string[]): Promise<void> {
-    const winAccess = IoContext.calculateAndGetWinAccessPath();
+  export function checkWriteAccess(ioContextClass: typeof IoContext, absPaths: string[]): Promise<void> {
+    const winAccess = ioContextClass.calculateAndGetWinAccessPath();
 
     return new Promise<void>((resolve, reject) => {
       let std = '';
@@ -636,7 +636,7 @@ export class IoContext {
             default:
               // check if files are touched by any other process.
               // Files that are opened by another process cannot be replaced, moved or deleted.
-              return win32.checkWriteAccess(absPaths);
+              return win32.checkWriteAccess(IoContext, absPaths);
           }
         });
     }
