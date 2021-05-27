@@ -46,6 +46,132 @@ export enum TEST_IF {
   FILE_CAN_BE_WRITTEN_TO = 2
 }
 
+/**
+ * Convert a passed string to an utf-16 le string.
+ */
+function strEncodeUTF16(str: string) {
+  const buf = new ArrayBuffer(str.length * 2);
+  const bufView = new Uint16Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return new Uint8Array(buf);
+}
+
+export namespace win32 {
+
+  /**
+   * Check if the passed files are written to by another process. The paths of `absPaths`
+   * must be derived from `relPaths`. The order and length of both arrays must be equal.
+   *
+   * @param absPaths  Absolute paths of files to check.
+   * @param relPaths  Relative paths of files to check.
+   * @throws          Throws an AggregateError with a description of the effected files.
+   */
+  export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise<void> {
+    const promises = [];
+
+    for (const absPath of absPaths) {
+      promises.push(io.stat(absPath));
+    }
+
+    const stats1 = new Map<string, fse.Stats>();
+
+    return Promise.all(promises)
+      .then((stats: fse.Stats[]) => {
+        if (stats.length !== relPaths.length) {
+          throw new Error('Internal error: stats != paths');
+        }
+
+        for (let i = 0; i < relPaths.length; ++i) {
+          stats1.set(relPaths[i], stats[i]);
+        }
+
+        return new Promise<void>((resolve) => {
+          setTimeout(() => {
+            resolve();
+          }, 500);
+        });
+      }).then(() => {
+        const promises = [];
+
+        for (const absPath of absPaths) {
+          promises.push(io.stat(absPath));
+        }
+
+        return Promise.all(promises);
+      })
+      .then((stats: fse.Stats[]) => {
+        if (stats.length !== relPaths.length) {
+          throw new Error('Internal error: stats != paths');
+        }
+
+        const errors: Error[] = [];
+
+        for (let i = 0; i < relPaths.length; ++i) {
+          const prevStats = stats1.get(relPaths[i]);
+          // When a file is written by another process, either...
+          // ... the size changes through time (e.g. simple write operation)
+          // and/or...
+          // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
+          // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
+          if (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime()) {
+            const msg = `File '${relPaths[i]}' is written by another process`;
+            errors.push(new StacklessError(msg));
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new AggregateError(errors);
+        }
+      });
+  }
+
+  /**
+   * Check if the passed files are open by any other process.
+   *
+   * @param absPaths  Absolute paths of files to check.
+   * @param relPaths  Relative paths of files to check.
+   * @throws          Throws an AggregateError with a description of the effected files.
+   */
+  export function checkWriteAccess(ioContextClass: typeof IoContext, absPaths: string[]): Promise<void> {
+    const winAccess = ioContextClass.calculateAndGetWinAccessPath();
+
+    return new Promise<void>((resolve, reject) => {
+      let std = '';
+      const p0 = spawn(winAccess);
+      let paths = '';
+      for (const absPath of absPaths) {
+        // the stdin of win-access.exe accepts utf-16 little endian
+        paths = `${absPath}\n`;
+      }
+      p0.stdin.write(strEncodeUTF16(paths));
+      p0.stdin.end();
+      p0.stdout.on('data', (data) => {
+        std += data.toString();
+      });
+      p0.on('exit', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          try {
+            for (const d of JSON.parse(std)) {
+              let msg = `Your files are accessed by ${d.strAppName}.`;
+              if (d.strAppName !== 'Windows Explorer') {
+                msg += ' Please close the application and retry.';
+              }
+              return reject(new Error(msg));
+            }
+          } catch (error) {
+            // throw an error if something happened during JSON.parse
+            throw new Error(error);
+          }
+        }
+      });
+    });
+  }
+}
+
 export namespace unix {
 
 /**
@@ -220,6 +346,11 @@ type TrashExecutor = string | ((item: string) => void);
  * ```
  */
 export class IoContext {
+  /** Path to 'win-access.exe'. If the path is undefined or null the path is set after
+   * the first call of [IoContext.calculateAndGetWinAccessPath].
+   */
+  private static winAccessPath: string;
+
   /** Either pass a callback (for Electron environments to use shell.moveItemToTrash) or
    * set a path to the trash executable (e.g. 'recycle-bin.exe', 'trash', ...)
    * of the currently active system. If undefined or null the path is guessed.
@@ -258,6 +389,40 @@ export class IoContext {
     if (!this.valid) {
       throw new Error('IoContext is not initialized, did you forget to call IoContext.init(..)?');
     }
+  }
+
+  /**
+   * Set the path of win-access.exe. Should only be set if process.platform === 'win32'.
+   * If the path is manually set, the path is not calculated anymore by [calculateAndGetWinAccessPath].
+   * @param winAccessPath   Absolute path to 'win-access.exe'
+   * @throws                An error is raised if the passed file does not exist.
+   */
+  static setWin32AccessPath(winAccessPath: string): void {
+    if (!fse.pathExistsSync(winAccessPath)) {
+      throw new Error(`path ${winAccessPath} does not exist`);
+    }
+    IoContext.winAccessPath = winAccessPath;
+  }
+
+  /**
+   * Calculate the path of 'win-access.exe'. If the path was set manually before by [setWin32AccessPath]
+   * the function only returns and no path calculation is performed.
+   * @returns Absolute path to 'win-access.exe'.
+   * @throws Error if 'win-access.exe' could not be found.
+   */
+  static calculateAndGetWinAccessPath(): string {
+    let winAccess = IoContext.winAccessPath;
+    if (!winAccess) {
+      if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'win-access.exe'))) {
+        winAccess = join(dirname(process.execPath), 'resources', 'win-access.exe');
+      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', 'win-access.exe'))) {
+        winAccess = join(__dirname, '..', 'resources', 'win-access.exe');
+      } else {
+        throw new Error('unable to locate win-access executable');
+      }
+      IoContext.winAccessPath = winAccess;
+    }
+    return IoContext.winAccessPath;
   }
 
   /**
@@ -459,63 +624,17 @@ export class IoContext {
     function checkWin32(relPaths): Promise<void> {
       const absPaths = relPaths.map((p: string) => join(dir, p));
 
-      const stats1 = new Map<string, fse.Stats>();
-
       return checkAccess(absPaths)
         .then(() => {
-          const promises = [];
-
-          for (const absPath of absPaths) {
-            promises.push(io.stat(absPath));
-          }
-
-          return Promise.all(promises);
-        })
-        .then((stats: fse.Stats[]) => {
-          if (stats.length !== relPaths.length) {
-            throw new Error('Internal error: stats != paths');
-          }
-
-          for (let i = 0; i < relPaths.length; ++i) {
-            stats1.set(relPaths[i], stats[i]);
-          }
-
-          return new Promise<void>((resolve) => {
-            setTimeout(() => {
-              resolve();
-            }, 500);
-          });
-        }).then(() => {
-          const promises = [];
-
-          for (const absPath of absPaths) {
-            promises.push(io.stat(absPath));
-          }
-
-          return Promise.all(promises);
-        })
-        .then((stats: fse.Stats[]) => {
-          if (stats.length !== relPaths.length) {
-            throw new Error('Internal error: stats != paths');
-          }
-
-          const errors: Error[] = [];
-
-          for (let i = 0; i < relPaths.length; ++i) {
-            const prevStats = stats1.get(relPaths[i]);
-            // When a file is written by another process, either...
-            // ... the size changes through time (e.g. simple write operation)
-            // and/or...
-            // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
-            // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
-            if (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime()) {
-              const msg = `File '${relPaths[i]}' is written by another process`;
-              errors.push(new StacklessError(msg));
-            }
-          }
-
-          if (errors.length > 0) {
-            throw new AggregateError(errors);
+          switch (testIf) {
+            case TEST_IF.FILE_CAN_BE_READ_FROM:
+              // check if files are written by another process
+              return win32.checkReadAccess(absPaths, relPaths);
+            case TEST_IF.FILE_CAN_BE_WRITTEN_TO:
+            default:
+              // check if files are touched by any other process.
+              // Files that are opened by another process cannot be replaced, moved or deleted.
+              return win32.checkWriteAccess(IoContext, absPaths);
           }
         });
     }

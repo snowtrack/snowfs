@@ -906,18 +906,6 @@ export class Repository {
         }
 
         statuses = statusResult;
-
-        // After we received the target commit, we update the commit and reference
-        // because any following error needs to be resolved by a user operation
-        this.head.hash = targetCommit.hash;
-        if (!targetRef || reset & RESET.DETACH) {
-          this.head.setName('HEAD');
-        } else {
-          this.head.setName(targetRef.getName());
-        }
-        return this.writeHeadRefToDisk();
-      })
-      .then(() => {
         // Items which existed before but don't anymore
         statuses.forEach((status: StatusEntry) => {
           if (reset & RESET.RESTORE_DELETED_ITEMS && status.isDeleted()) {
@@ -1006,6 +994,17 @@ export class Repository {
         });
 
         return ioContext.performFileAccessCheck(this.workdir(), relPathChecks, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+      })
+      .then(() => {
+        // After we received the target commit, we update the commit and reference
+        // because any following error needs to be resolved by a user operation
+        this.head.hash = targetCommit.hash;
+        if (!targetRef || reset & RESET.DETACH) {
+          this.head.setName('HEAD');
+        } else {
+          this.head.setName(targetRef.getName());
+        }
+        return this.writeHeadRefToDisk();
       })
       .then(() => {
         return PromisePool
