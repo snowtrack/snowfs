@@ -121,7 +121,7 @@ export class TreeFile extends TreeEntry {
       // considered equal.
       if (Math.abs(this.stats.mtimeMs - newStats.mtimeMs) >= 1.0) {
         switch (detectionMode) {
-          case DETECTIONMODE.DEFAULT:
+          case DETECTIONMODE.DEFAULT: {
             const ext = extname(filepath);
             // Text files are more prone to mtime changes than other files,
             // so by default text files are checked for content changes than rather relying only on mtime.
@@ -129,8 +129,9 @@ export class TreeFile extends TreeEntry {
               // If not a text file, use same heuristics as ONLY_SIZE_AND_MKTIME
               return { file: this, modified: true, newStats };
             }
-            // If a text file, fallthrough to SIZE_AND_HASH_FOR_SMALL_FILES
-
+            // If a text file, fall through to SIZE_AND_HASH_FOR_SMALL_FILES
+            /* falls through */
+          }
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
             // A file bigger than 20 MB is considered as changed if the mtime is different ...
             if (this.stats.size >= MB20) {
