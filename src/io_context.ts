@@ -12,6 +12,9 @@ import * as io from './io';
 const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
 
+// eslint-disable-next-line import/order
+const PromisePool = require('@supercharge/promise-pool');
+
 class StacklessError extends Error {
   constructor(...args) {
     super(...args);
@@ -333,7 +336,7 @@ function getFilesystem(drive: any, mountpoint: string) {
   return FILESYSTEM.OTHER;
 }
 
-type TrashExecutor = string | ((item: string) => void);
+type TrashExecutor = string | ((item: string[] | string) => void);
 
 /**
  * Class to be instantiated to speedup certain I/O operations by acquiring information
@@ -694,20 +697,32 @@ export class IoContext {
   }
 
   /**
-   * Move a file into the trash of the operating system. `SnowFS` tends to avoid
-   * destructive delete operations at all costs, and rather moves files into the trash.
+   * Move files into the trash of the operating system. `SnowFS` avoids
+   * destructive delete operations at all costs, and rather moves files to trash.
    *
-   * @param absPath     The file or directory to move to the trash.
-   * @param relPath     Optional path used in an error message in case the operation fails.
-   *                    Used to make error messages shorter.
-   * @param execPath    If `SnowFS` is embedded in another application, the resource path
-   *                    might be located somewhere else. Can be set so `SnowFS` can find
-   *                    the executables.
+   * @param absPaths    The file(s) or directory to move to the trash.
   */
-  static putToTrash(absPath: string, relPath?: string): Promise<void> {
+  static putToTrash(absPaths: string[] | string): Promise<void[]> {
+    if (typeof absPaths === 'string') {
+      absPaths = [absPaths];
+    }
+
+    if (!Array.isArray(absPaths)) { // assertion absPath is an array
+      return Promise.all([]);
+    }
+
+    // just to be on the safe side
+    absPaths.forEach((absPath: string) => {
+      if ((process.platform === 'win32' && absPath.length <= 3) // X:\
+          || (process.platform === 'darwin' && absPath.length <= 1) // '/'
+      ) {
+        throw new Error(`cannot move '${absPath}' to trash`);
+      }
+    });
+
     if (IoContext.trashExecutor && typeof IoContext.trashExecutor !== 'string') {
-      IoContext.trashExecutor(absPath);
-      return Promise.resolve();
+      IoContext.trashExecutor(absPaths);
+      return Promise.all([]);
     }
 
     let trashPath: string;
@@ -760,14 +775,34 @@ export class IoContext {
       }
     }
 
-    return io.pathExists(absPath)
-      .then((exists: boolean) => {
-        if (!exists) {
-          throw new Error(`${absPath} no such file or directory`);
-        }
+    // Slice the array into multiple arrays because
+    // the trash executables allow multiple arguments.
+    //  $ trash path [...]
+    //  $ recycle-bin.exe path [...]
+    // The amount of arguments is limited and
+    // 4096 is a good compromise for macOS and Windows
+    const chunks: string[][] = [];
+    let currentSize = 0;
+    let currentChunk = [];
+    chunks.push(currentChunk);
+    for (const absPath of absPaths) {
+      if (currentSize + absPath.length + 1 > 4096) {
+        currentSize = 0;
+        currentChunk = [];
+        chunks.push(currentChunk);
+      }
 
-        return new Promise((resolve, reject) => {
-          const proc = spawn(trashPath, [absPath]);
+      currentSize += absPath.length + 1;
+      currentChunk.push(absPath);
+    }
+
+    return PromisePool
+      .withConcurrency(8)
+      .for(chunks)
+      .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+      .process((path: string[]) => {
+        return new Promise<void>((resolve, reject) => {
+          const proc = spawn(trashPath, path);
 
           proc.on('exit', (code: number) => {
             if (code === 0) {
@@ -775,9 +810,9 @@ export class IoContext {
             } else {
               const stderr = proc.stderr.read();
               if (stderr) {
-                reject(stderr.toString());
+                reject(new Error(stderr.toString()));
               } else {
-                reject(new Error(`cannot move '${relPath ?? absPath}' to trash`));
+                reject(new Error('deleting files failed'));
               }
             }
           });
