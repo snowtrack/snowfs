@@ -1,11 +1,10 @@
 /* eslint-disable no-await-in-loop */
-import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import test from 'ava';
 
 import { difference } from 'lodash';
-import { join, relative } from '../src/path';
+import { join } from '../src/path';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { COMMIT_ORDER, Repository, RESET } from '../src/repository';
 import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
