@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
+import * as fs from 'fs';
 
 import {
   basename, join, dirname, relative, extname,
@@ -14,7 +15,7 @@ import { Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import {
-  calculateFileHash, FileInfo, HashBlock,
+  calculateFileHash, FileInfo, HashBlock, StatsSubset,
 } from './common';
 import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
@@ -58,12 +59,12 @@ export class Odb {
         if (exists) {
           throw new Error('directory already exists');
         }
-        return fse.ensureDir(options.commondir);
+        return io.ensureDir(options.commondir);
       })
-      .then(() => fse.ensureDir(join(options.commondir, 'objects')))
-      .then(() => fse.ensureDir(join(options.commondir, 'versions')))
-      .then(() => fse.ensureDir(join(options.commondir, 'hooks')))
-      .then(() => fse.ensureDir(join(options.commondir, 'refs')))
+      .then(() => io.ensureDir(join(options.commondir, 'objects')))
+      .then(() => io.ensureDir(join(options.commondir, 'versions')))
+      .then(() => io.ensureDir(join(options.commondir, 'hooks')))
+      .then(() => io.ensureDir(join(options.commondir, 'refs')))
       .then(() => {
         odb.config = { ...defaultConfig };
 
