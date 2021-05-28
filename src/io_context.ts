@@ -620,15 +620,7 @@ export class IoContext {
       const promises = [];
 
       for (const absPath of absPaths) {
-        promises.push(new Promise<void>((resolve, reject) => {
-          fse.access(absPath, testIf === TEST_IF.FILE_CAN_BE_READ_FROM ? fse.constants.R_OK : fse.constants.W_OK, (error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          });
-        }));
+        promises.push(io.access(absPath, testIf === TEST_IF.FILE_CAN_BE_READ_FROM ? fse.constants.R_OK : fse.constants.W_OK));
       }
 
       return Promise.all(promises);
