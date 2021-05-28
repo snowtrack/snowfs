@@ -9,6 +9,7 @@ import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
 import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { TreeEntry } from '../src/treedir';
 
 async function repoTest(t, commondirInside: boolean) {
   const repoPath = getRandomPath();
@@ -189,6 +190,35 @@ test('custom-commit-data', async (t) => {
     t.is(lastCommit.userData.foo, 'bar');
     t.is(lastCommit.userData.bas, 3);
   });
+});
+
+test('commit hash subdirectory test', async (t) => {
+  /*
+  createCommit contains a hash to ensure that all items commited have a hash, even in subdirectories.
+  This test ensures no exception is thrown.
+  */
+  const repoPath = getRandomPath();
+  let repo: Repository;
+
+  await Repository.initExt(repoPath).then((repoResult: Repository) => {
+    repo = repoResult;
+    return fse.ensureFile(join(repo.workdir(), 'a', 'b', 'c', 'd', 'e', 'foo.txt'));
+  }).then(() => {
+    const index = repo.ensureMainIndex();
+    index.addFiles(['a/b/c/d/e/foo.txt']);
+    return index.writeFiles();
+  }).then(() => {
+    const index = repo.getFirstIndex();
+    return repo.createCommit(index, 'This is a commit with several subdirectories');
+  })
+    .then((commit: Commit) => {
+      // The hash is already verified inside `createCommit`, but we check here again, just in case `createCommit` gets some changes in the future
+      const items: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+      items.forEach((item: TreeEntry) => {
+        t.true(!!item.hash);
+      });
+      t.pass();
+    });
 });
 
 async function makeCommit(repo: Repository, message: string): Promise<Commit> {
