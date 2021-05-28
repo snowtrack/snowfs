@@ -61,7 +61,7 @@ async function repoTest(t, commondirInside: boolean) {
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
-        t.is(dirItems.length, 16, 'expect 16 items');
+        t.is(dirItems.length, 24, 'expect 24 items');
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
       }
@@ -159,6 +159,14 @@ test('repo open-commondir-outside', async (t) => {
   await repoTest(t, false);
 });
 
+test('repo open-commondir-inside', async (t) => {
+  /* This test creates a repo, and creates 2 commits.
+  1st commit: Add file 'foo'
+  2nd commit: Delete file  'foo'
+  */
+  await repoTest(t, true);
+});
+
 test('custom-commit-data', async (t) => {
   /*
   Add a file and attach user-data to the commit
@@ -221,7 +229,7 @@ test('commit hash subdirectory test', async (t) => {
     });
 });
 
-async function makeCommit(repo: Repository, message: string): Promise<Commit> {
+function makeCommit(repo: Repository, message: string): Promise<Commit> {
   return fse.writeFile(join(repo.workdir(), 'foo.txt'), message)
     .then(() => {
       const index = repo.ensureMainIndex();

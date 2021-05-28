@@ -171,5 +171,11 @@ test('100.000 files status test', async (t) => {
       t.is(statuses.length, 0);
       // modify the test file
       return io.utimes(testFile1, new Date(), new Date());
+    })
+    .then(() => {
+      return io.utimes(testFile2, new Date(), new Date());
+    })
+    .then(() => {
+      return io.utimes(testFile3, new Date(), new Date());
     });
 });

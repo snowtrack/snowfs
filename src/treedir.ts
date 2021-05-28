@@ -2,11 +2,10 @@
 /* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { unionWith } from 'lodash';
 import * as io from './io';
 
 import {
-  join, relative, normalize, extname, dirname, basename,
+  join, relative, normalize, extname,
 } from './path';
 import { Repository } from './repository';
 import {
@@ -89,7 +88,7 @@ export abstract class TreeEntry {
     return this instanceof TreeFile;
   }
 
-  abstract clone(parent?: TreeDir);
+  abstract clone(parent?: TreeDir): TreeEntry;
 }
 
 function generateSizeAndCaches(item: TreeEntry): [number, string] {
@@ -173,6 +172,7 @@ export class TreeFile extends TreeEntry {
             // If a text file, fall through to SIZE_AND_HASH_FOR_SMALL_FILES
             /* falls through */
           }
+          // eslint-disable-next-line no-fallthrough
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
             // A file bigger than 20 MB is considered as changed if the mtime is different ...
             if (this.stats.size >= MB20) {
@@ -225,7 +225,7 @@ export class TreeDir extends TreeEntry {
    * Merge two trees, with target having the precedence in case
    * the element is already located in 'source.
    */
-  static merge(source: TreeEntry, target: TreeEntry) {
+  static merge(source: TreeEntry, target: TreeEntry): TreeDir {
     function privateMerge(source: TreeEntry, target: TreeEntry) {
       // walk source nodes...
       if (source instanceof TreeDir && target instanceof TreeDir) {
