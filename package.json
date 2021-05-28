@@ -26,11 +26,12 @@
       "test/1.sys.test.ts",
       "test/2.repo.init.ts",
       "test/3.repo.open.ts",
-      "test/4.repo.commit.ts",
-      "test/5.repo.checkout.ts",
-      "test/6.ignore.ts",
+      "test/4.repo.status.ts",
+      "test/5.repo.commit.ts",
+      "test/6.repo.checkout.ts",
+      "test/7.ignore.ts",
       "test/8.iocontext.ts",
-      "test/9.cli.ts"
+      "test/10.cli.ts"
     ]
   },
   "keywords": [],
@@ -52,6 +53,7 @@
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
     "micromatch": "^4.0.2",
+    "sort-paths": "^1.1.1",
     "ts-node": "^9.1.1"
   },
   "optionalDependencies": {
