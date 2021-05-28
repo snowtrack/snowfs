@@ -309,7 +309,7 @@ export function getCommondir(workdir: string): Promise<string | null> {
 /**
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
-function deleteOrTrash(repo: Repository, absPath: string, relPath: string, putToTrash: string[]): Promise<void> {
+function deleteOrTrash(repo: Repository, absPath: string, putToTrash: string[]): Promise<void> {
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
@@ -976,19 +976,21 @@ export class Repository {
             const tfile = oldFilesMap.get(status.path);
             if (tfile) {
               if (tfile instanceof TreeFile) {
-                relPathChecks.push(tfile.path);
-                tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
-                  if (res.modified) {
-                    const dst: string = join(this.repoWorkDir, res.file.path);
+                const dst: string = join(this.repoWorkDir, tfile.path);
 
-                    // We first delete or trash the file before writing to ensure an item that has never been saved
-                    // to the object database will end in the trash and will not be simply overwritten by [Odb.readObject].
-                    return deleteOrTrash(this, dst, res.file.path, putToTrash)
-                      .then(() => {
-                        return this.repoOdb.readObject(res.file, dst, ioContext);
-                      });
-                  }
-                }));
+                // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
+                // in the version database and rather sends it to trash than destroying the data
+                const putToTrashImmediately = [];
+                tasks.push(() => deleteOrTrash(this, dst, putToTrashImmediately)
+                  .then(() => {
+                    // Since we replace the object, we can delete the object immediately and we don't
+                    // need to treat it as a delete candidate
+                    if (putToTrashImmediately.length > 0) {
+                      return IoContext.putToTrash(putToTrashImmediately);
+                    }
+                  }).then(() => {
+                    return this.repoOdb.readObject(tfile, dst, ioContext);
+                  }));
               }
             } else {
               throw new Error(`File '${tfile.path}' not found during last-modified-check`);
@@ -1021,11 +1023,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path, putToTrash));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
             }
           } else {
             relPathChecks.push(candidate.path);
-            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path, putToTrash));
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
           }
         });
 
