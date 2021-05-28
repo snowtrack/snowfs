@@ -92,6 +92,22 @@ export class Odb {
           if (Array.isArray(obj)) {
             return obj.map((c: any) => visit(c, parent));
           }
+
+          if (obj.stats) {
+            // backwards compatibility because item was called cTimeMs before
+            if (obj.stats.ctimeMs) {
+              obj.stats.ctime = obj.stats.cTimeMs;
+            }
+
+            // backwards compatibility because item was called mtimeMs before
+            if (obj.stats.mtimeMs) {
+              obj.stats.mtime = obj.stats.mtimeMs;
+            }
+
+            obj.stats.mtime = new Date(obj.stats.mtime);
+            obj.stats.ctime = new Date(obj.stats.ctime);
+          }
+
           if (obj.children) {
             const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
             o.children = obj.children.map((t: any) => visit(t, o));
@@ -219,27 +235,23 @@ export class Odb {
     const commitSha256: string = commit.hash;
     const dstFile: string = join(objectsDir, commitSha256);
 
+    // json content
+    const parent = commit.parent ? commit.parent : null;
+    const root = commit.root.toJsonObject(true);
+    const tags = commit.tags?.length > 0 ? commit.tags : undefined;
+    const userData = commit.userData && Object.keys(commit.userData).length > 0 ? commit.userData : undefined;
+
     const stream = fse.createWriteStream(dstFile, { flags: 'w' });
-    const parent = `"${commit.parent.join('","')}"`;
-    stream.write('{');
-    stream.write(`"hash": "${commit.hash}",
-                  "message": "${commit.message}",
-                  "date": ${commit.date.getTime()},
-                  "parent": [${parent}], "root":`);
-    stream.write(commit.root.toString(true));
-    if (commit.tags) {
-      stream.write(',"tags": [');
-      let seperator = ' ';
-      commit.tags.forEach((tag) => {
-        stream.write(`${seperator}"${tag}"`);
-        seperator = ', ';
-      });
-      stream.write(' ]');
-    }
-    if (commit.userData) {
-      stream.write(`,"userData": ${JSON.stringify(commit.userData)}`);
-    }
-    stream.write('}');
+    const content = JSON.stringify({
+      hash: commit.hash,
+      message: commit.message,
+      date: commit.date.getTime(),
+      parent,
+      root,
+      tags,
+      userData,
+    }, null, '\t');
+    stream.write(content);
 
     return new Promise((resolve, reject) => {
       stream.on('finish', resolve);
@@ -305,11 +317,7 @@ export class Odb {
           fileinfo: {
             ext: extname(filepath),
             hash: filehash,
-            stat: {
-              size: stat.size,
-              ctimeMs: stat.ctimeMs,
-              mtimeMs: stat.mtimeMs,
-            },
+            stat: StatsSubset.clone(stat),
           },
         })))
       .then((res) => this.repo.modified(res));
@@ -325,20 +333,12 @@ export class Odb {
           throw new Error(`object ${hash} not found`);
         }
 
-        return fse.ensureDir(dirname(dstAbsPath));
+        return io.ensureDir(dirname(dstAbsPath));
       }).then(() => {
         return ioContext.copyFile(objectFile, dstAbsPath);
       }).then(() => {
-        return new Promise<void>((resolve, reject) => {
-          // restore mtimes
-          fse.utimes(dstAbsPath, new Date(file.stats.mtimeMs), new Date(file.stats.mtimeMs), (error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          });
-        });
+        // atime will be set as mtime because thats the time we accessed the file
+        return io.utimes(dstAbsPath, file.stats.mtime, file.stats.mtime);
       });
   }
 }
