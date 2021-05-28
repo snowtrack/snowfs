@@ -935,10 +935,9 @@ export class Repository {
         if (limitTo) {
           statusResult = statusResult.filter((status: StatusEntry) => {
             if (limitTo.isDirectory()) {
-              return status.path.startsWith(limitTo.path + '/') || status.path === limitTo.path;
-            } else {
-              return status.path === limitTo.path;
+              return status.path.startsWith(`${limitTo.path}/`) || status.path === limitTo.path;
             }
+            return status.path === limitTo.path;
           });
         }
 
