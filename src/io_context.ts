@@ -139,17 +139,22 @@ export namespace win32 {
 
     return new Promise<void>((resolve, reject) => {
       let std = '';
-      const p0 = spawn(winAccess);
+
       let paths = '';
       for (const absPath of absPaths) {
         // the stdin of win-access.exe accepts utf-16 little endian
-        paths = `${absPath}\n`;
+        paths += `${absPath}\n`;
       }
-      p0.stdin.write(strEncodeUTF16(paths));
+
+      const pathsArray = strEncodeUTF16(paths);
+      const p0 = spawn(winAccess);
+
+      p0.stdin.write(pathsArray);
       p0.stdin.end();
       p0.stdout.on('data', (data) => {
         std += data.toString();
       });
+
       p0.on('exit', (code) => {
         if (code === 0) {
           resolve();
