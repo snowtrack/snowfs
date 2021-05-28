@@ -275,7 +275,7 @@ function getSnowFSRepo(path: string): Promise<string | null> {
     }
 
     if (dirname(path) === path) { // if arrived at root
-      throw new Error('workdir doesn\'t exist');
+      throw new Error('commondir not found');
     }
 
     return getSnowFSRepo(dirname(path));
@@ -600,11 +600,11 @@ export class Repository {
           }
           for (let i = 0; i < iteration; ++i) {
             if (!commit.parent || commit.parent.length === 0) {
-              throw new Error(`commit ${commit.hash} has no parent`);
+              throw new Error(`commit hash '${hash}' out of history`);
             }
             commit = this.commitMap.get(commit.parent[0]);
             if (!commit) {
-              throw new Error(`commit hash '${hash}' out of history`);
+              throw new Error(`could not find commit with hash '${hash}'`);
             }
           }
         }
@@ -826,7 +826,7 @@ export class Repository {
                 parent = dirname(parent);
               }
             } else {
-              tasks.push(() => fse.ensureDir(dst));
+              tasks.push(() => io.ensureDir(dst));
             }
           } else if (reset & RESET.DELETE_NEW_ITEMS && status.isNew()) {
             deleteDirCandidates.set(status.path, status);
@@ -1119,7 +1119,7 @@ export class Repository {
 
         // The following sorting also ensures that a directory is listed before its sub-items.
         // E.g: ['foo.pxd', 'foo.pxd/Info.plist', 'foo2.pxd', 'foo2.pxd/Info.plist']
-        if (filter & FILTER.SORT_CASE_SENSITIVELY) {
+        if (filter & FILTER.SORT_CASE_INSENSITIVELY) {
           result.sort((a: StatusEntry, b: StatusEntry) => {
             if (a.isDirectory() !== b.isDirectory()) {
               return a.isDirectory() ? -1 : 1;
@@ -1368,7 +1368,7 @@ export class Repository {
       opts.commondir = join(workdir, '.snow');
     }
 
-    return fse.ensureDir(workdir)
+    return io.ensureDir(workdir)
       .then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;
