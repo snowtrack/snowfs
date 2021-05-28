@@ -111,13 +111,19 @@ export const enum RESET {
   DETACH = 8,
 
   /**
-   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
+   * Please check [[DETECTIONMODE.ONLY_SIZE_AND_MKTIME]] for more information.
+   */
+  DETECTIONMODE_ONLY_SIZE_AND_MKTIME = 2048,
+
+  /**
+   * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
    * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
    */
   DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
 
   /**
-   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
    * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
    */
   DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
@@ -162,13 +168,19 @@ export const enum FILTER {
   SORT_CASE_INSENSITIVELY = 1024,
 
   /**
-   * Overwrites the default detection mode, which is only to trust hte mktime.
+   * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
+   * Please check [[DETECTIONMODE.ONLY_SIZE_AND_MKTIME]] for more information.
+   */
+   DETECTIONMODE_ONLY_SIZE_AND_MKTIME = 2048,
+
+  /**
+   * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
    * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES]] for more information.
    */
    DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES = 4096,
 
    /**
-    * Overwrites the default detection mode, which is only to trust hte mktime.
+    * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
     * Please check [[DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES]] for more information.
     */
    DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES = 8192,
@@ -859,8 +871,10 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
-    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
-    if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+    let detectionMode = DETECTIONMODE.DEFAULT; // default
+    if (reset & RESET.DETECTIONMODE_ONLY_SIZE_AND_MKTIME) {
+      detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME;
+    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
     } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
@@ -1040,8 +1054,10 @@ export class Repository {
     const currentDirs = new Map<string, StatusEntry>();
     const ignore = new IgnoreManager();
 
-    let detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME; // default
-    if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
+    let detectionMode = DETECTIONMODE.DEFAULT; // default
+    if (filter & FILTER.DETECTIONMODE_ONLY_SIZE_AND_MKTIME) {
+      detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME;
+    } else if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
     } else if (filter & FILTER.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
       detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;

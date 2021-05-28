@@ -9,6 +9,7 @@ import { DirItem, OSWALK, osWalk } from '../src/io';
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
 import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { TreeEntry } from '../src/treedir';
 
 async function repoTest(t, commondirInside: boolean) {
   const repoPath = getRandomPath();
@@ -60,7 +61,7 @@ async function repoTest(t, commondirInside: boolean) {
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
-        t.is(dirItems.length, 16, 'expect 16 items');
+        t.is(dirItems.length, 24, 'expect 24 items');
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
       }
@@ -121,6 +122,8 @@ async function repoTest(t, commondirInside: boolean) {
       return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN);
     })
     .then((dirItems: DirItem[]) => {
+      t.is(dirItems.length, 2, 'expect 2 items (subdir and subdir/bar)'); // foo got deleted
+
       t.true(fse.pathExistsSync(join(repo.commondir(), 'HEAD')), 'HEAD reference');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'config')), 'repo must contain a config file');
       t.true(fse.pathExistsSync(join(repo.commondir(), 'hooks')), 'repo must contain a hooks directory');
@@ -156,6 +159,14 @@ test('repo open-commondir-outside', async (t) => {
   2nd commit: Delete file  'foo'
   */
   await repoTest(t, false);
+});
+
+test('repo open-commondir-inside', async (t) => {
+  /* This test creates a repo, and creates 2 commits.
+  1st commit: Add file 'foo'
+  2nd commit: Delete file  'foo'
+  */
+  await repoTest(t, true);
 });
 
 test('custom-commit-data', async (t) => {
@@ -210,12 +221,17 @@ test('commit hash subdirectory test', async (t) => {
     const index = repo.getFirstIndex();
     return repo.createCommit(index, 'This is a commit with several subdirectories');
   })
-    .then(() => {
+    .then((commit: Commit) => {
+      // The hash is already verified inside `createCommit`, but we check here again, just in case `createCommit` gets some changes in the future
+      const items: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+      items.forEach((item: TreeEntry) => {
+        t.true(!!item.hash);
+      });
       t.pass();
     });
 });
 
-async function makeCommit(repo: Repository, message: string): Promise<Commit> {
+function makeCommit(repo: Repository, message: string): Promise<Commit> {
   return fse.writeFile(join(repo.workdir(), 'foo.txt'), message)
     .then(() => {
       const index = repo.ensureMainIndex();

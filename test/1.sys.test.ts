@@ -722,7 +722,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
 
   stop = true;
 
-  for (const [_, handle] of fileHandles) {
+  for (const [, handle] of fileHandles) {
     handle?.close();
   }
 }
@@ -772,7 +772,7 @@ async function performReadLockCheckTest(t, fileCount: number) {
     t.true(error.message.includes('Your files are accessed by'));
   }
 
-  for (const [_, handle] of fileHandles) {
+  for (const [, handle] of fileHandles) {
     handle?.close();
   }
 }
@@ -1006,7 +1006,7 @@ test('TreeDir merge tree 1', async (t) => {
     'xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _] = await createTree(t, relPaths);
+  const [root0] = await createTree(t, relPaths);
   const root1 = root0.clone();
 
   const mergedRoots = TreeDir.merge(root0, root1);
@@ -1034,8 +1034,8 @@ test('TreeDir merge tree 2', async (t) => {
     'xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1064,8 +1064,8 @@ test('TreeDir merge tree 3', async (t) => {
     'subdir1/a/b/xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1100,8 +1100,8 @@ test('TreeDir merge tree 4', async (t) => {
     'subdir/xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1124,8 +1124,8 @@ test('TreeDir merge tree 5', async (t) => {
     'subdir1/xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1166,8 +1166,8 @@ test('TreeDir merge tree 6', async (t) => {
   const relPaths1 = [
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1212,8 +1212,8 @@ test('TreeDir merge tree 7', async (t) => {
     'foo/123',
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1269,8 +1269,8 @@ test('TreeDir merge tree 8', async (t) => {
     join('b/3/1/file6'),
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
-  const [root1, _dir1] = await createTree(t, relPaths1);
+  const [root0] = await createTree(t, relPaths0);
+  const [root1] = await createTree(t, relPaths1);
 
   const mergedRoots = TreeDir.merge(root0, root1);
 
@@ -1314,7 +1314,7 @@ test('TreeDir.remove 1', async (t) => {
     join('123/foo'),
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root0] = await createTree(t, relPaths0);
 
   t.log('Remove nothing');
   TreeDir.remove(root0, (): boolean => {
@@ -1338,7 +1338,7 @@ test('TreeDir.remove 2', async (t) => {
     join('123/foo'),
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root0] = await createTree(t, relPaths0);
 
   t.log('Remove everyting');
   TreeDir.remove(root0, (): boolean => {
@@ -1356,7 +1356,7 @@ test('TreeDir.remove 3', async (t) => {
     join('123/bar'),
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root0] = await createTree(t, relPaths0);
 
   t.log('Remove 123/foo');
   TreeDir.remove(root0, (item: TreeEntry): boolean => {
@@ -1377,7 +1377,7 @@ test('TreeDir.remove 4', async (t) => {
     join('xyz/123'),
   ];
 
-  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root0] = await createTree(t, relPaths0);
 
   t.log('Remove foo');
   TreeDir.remove(root0, (item: TreeEntry): boolean => {
@@ -1407,7 +1407,7 @@ function shuffle(arr) {
   return arr;
 }
 
-test('TreeDir hash stability 1', async (t) => {
+test('TreeDir hash stability 1', (t) => {
   /*
   Python verification:
   import hashlib

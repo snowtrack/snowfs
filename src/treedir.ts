@@ -29,7 +29,7 @@ const textFileExtensions = new Set([
   '.jsx', '.less', '.scss', '.wasm', '.php', '.c',
   '.cc', '.class', '.clj', '.cpp', '.cs', '.cxx',
   '.el', '.go', '.h', '.java', '.lua', '.m', '.m4',
-  '.php', '.pl', '.po', '.py', '.rb', '.rs',
+  '.php', '.pl', '.po', '.py', '.rb', '.rs', '.info',
   '.sh', '.swift', '.vb', '.vcxproj', '.xcodeproj',
   '.xml', '.diff', '.patch', '.html', '.js', '.ts',
 ]);
@@ -73,23 +73,6 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   return [size, hash.digest('hex')];
 }
 
-function generateSizeAndCaches(item: TreeEntry): [number, string] {
-  if (item instanceof TreeDir) {
-    for (const subitem of item.children) {
-      if (subitem instanceof TreeDir) {
-        generateSizeAndCaches(subitem);
-      }
-    }
-
-    const calcs = calculateSizeAndHash(item.children);
-    item.stats.size = calcs[0];
-    item.hash = calcs[1];
-    return [calcs[0], calcs[1]];
-  }
-
-  return [item.stats.size, item.hash];
-}
-
 export abstract class TreeEntry {
   constructor(
     public hash: string,
@@ -106,7 +89,24 @@ export abstract class TreeEntry {
     return this instanceof TreeFile;
   }
 
-  abstract clone(parent?: TreeDir);
+  abstract clone(parent?: TreeDir): TreeEntry;
+}
+
+function generateSizeAndCaches(item: TreeEntry): [number, string] {
+  if (item instanceof TreeDir) {
+    for (const subitem of item.children) {
+      if (subitem instanceof TreeDir) {
+        generateSizeAndCaches(subitem);
+      }
+    }
+
+    const calcs = calculateSizeAndHash(item.children);
+    item.stats.size = calcs[0];
+    item.hash = calcs[1];
+    return [calcs[0], calcs[1]];
+  }
+
+  return [item.stats.size, item.hash];
 }
 
 export class TreeFile extends TreeEntry {
@@ -162,7 +162,7 @@ export class TreeFile extends TreeEntry {
       // considered equal.
       if (Math.abs(+this.stats.mtime - (+newStats.mtime)) >= 1.0) {
         switch (detectionMode) {
-          case DETECTIONMODE.DEFAULT:
+          case DETECTIONMODE.DEFAULT: {
             const ext = extname(filepath);
             // Text files are more prone to mtime changes than other files,
             // so by default text files are checked for content changes than rather relying only on mtime.
@@ -170,8 +170,10 @@ export class TreeFile extends TreeEntry {
               // If not a text file, use same heuristics as ONLY_SIZE_AND_MKTIME
               return { file: this, modified: true, newStats };
             }
-            // If a text file, fallthrough to SIZE_AND_HASH_FOR_SMALL_FILES
-
+            // If a text file, fall through to SIZE_AND_HASH_FOR_SMALL_FILES
+            /* falls through */
+          }
+          // eslint-disable-next-line no-fallthrough
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
             // A file bigger than 20 MB is considered as changed if the mtime is different ...
             if (this.stats.size >= MB20) {
@@ -224,7 +226,7 @@ export class TreeDir extends TreeEntry {
    * Merge two trees, with target having the precedence in case
    * the element is already located in 'source.
    */
-  static merge(source: TreeEntry, target: TreeEntry) {
+  static merge(source: TreeEntry, target: TreeEntry): TreeDir {
     function privateMerge(source: TreeEntry, target: TreeEntry) {
       // walk source nodes...
       if (source instanceof TreeDir && target instanceof TreeDir) {
