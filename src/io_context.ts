@@ -333,6 +333,8 @@ function getFilesystem(drive: any, mountpoint: string) {
   return FILESYSTEM.OTHER;
 }
 
+type TrashExecutor = string | ((item: string) => void);
+
 /**
  * Class to be instantiated to speedup certain I/O operations by acquiring information
  * about all connected storage devices when initialized with [[IoContext.init]].
@@ -354,10 +356,11 @@ export class IoContext {
    */
   private static winAccessPath: string;
 
-  /** Path to the trash executable (e.g. 'recycle-bin.exe', 'trash', ...)
+  /** Either pass a callback (for Electron environments to use shell.moveItemToTrash) or
+   * set a path to the trash executable (e.g. 'recycle-bin.exe', 'trash', ...)
    * of the currently active system. If undefined or null the path is guessed.
    */
-  private static trashExecPath?: string;
+  private static trashExecutor?: TrashExecutor;
 
   /** Original returned object from `drivelist` */
   origDrives: any;
@@ -430,17 +433,20 @@ export class IoContext {
   /**
    * In some cases the helper processes, which are used in `IoContext.putToTrash` to move a file
    * to the recycle-bin/trash are located in a different location. If that is the case, pass
-   * the path of the executable.
-   * @param execPath  Path to the executable. Fails if the file does not exist or the path is a directory.
+   * the path of the executable. You can also set a callback instead if you you prefer your own trash handling.
+   * @param execPath  Callback or path to the executable. Fails if the file does not exist or the path is a directory.
    */
-  static setTrashExecPath(execPath: string): void {
-    if (!fse.pathExistsSync(execPath)) {
-      throw new Error(`path ${execPath} does not exist`);
+  static setTrashExecutor(trashExecutor: TrashExecutor): void {
+    if (typeof trashExecutor === 'string') {
+      if (!fse.pathExistsSync(trashExecutor)) {
+        throw new Error(`path ${trashExecutor} does not exist`);
+      }
+      if (fse.statSync(trashExecutor).isDirectory()) {
+        throw new Error(`path ${trashExecutor} must not be a directory`);
+      }
     }
-    if (fse.statSync(execPath).isDirectory()) {
-      throw new Error(`path ${execPath} must not be a directory`);
-    }
-    IoContext.trashExecPath = execPath;
+
+    IoContext.trashExecutor = trashExecutor;
   }
 
   init(): Promise<void> {
@@ -707,7 +713,17 @@ export class IoContext {
    *                    the executables.
   */
   static putToTrash(absPath: string, relPath?: string): Promise<void> {
-    let trashPath: string = IoContext.trashExecPath;
+    if (IoContext.trashExecutor && typeof IoContext.trashExecutor !== 'string') {
+      IoContext.trashExecutor(absPath);
+      return Promise.resolve();
+    }
+
+    let trashPath: string;
+
+    if (typeof IoContext.trashExecutor === 'string') {
+      trashPath = IoContext.trashExecutor;
+    }
+
     if (!trashPath) {
       switch (process.platform) {
         case 'darwin': {
