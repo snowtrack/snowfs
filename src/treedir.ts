@@ -73,23 +73,6 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   return [size, hash.digest('hex')];
 }
 
-function generateSizeAndCaches(item: TreeEntry): [number, string] {
-  if (item instanceof TreeDir) {
-    for (const subitem of item.children) {
-      if (subitem instanceof TreeDir) {
-        generateSizeAndCaches(subitem);
-      }
-    }
-
-    const calcs = calculateSizeAndHash(item.children);
-    item.stats.size = calcs[0];
-    item.hash = calcs[1];
-    return [calcs[0], calcs[1]];
-  }
-
-  return [item.stats.size, item.hash];
-}
-
 export abstract class TreeEntry {
   constructor(
     public hash: string,
@@ -107,6 +90,23 @@ export abstract class TreeEntry {
   }
 
   abstract clone(parent?: TreeDir);
+}
+
+function generateSizeAndCaches(item: TreeEntry): [number, string] {
+  if (item instanceof TreeDir) {
+    for (const subitem of item.children) {
+      if (subitem instanceof TreeDir) {
+        generateSizeAndCaches(subitem);
+      }
+    }
+
+    const calcs = calculateSizeAndHash(item.children);
+    item.stats.size = calcs[0];
+    item.hash = calcs[1];
+    return [calcs[0], calcs[1]];
+  }
+
+  return [item.stats.size, item.hash];
 }
 
 export class TreeFile extends TreeEntry {
