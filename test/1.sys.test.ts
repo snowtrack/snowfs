@@ -1,11 +1,13 @@
+/* eslint-disable no-await-in-loop */
 import * as fse from 'fs-extra';
 import * as os from 'os';
 import * as unzipper from 'unzipper';
 
 import test from 'ava';
 
+import { differenceBy } from 'lodash';
 import {
-  join, dirname, normalize, normalizeExt, sep,
+  join, dirname, normalize, normalizeExt, sep, basename,
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -13,8 +15,14 @@ import { IoContext, TEST_IF } from '../src/io_context';
 import {
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
+import {
+  calculateSizeAndHash,
+  constructTree, TreeDir, TreeEntry, TreeFile,
+} from '../src/treedir';
 
 const AggregateError = require('es-aggregate-error');
+
+const sortPaths = require('sort-paths');
 
 const exampleDirs = [
   join('foo', 'a'),
@@ -713,6 +721,10 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   }
 
   stop = true;
+
+  for (const [_, handle] of fileHandles) {
+    handle?.close();
+  }
 }
 
 async function performReadLockCheckTest(t, fileCount: number) {
@@ -730,12 +742,6 @@ async function performReadLockCheckTest(t, fileCount: number) {
   fse.writeFileSync(absNoFileHandleFilePath, 'no-file handle is on this file');
   fileHandles.set(noFileHandleFile, null);
 
-  const readFileHandleFile = 'read-file-handle.txt';
-  const absReadFileHandleFile = join(absDir, readFileHandleFile);
-  fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
-
-  const singleFileHandle = fse.createReadStream(absReadFileHandleFile, { flags: 'r' });
-
   for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
@@ -743,11 +749,20 @@ async function performReadLockCheckTest(t, fileCount: number) {
     fse.writeFileSync(absFile, `file path content: ${absFile}`);
   }
 
+  if (fileCount > 0) {
+    // we create X files and add a file handler to the last file
+    // because 'win-access.exe' was slow if only the last element
+    // had the file handle
+    const relName = `foo${fileCount - 1}.txt`;
+    const absFile = join(absDir, relName);
+    fileHandles.set(relName, fse.createReadStream(absFile, { flags: 'r' }));
+  }
+
   await sleep(500); // just to ensure on GitHub runners that all files were written to
 
   const ioContext = new IoContext();
   try {
-    await ioContext.performFileAccessCheck(absDir, [readFileHandleFile], TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+    await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_WRITTEN_TO);
     t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
       t.true(true); // to satisfy t.plan
@@ -757,7 +772,9 @@ async function performReadLockCheckTest(t, fileCount: number) {
     t.true(error.message.includes('Your files are accessed by'));
   }
 
-  singleFileHandle.close();
+  for (const [_, handle] of fileHandles) {
+    handle?.close();
+  }
 }
 
 if (process.platform === 'win32') {
@@ -788,6 +805,14 @@ if (process.platform === 'win32') {
   test('performFileAccessCheck (read/write) / 1000 file', async (t) => {
     try {
       await performReadLockCheckTest(t, 1000);
+    } catch (error) {
+      t.fail(error.message);
+    }
+  });
+
+  test('performFileAccessCheck (read/write) / 10000 file', async (t) => {
+    try {
+      await performReadLockCheckTest(t, 10000);
     } catch (error) {
       t.fail(error.message);
     }
@@ -874,5 +899,548 @@ test('performFileAccessCheck / no access', async (t) => {
   } catch (error) {
     console.error(error);
     t.fail(error.message);
+  }
+});
+
+test('constructTree', async (t) => {
+  const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+
+  const relPaths = [
+    'foo',
+    'bar/baz',
+    'bar/goz',
+    'bar/subdir/file1',
+    'bar/subdir/file2',
+    'bar/subdir/file3',
+    'bar/subdir/file4',
+    'bar/subdir/subdir1/file1',
+    'bar/subdir/subdir1/file2',
+  ];
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+    fse.ensureFileSync(join(tmpDir, f));
+  }
+
+  t.log('Construct a TreeDir of dir');
+  const root = await constructTree(tmpDir);
+
+  for (const relPath of relPaths) {
+    const ditem = root.find(dirname(relPath));
+    t.log(`Find '${relPath}' and received: '${ditem?.path}'`);
+    t.true(ditem instanceof TreeDir);
+
+    const item = root.find(relPath);
+    t.log(`Find '${relPath}' and received: '${item?.path}'`);
+    t.true(!!item);
+    t.is(item?.path, relPath);
+  }
+});
+
+test('TreeDir.clone', async (t) => {
+  const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+
+  const relPaths = [
+    'foo', // has 3 bytes
+    'bar/baz', // has 3 bytes
+    'bar/goz', // has 3 bytes
+    'bar/subdir/fileX', // has 5 bytes
+    'bar/subdir/fileXX', // has 6 bytes
+    'bar/subdir/fileXXX', // has 7 bytes
+    'bar/subdir/fileXXXX', // has 8 bytes
+    'bar/subdir/subdir1/file1', // has 5 bytes
+    'bar/subdir/subdir1/file2', // has 5 bytes
+  ];
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+
+    const absPath = join(tmpDir, f);
+    fse.ensureFileSync(absPath);
+    fse.writeFileSync(absPath, '.'.repeat(basename(f).length));
+  }
+
+  t.log('Construct a TreeDir of dir');
+  const origRoot = await constructTree(tmpDir);
+  const newRoot = origRoot.clone();
+
+  // we modify each item in the original root tree and
+  // check afterwards if the change spilled over to the clone tree
+  TreeDir.walk(origRoot, (entry: TreeEntry) => {
+    entry.path += '.xyz';
+    entry.stats.size = 1234;
+  });
+
+  // Now check if all the items still have their old path
+  for (const relPath of relPaths) {
+    const item = newRoot.find(relPath);
+    t.log(`Find '${relPath}' and received: '${item?.path}'`);
+    t.is(item?.path, relPath);
+
+    const expectedSize = basename(item.path).length;
+    t.log(`Expect ${relPath} of size ${expectedSize} and received ${item.stats.size}`);
+    t.is(item.stats.size, expectedSize);
+  }
+});
+
+async function createTree(t, relPaths: string[]): Promise<[TreeDir, string]> {
+  const tmpDir: string = fse.mkdtempSync(join(os.tmpdir(), 'snowtrack-'));
+
+  for (const f of relPaths) {
+    t.log(`Create ${f}`);
+
+    const absPath = join(tmpDir, f);
+    fse.ensureFileSync(absPath);
+    fse.writeFileSync(absPath, '.'.repeat(basename(f).length));
+  }
+
+  const tree = await constructTree(tmpDir);
+  return [tree, tmpDir];
+}
+
+test('TreeDir merge tree 1', async (t) => {
+  // This test creates 1 tree, clones it, and merges it with itself
+
+  const relPaths = [
+    'foo-bar', // will have 7 bytes inside
+    'xyz', // will have 3 bytes inside
+  ];
+
+  const [root0, _] = await createTree(t, relPaths);
+  const root1 = root0.clone();
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 2 elements in the tree, received ${mergedRootsMap.size}`);
+  t.is(root0Map.size, 2);
+  t.is(root1Map.size, 2);
+  t.is(mergedRootsMap.size, 2);
+
+  // there must be no difference between the merged array and our initial file list
+  t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths).length, 0);
+});
+
+test('TreeDir merge tree 2', async (t) => {
+  // This test creates 2 trees, and merges them
+
+  const relPaths0 = [
+    'foo-bar', // will have 7 bytes inside
+  ];
+  const relPaths1 = [
+    'xyz', // will have 3 bytes inside
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 1 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 1);
+  t.log(`Expected 1 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 1);
+  t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 2);
+
+  // there must be no difference between the merged array and our initial file lists
+  t.is(differenceBy(Array.from(mergedRootsMap.keys()), relPaths0.concat(relPaths1)).length, 0);
+});
+
+test('TreeDir merge tree 3', async (t) => {
+  // This test creates 2 trees, both with no intersection of subdirectories
+
+  const relPaths0 = [
+    'subdir0/a/b/foo-bar', // will have 7 bytes inside
+  ];
+  const relPaths1 = [
+    'subdir1/a/b/xyz', // will have 3 bytes inside
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const firstChildren: string[] = mergedRoots.children.map((item: TreeEntry) => item.path);
+  t.log(`The first children must be 'subdir0, subdir' and got '${firstChildren.join(',')}'`);
+  t.is(differenceBy(['subdir0', 'subdir1'], firstChildren).length, 0);
+
+  const mergedPaths = new Set<string>();
+  TreeDir.walk(mergedRoots, (item: TreeEntry) => {
+    t.log('Ensure that the tree is unique');
+    t.true(!mergedPaths.has(item.path));
+    mergedPaths.add(item.path);
+  });
+
+  const dir0 = mergedRoots.find('subdir0');
+  t.log(`Expect subdir0 in size of 7 bytes and got ${dir0?.stats.size} bytes`);
+  t.is(dir0?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
+
+  const dir1 = mergedRoots.find('subdir1');
+  t.log(`Expect subdir1 in size of 3 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
+});
+
+test('TreeDir merge tree 4', async (t) => {
+  // This test creates 2 trees, both with same subdirectory but different files.
+  // Test is to ensure that the subdir will have the correct size
+
+  const relPaths0 = [
+    'subdir/foo-bar', // will have 7 bytes inside
+  ];
+  const relPaths1 = [
+    'subdir/xyz', // will have 3 bytes inside
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const file0 = mergedRoots.find(relPaths0[0]);
+  t.true(file0 instanceof TreeFile);
+  const file1 = mergedRoots.find(relPaths1[0]);
+  t.true(file1 instanceof TreeFile);
+
+  const subdir = mergedRoots.find('subdir');
+  t.log(`Expect subdir in size of 10 bytes and got ${subdir?.stats.size} bytes`);
+  t.is(subdir?.stats.size, 10); // because of the filename 'xyz'(3) + 'foo-bar'(7)
+});
+
+test('TreeDir merge tree 5', async (t) => {
+  // This test creates 2 trees, where the left is empty
+
+  const relPaths0 = [
+  ];
+  const relPaths1 = [
+    'subdir1/xyz', // will have 3 bytes inside
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 0 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 0);
+  t.log(`Expected 2 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 2);
+  t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 2);
+
+  const dname = 'subdir1';
+  const dir = mergedRootsMap.get(dname);
+  const isdir = dir instanceof TreeDir;
+  t.log(`Expect ${dname} to be a dir: ${isdir}`);
+  t.true(isdir);
+
+  const fname = relPaths1[0];
+  const file = mergedRootsMap.get(fname);
+  const isfile = file instanceof TreeFile;
+  t.log(`Expect ${fname} to be a file: ${isfile}`);
+  t.true(isfile);
+
+  const dir1 = mergedRoots.find('subdir1');
+  t.log(`Expect subdir1 in size of 3 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 3); // because of the filename 'xyz' we expect 3 bytes
+});
+
+test('TreeDir merge tree 6', async (t) => {
+  // This test creates 2 trees, where the right is empty
+
+  const relPaths0 = [
+    'subdir0/foo-bar', // will have 7 bytes inside
+  ];
+  const relPaths1 = [
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 2 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 2);
+  t.log(`Expected 0 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 0);
+  t.log(`Expected 2 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 2);
+
+  const dname = 'subdir0';
+  const dir = mergedRootsMap.get(dname);
+  const isdir = dir instanceof TreeDir;
+  t.log(`Expect ${dname} to be a dir: ${isdir}`);
+  t.true(isdir);
+
+  const fname = relPaths0[0];
+  const file = mergedRootsMap.get(fname);
+  const isfile = file instanceof TreeFile;
+  t.log(`Expect ${fname} to be a file: ${isfile}`);
+  t.true(isfile);
+
+  const dir1 = mergedRoots.find('subdir0');
+  t.log(`Expect subdir1 in size of 7 bytes and got ${dir1?.stats.size} bytes`);
+  t.is(dir1?.stats.size, 7); // because of the filename 'foo-bar' we expect 7 bytes
+});
+
+test('TreeDir merge tree 7', async (t) => {
+  // This test creates 2 trees, where one elemtent is a dir in one tree, and a file in the other.
+  // Expected is the merged tree to have a file located at 'foo/bar'
+
+  const relPaths0 = [
+    'foo/bar/bas',
+    'foo/xyz',
+  ];
+  const relPaths1 = [
+    'foo/bar',
+    'foo/123',
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log(`Expected 4 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 4);
+  t.log(`Expected 3 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 3);
+  t.log(`Expected 4 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 4);
+
+  t.log("Check that 'foo' is a directory");
+  t.true(mergedRoots.find('foo') instanceof TreeDir);
+
+  t.log("Check that 'foo/xyz' is a file");
+  t.true(mergedRoots.find('foo/xyz') instanceof TreeFile);
+
+  t.log("Check that 'foo/123' is a file");
+  t.true(mergedRoots.find('foo/123') instanceof TreeFile);
+
+  t.log("Check that directory 'foo/bar' was replaced by the file 'foo/bar'");
+  t.true(!mergedRoots.find('foo/bar/bas'));
+});
+
+test('TreeDir merge tree 8', async (t) => {
+  // This test creates 2 bigger trees with new objects left and right and intersections
+
+  const relPaths0 = [
+    // conflict
+    join('123/foo'),
+    // intersections
+    join('foo/a/file1'),
+    join('bar/b/c/file2'),
+    join('bar/b/d/file1'),
+    // new
+    join('x/file5'),
+    join('y/1/file4'),
+    join('y/1/2/file6'),
+  ];
+  const relPaths1 = [
+    // conflict
+    join('123'), // must survive
+    // intersections
+    join('foo/a/file1'),
+    join('bar/b/c/file2'),
+    join('bar/b/d/file1'),
+    // new
+    join('a/file5'),
+    join('b/3/file4'),
+    join('b/3/1/file6'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+  const [root1, _dir1] = await createTree(t, relPaths1);
+
+  const mergedRoots = TreeDir.merge(root0, root1);
+
+  const root0Map = root0.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const root1Map = root1.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+  const mergedRootsMap = mergedRoots.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
+
+  t.log('First Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(root0, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+  t.log('Second Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(root1, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+  t.log('Merged Tree:');
+  t.log('-'.repeat(20));
+  TreeDir.walk(mergedRoots, (item: TreeEntry) => {
+    const suffix = item.isFile() ? 'F' : 'D';
+    t.log(`${' '.repeat(dirname(item.path).length) + item.path} (${suffix})`);
+  });
+
+  t.log('-'.repeat(20));
+
+  t.log(`Expected 18 elements in the first tree, received ${root0Map.size}`);
+  t.is(root0Map.size, 18);
+  t.log(`Expected 17 elements in the second tree, received ${root1Map.size}`);
+  t.is(root1Map.size, 17);
+  t.log(`Expected 24 elements in the merged tree, received ${mergedRootsMap.size}`);
+  t.is(mergedRootsMap.size, 24);
+});
+
+test('TreeDir.remove 1', async (t) => {
+  // test that nothing gets deleted
+
+  const relPaths0 = [
+    join('123/foo'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove nothing');
+  TreeDir.remove(root0, (): boolean => {
+    return false;
+  });
+
+  t.log(`Ensure that only one element is available and got ${root0.children.length}`);
+  t.is(root0.children.length, 1);
+  t.true(root0.children[0] instanceof TreeDir);
+  t.is(root0.children[0].path, '123');
+
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.true((root0.children[0] as TreeDir).children[0] instanceof TreeFile);
+  t.is((root0.children[0] as TreeDir).children[0].path, '123/foo');
+});
+
+test('TreeDir.remove 2', async (t) => {
+  // test that the single file gets deleted
+
+  const relPaths0 = [
+    join('123/foo'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove everyting');
+  TreeDir.remove(root0, (): boolean => {
+    return true;
+  });
+
+  t.is(root0.children.length, 0);
+});
+
+test('TreeDir.remove 3', async (t) => {
+  // test to delete a single file
+
+  const relPaths0 = [
+    join('123/foo'),
+    join('123/bar'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove 123/foo');
+  TreeDir.remove(root0, (item: TreeEntry): boolean => {
+    return item.path === '123/foo';
+  });
+
+  t.is(root0.children.length, 1);
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.is((root0.children[0] as TreeDir).children[0].path, '123/bar');
+});
+
+test('TreeDir.remove 4', async (t) => {
+  // test to delete a single file
+
+  const relPaths0 = [
+    join('foo/bar'),
+    join('foo/bas'),
+    join('xyz/123'),
+  ];
+
+  const [root0, _dir0] = await createTree(t, relPaths0);
+
+  t.log('Remove foo');
+  TreeDir.remove(root0, (item: TreeEntry): boolean => {
+    return item.path === 'foo';
+  });
+
+  t.is(root0.children.length, 1);
+  t.is((root0.children[0] as TreeDir).children.length, 1);
+  t.is((root0.children[0] as TreeDir).children[0].path, 'xyz/123');
+});
+
+function shuffle(arr) {
+  let len = arr.length;
+  const d = len;
+  const array = [];
+  let k; let
+    i;
+  for (i = 0; i < d; i++) {
+    k = Math.floor(Math.random() * len);
+    array.push(arr[k]);
+    arr.splice(k, 1);
+    len = arr.length;
+  }
+  for (i = 0; i < d; i++) {
+    arr[i] = array[i];
+  }
+  return arr;
+}
+
+test('TreeDir hash stability 1', async (t) => {
+  /*
+  Python verification:
+  import hashlib
+  hasher = hashlib.sha256()
+  hasher.update("9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E".encode("utf8")) # foo copy
+  hasher.update("831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c".encode("utf8")) # foo1
+  hasher.update("E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E".encode("utf8")) # foo
+  hasher.update("6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0".encode("utf8")) # foo3/abc
+  dgst = hasher.hexdigest()
+  print(dgst, dgst == '803b778e162664a586c5d720ab80a0f730211fd76e09be82325112c6c0bdd8ab')
+  */
+
+  const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
+    'foo1', { size: 0, ctime: new Date(0), mtime: new Date(0) }, '.ext', null);
+  const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
+    'foo copy', { size: 0, ctime: new Date(0), mtime: new Date(0) }, '.ext', null);
+  const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
+    'foo3/abc', { size: 0, ctime: new Date(0), mtime: new Date(0) }, '.ext', null);
+  const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
+    'foo4', { size: 0, ctime: new Date(0), mtime: new Date(0) }, '.ext', null);
+
+  const hash = '75859dac2c7ece838134f7c50b67f119ec0636073a9fd19d0dc5ee0438c212d2';
+  t.log(`All files must have the following hash: ${hash}`);
+
+  for (let i = 0; i < 20; ++i) {
+    const shuffledArray = shuffle([tree1, tree2, tree3, tree4]);
+    const res = calculateSizeAndHash(shuffledArray);
+
+    // Here we ensure that the hash of the tree entries is not dependend on their order
+    const sortedArray = sortPaths(shuffledArray, (item) => item.path, '/');
+
+    t.log(`Run ${i}: ${shuffledArray.map((item) => item.path).join(', ')} => ${sortedArray.map((item) => item.path)}`);
+    t.log(res[1]);
+    t.is(res[1], hash);
   }
 });
