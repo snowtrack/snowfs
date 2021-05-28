@@ -1158,79 +1158,149 @@ export class Repository {
       throw new Error('nothing to commit (create/copy files and use "snow add" to track)');
     }
 
-    const processedMap = new Map<string, FileInfo>();
+    let promise = Promise.resolve(TreeDir.createRootTree());
 
-    // head is not available when repo is initialized
     if (this.head?.hash) {
-      const headCommit = this.getCommitByHead();
-      const currentTree: Map<string, TreeEntry> = headCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+      promise = constructTree(this.repoWorkDir)
+        .then((workdirTree: TreeDir) => {
+          const headCommit = this.getCommitByHead();
 
-      // store the current tree files in the processed map...
-      currentTree.forEach((value: TreeFile) => {
-        processedMap.set(value.path, {
-          hash: value.hash,
-          ext: extname(value.path),
-          stat: {
-            size: value.stats.size,
-            ctimeMs: value.stats.ctimeMs,
-            mtimeMs: value.stats.mtimeMs,
-          },
+          /* 1) We first generate a full tree of the working directory. Result:
+
+                  root-dir
+                      |
+                     /\
+                    /  \
+           subdir-a ▼   ▼ subdir-b
+                   /    |
+          file.bas(A)   /\
+                       /  \
+                      ▼   ▼
+              file.foo    file.bar (A)
+          */
+
+          // 2) For each item we marked as "added/modified" in the index,
+          // we add them and their parent directories to an "added" set.
+          const added = new Set<string>();
+          for (const relPath of Array.from(index.addRelPaths.keys())) {
+            // Skip every item that hasn't been processed yet
+            if (!index.processedAdded.has(relPath)) {
+              continue;
+            }
+
+            let dname = relPath;
+            do {
+              added.add(dname);
+              dname = dirname(dname);
+            } while (dname !== '');
+          }
+
+          /* 3) Now we remove every item from the worktree that didn't get "added". Result:
+                  root-dir
+                      |
+                      /\
+                     /  \
+            subdir-a ▼   ▼ subdir-b
+                    /    |
+           file.bas(A)  /\
+                          \
+                           ▼
+                            file.bar (A)
+          */
+          TreeDir.remove(workdirTree, (entry: TreeEntry): boolean => {
+            const removeItem = !added.has(entry.path);
+            if (removeItem) {
+              return true;
+            }
+
+            const finfo: FileInfo = index.processedAdded.get(entry.path);
+            if (finfo) {
+              // while we are at it, we update the file infos
+              entry.hash = finfo.hash;
+              entry.stats = finfo.stat;
+            }
+            return false;
+          });
+
+          // 3) Now we take the tree from the latest-commit and remove every item
+          //    that got deleted. No directories are touched here, as the tree will
+          //    be sanitized later.
+          const commitTree = headCommit.root.clone();
+          TreeDir.remove(commitTree, (entry: TreeEntry): boolean => {
+            return index.deleteRelPaths.has(entry.path);
+          });
+
+          // 4) Merge the tree with the added/modified items and the old commit tree.
+          //    If there are any node conflicts in the tree, the items of the working tree
+          //    have a higher precedence. This is done by the behaviour of TreeDir.merge(lowerPrec, higherPrec).
+          const newTree = TreeDir.merge(commitTree, workdirTree);
+
+          // 5) Remove any empty directory from the new
+          TreeDir.remove(newTree, (entry: TreeEntry): boolean => {
+            return entry instanceof TreeDir && entry.children.length === 0;
+          });
+
+          // TODO: (Seb) Move this to the index creation
+          return newTree;
         });
-      });
     }
 
-    // ... and overwrite the items with the new values from the index that just got commited
-    index.getProcessedMap().forEach((value: FileInfo, path: string) => {
-      processedMap.set(path, value);
-    });
+    return promise.then((treeResult: TreeDir) => {
+      tree = treeResult;
 
-    return constructTree(this.repoWorkDir, processedMap)
-      .then((treeResult: TreeDir) => {
-        tree = treeResult;
+      // Check hash and size for validty
+      TreeDir.walk(treeResult, (item: TreeEntry) => {
+        if (!Number.isInteger(item.stats.size)) {
+          throw new Error(`Item '${item.path}' has no valid size: ${item.stats.size}`);
+        }
 
-        // the tree already contains the new files, added by constructTree
-        // through the processed hashmap
-        // index.addRelPaths.forEach(...) ...
+        if (!(item.stats.ctime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid ctime: ${item.stats.ctime}`);
+        }
 
-        // remove the elements from the tree that were removed in the index
-        index.deleteRelPaths.forEach((relPath: string) => {
-          tree.remove(relPath);
+        if (!(item.stats.mtime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
+        }
+
+        if (!item.hash.match(/[0-9a-f]{64}/i)) {
+          throw new Error(`Item '${item.path}' has no valid hash: ${item.hash}`);
+        }
+      });
+
+      return index.invalidate();
+    }).then(() => {
+      commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
+
+      if (tags && tags.length > 0) {
+        tags.forEach((tag: string) => {
+          commit.addTag(tag);
         });
+      }
 
-        return index.invalidate();
-      }).then(() => {
-        commit = new Commit(this, message, new Date(), tree, [this.head ? this.head.hash : null]);
-
-        if (tags && tags.length > 0) {
-          tags.forEach((tag: string) => {
-            commit.addTag(tag);
-          });
+      if (userData) {
+        for (const [key, value] of Object.entries(userData)) {
+          commit.addData(key, value);
         }
+      }
 
-        if (userData) {
-          for (const [key, value] of Object.entries(userData)) {
-            commit.addData(key, value);
-          }
+      this.commits.push(commit);
+      this.commitMap.set(commit.hash.toString(), commit);
+
+      if (this.head.hash) {
+        this.head.hash = commit.hash;
+        // update the hash of the current head reference as well
+        const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
+        if (curRef) {
+          curRef.hash = commit.hash;
         }
+      } else {
+        this.head.setName(this.options.defaultBranchName ?? 'Main');
+        this.head.hash = commit.hash;
+        this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
+      }
 
-        this.commits.push(commit);
-        this.commitMap.set(commit.hash.toString(), commit);
-
-        if (this.head.hash) {
-          this.head.hash = commit.hash;
-          // update the hash of the current head reference as well
-          const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
-          if (curRef) {
-            curRef.hash = commit.hash;
-          }
-        } else {
-          this.head.setName(this.options.defaultBranchName ?? 'Main');
-          this.head.hash = commit.hash;
-          this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
-        }
-
-        return this.repoOdb.writeCommit(commit);
-      })
+      return this.repoOdb.writeCommit(commit);
+    })
       .then(() => {
         this.head.hash = commit.hash;
         // update .snow/HEAD
