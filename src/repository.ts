@@ -911,8 +911,8 @@ export class Repository {
     // Array of async functions that are executed by the promise pool
     const tasks: IoTask[] = [];
 
-    // Array of relative paths to files that will undergo the write-lock check
-    const relPathChecks: string[] = [];
+    // Array of relative paths to files that will undergo the write access check
+    const performAccessCheck: string[] = [];
 
     const putToTrash: string[] = [];
 
@@ -976,6 +976,8 @@ export class Repository {
             const tfile = oldFilesMap.get(status.path);
             if (tfile) {
               if (tfile instanceof TreeFile) {
+                performAccessCheck.push(tfile.path);
+
                 const dst: string = join(this.repoWorkDir, tfile.path);
 
                 // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
@@ -1026,12 +1028,12 @@ export class Repository {
               tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
             }
           } else {
-            relPathChecks.push(candidate.path);
+            performAccessCheck.push(candidate.path);
             tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
           }
         });
 
-        return ioContext.performFileAccessCheck(this.workdir(), relPathChecks, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+        return ioContext.performFileAccessCheck(this.workdir(), performAccessCheck, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
       })
       .then(() => {
         // After we received the target commit, we update the commit and reference
