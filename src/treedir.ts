@@ -98,11 +98,11 @@ export class TreeFile extends TreeEntry {
       ext: this.ext,
       stats: {
         size: this.stats.size,
-        ctimeMs: this.stats.ctimeMs,
-        mtimeMs: this.stats.mtimeMs,
+        ctime: this.stats.ctime.getTime(),
+        mtime: this.stats.mtime.getTime(),
       },
     };
-    return JSON.stringify(output);
+    return output;
   }
 
   isFileModified(repo: Repository, detectionMode: DETECTIONMODE): Promise<{file : TreeFile; modified : boolean, newStats: fse.Stats}> {

@@ -17,9 +17,17 @@ export const MB1 = 1000000;
 export class StatsSubset {
   size: number;
 
-  ctimeMs: number;
+  ctime: Date;
 
-  mtimeMs: number;
+  mtime: Date;
+
+  static clone(stats: StatsSubset) {
+    return {
+      size: stats.size,
+      ctime: new Date(stats.ctime),
+      mtime: new Date(stats.mtime),
+    };
+  }
 }
 
 /**
