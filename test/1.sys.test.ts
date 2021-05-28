@@ -1006,7 +1006,7 @@ test('TreeDir merge tree 1', async (t) => {
     'xyz', // will have 3 bytes inside
   ];
 
-  const [root0, _] = await createTree(t, relPaths);
+  const [root0] = await createTree(t, relPaths);
   const root1 = root0.clone();
 
   const mergedRoots = TreeDir.merge(root0, root1);
