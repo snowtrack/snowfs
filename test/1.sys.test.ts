@@ -20,6 +20,7 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from '../src/treedir';
 
+const PromisePool = require('@supercharge/promise-pool');
 const AggregateError = require('es-aggregate-error');
 
 const sortPaths = require('sort-paths');
@@ -111,6 +112,20 @@ test('proper normalize', async (t) => {
     default:
       throw new Error('unsupported operating system');
   }
+});
+
+test('osWalk test#0', async (t) => {
+  /// //////////////////////////////////////////////////////////////////////////
+  t.log("Check that osWalk fails if the passed directory doesn't exist");
+  /// //////////////////////////////////////////////////////////////////////////
+  const tmpDir: string = join(os.tmpdir(), "dir-doesn't-exist-fgo8dsf7g");
+
+  const error1 = await t.throwsAsync(() => osWalk(tmpDir, OSWALK.DIRS));
+  t.true(error1.message.includes('no such file or directory'));
+  const error2 = await t.throwsAsync(() => osWalk(tmpDir, OSWALK.FILES));
+  t.true(error2.message.includes('no such file or directory'));
+  const error3 = await t.throwsAsync(() => osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES));
+  t.true(error3.message.includes('no such file or directory'));
 });
 
 test('osWalk test#1', async (t) => {
@@ -321,6 +336,144 @@ test('osWalk test#5', async (t) => {
       `Expected 0 directories, got ${paths.length}: `,
       paths.length === 0 ? 'OK' : 'FAILED',
     );
+
+    fse.rmdirSync(tmpDir, { recursive: true });
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test('osWalk test#6', async (t) => {
+  try {
+    /// //////////////////////////////////////////////////////////////////////////
+    t.log('Create 1000 files and iterate over them while files are being deleted. osWalk must never fail');
+    /// //////////////////////////////////////////////////////////////////////////
+    const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+    t.log(`Create empty dir: ${tmpDir}`);
+    await fse.mkdirp(tmpDir);
+
+    const fileSample = 1000;
+    const files: string[] = [];
+
+    t.log(`Create ${fileSample} files`);
+    for (let i = 0; i < fileSample; ++i) {
+      const absPath = join(tmpDir, 'subdir1', 'subdir2', `foo${i}`);
+      files.push(absPath);
+      fse.ensureFileSync(absPath);
+    }
+
+    let stop = false;
+
+    const iteratedOverFiles: number[] = [];
+
+    // eslint-disable-next-line no-inner-declarations
+    async function executeOsWalk(): Promise<void> {
+      const dirItems: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES)
+        .catch((error) => {
+          t.fail(error.message); // osWalk must never fail while we delete files from a directory
+          return [];
+        });
+      iteratedOverFiles.push(dirItems.length);
+      if (!stop) {
+        return executeOsWalk();
+      }
+    }
+
+    const executeOsWalkPromise = executeOsWalk();
+
+    // no we delete all files, while executeOsWalk is constantly running
+    const time0 = Date.now();
+
+    await PromisePool
+      .withConcurrency(10)
+      .for(files)
+      .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+      .process((path: string) => {
+        return fse.remove(path)
+          .then(() => sleep(25)); // fse.remove is executed too quickly, so introduce a few ms of delay
+      });
+
+    t.log(`Deleted ${files.length} files within ${Date.now() - time0}ms`);
+    stop = true;
+    await Promise.resolve(executeOsWalkPromise);
+    t.log(`Number of iterations: ${iteratedOverFiles.join(' ')}`);
+    t.pass();
+
+    fse.rmdirSync(tmpDir, { recursive: true });
+  } catch (error) {
+    console.error(error);
+    t.fail(error.message);
+  }
+});
+
+test('osWalk test#7', async (t) => {
+  try {
+    /// //////////////////////////////////////////////////////////////////////////
+    t.log('Create 1000 files and iterate over them while the subdirectory is moved in and out of the directory');
+    /// //////////////////////////////////////////////////////////////////////////
+    const tmpDir: string = await fse.mkdtemp(join(os.tmpdir(), 'snowtrack-'));
+    t.log(`Create empty dir: ${tmpDir}`);
+    await fse.mkdirp(tmpDir);
+
+    const fileSample = 1000;
+    const files: string[] = [];
+
+    t.log(`Create ${fileSample} files`);
+    for (let i = 0; i < fileSample; ++i) {
+      const absPath = join(tmpDir, 'subdir1', 'subdir2', `foo${i}`);
+      files.push(absPath);
+      fse.ensureFileSync(absPath);
+    }
+
+    let stop = false;
+
+    const iteratedOverFiles: number[] = [];
+
+    // eslint-disable-next-line no-inner-declarations
+    async function executeOsWalk(): Promise<void> {
+      const dirItems: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES)
+        .catch((error) => {
+          t.fail(error.message); // osWalk must never fail while we delete files from a directory
+          return [];
+        });
+      iteratedOverFiles.push(dirItems.length);
+      if (!stop) {
+        return executeOsWalk();
+      }
+    }
+
+    const executeOsWalkPromise = executeOsWalk();
+
+    // no we delete all files, while executeOsWalk is constantly running
+    const time0 = Date.now();
+
+    const inDir = join(tmpDir, 'subdir1');
+    const outDir = join(tmpDir, '..', 'subdir-xyz');
+    if (fse.pathExistsSync(outDir)) {
+      fse.rmdirSync(outDir, { recursive: true });
+    }
+
+    await PromisePool
+      .withConcurrency(1)
+      .for(Array.from(Array(25).keys()))
+      .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+      .process((i: number) => {
+        // fse.remove is executed too quickly, so introduce a few ms of delay
+        if (i % 2 === 0) {
+          t.log('Move outside the directory');
+          return fse.move(inDir, outDir).then(() => sleep(10));
+        }
+
+        t.log('Move back into the directory');
+        return fse.move(outDir, inDir).then(() => sleep(10));
+      });
+
+    t.log(`Deleted ${files.length} files within ${Date.now() - time0}ms`);
+    stop = true;
+    await Promise.resolve(executeOsWalkPromise);
+    t.log(`Number of iterations: ${iteratedOverFiles.join(' ')}`);
+    t.pass();
 
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
