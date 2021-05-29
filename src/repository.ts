@@ -293,6 +293,12 @@ export function getSnowFSRepo(dirpath: string): Promise<string | null> {
     });
 }
 
+/**
+ * Retrieve the common dir of a workdir path.
+ * If the path could not be retrieved the function returns null.
+ * @param workdir     The absolute path to the root of the workdir.
+ * @returns           The absolute path to the commondir or null.
+ */
 export function getCommondir(workdir: string): Promise<string | null> {
   const commondir = join(workdir, '.snow');
   return io.stat(commondir)
@@ -303,7 +309,8 @@ export function getCommondir(workdir: string): Promise<string | null> {
       }
 
       return commondir;
-    });
+    })
+    .catch(() => null);
 }
 
 /**
