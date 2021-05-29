@@ -640,9 +640,15 @@ export class IoContext {
               return win32.checkReadAccess(absPaths, relPaths);
             case TEST_IF.FILE_CAN_BE_WRITTEN_TO:
             default:
-              // check if files are touched by any other process.
+              // Check if files are touched by any other process.
               // Files that are opened by another process cannot be replaced, moved or deleted.
-              return win32.checkWriteAccess(IoContext, absPaths);
+              // The current limit to check for write access on Windows is 5000 which takes around
+              // 10 seconds on my machine. Everything below simply takes too long. In that case
+              // we let the proceeding function fail
+              if (absPaths.length <= 5000) {
+                return win32.checkWriteAccess(IoContext, absPaths);
+              }
+              return Promise.resolve();
           }
         });
     }
