@@ -331,7 +331,6 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
     }
 
     const dirItems = [];
-    const dirItemsTmp: DirItem[] = [];
     return new Promise<string[]>((resolve, reject) => {
       readdir(dirPath, (error, entries: string[]) => {
         if (error) {
@@ -378,7 +377,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
         return Promise.all(promises);
       }).then((itemStatArray: DirItem[]) => {
         const promises = [];
-        const i = 0;
+
         for (const dirItem of itemStatArray.filter((x) => x)) {
           if ((dirItem.stats.isDirectory() && returnDirs) || (!dirItem.stats.isDirectory() && returnFiles)) {
             dirItems.push(dirItem);
