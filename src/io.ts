@@ -331,7 +331,6 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
     }
 
     const dirItems = [];
-    const dirItemsTmp: DirItem[] = [];
     return new Promise<string[]>((resolve, reject) => {
       readdir(dirPath, (error, entries: string[]) => {
         if (error) {
@@ -364,29 +363,27 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
 
           const absPath = `${dirPath}/${item}`;
 
-          const stats = stat(absPath);
-          promises.push(stats);
-          dirItemsTmp.push({
-            absPath,
-            isempty: false,
-            relPath: relPath.length === 0 ? item : `${relPath}/${item}`,
-            stats: null, // not resolved yet.. (*)
-          });
+          promises.push(stat(absPath)
+            .then((stats: Stats) => {
+              return {
+                absPath,
+                isempty: false,
+                relPath: relPath.length === 0 ? item : `${relPath}/${item}`,
+                stats,
+              };
+            }).catch(() => null));
         }
 
         return Promise.all(promises);
-      }).then((itemStatArray: Stats[]) => {
+      }).then((itemStatArray: DirItem[]) => {
         const promises = [];
-        let i = 0;
-        for (const itemStats of itemStatArray) {
-          const dirItem = dirItemsTmp[i++];
-          dirItem.stats = itemStats; // (*)...update stats which are now resolved
 
-          if ((itemStats.isDirectory() && returnDirs) || (!itemStats.isDirectory() && returnFiles)) {
+        for (const dirItem of itemStatArray.filter((x) => x)) {
+          if ((dirItem.stats.isDirectory() && returnDirs) || (!dirItem.stats.isDirectory() && returnFiles)) {
             dirItems.push(dirItem);
           }
 
-          if (itemStats.isDirectory() && !(request & OSWALK.NO_RECURSIVE)) {
+          if (dirItem.stats.isDirectory() && !(request & OSWALK.NO_RECURSIVE)) {
             promises.push(internalOsWalk(dirItem.absPath, request, dirItem.relPath, dirItem));
           }
         }
