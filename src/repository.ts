@@ -293,6 +293,12 @@ export function getSnowFSRepo(dirpath: string): Promise<string | null> {
     });
 }
 
+/**
+ * Retrieve the common dir of a workdir path.
+ * If the path could not be retrieved the function returns null.
+ * @param workdir     The absolute path to the root of the workdir.
+ * @returns           The absolute path to the commondir or null.
+ */
 export function getCommondir(workdir: string): Promise<string | null> {
   const commondir = join(workdir, '.snow');
   return io.stat(commondir)
@@ -303,7 +309,8 @@ export function getCommondir(workdir: string): Promise<string | null> {
       }
 
       return commondir;
-    });
+    })
+    .catch(() => null);
 }
 
 /**
@@ -315,32 +322,36 @@ function deleteOrTrash(repo: Repository, absPath: string, putToTrash: string[]):
     .then((stat: fse.Stats) => {
       isDirectory = stat.isDirectory();
 
-      const promises = [];
+      const calculateHash: string[] = [];
       if (stat.isDirectory()) {
         return io.osWalk(absPath, io.OSWALK.FILES)
           .then((items: io.DirItem[]) => {
             for (const item of items) {
-              promises.push(calculateFileHash(item.absPath)
-                .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                  return { absPath: item.absPath, filehash: res.filehash };
-                }));
+              calculateHash.push(item.absPath);
             }
-            return Promise.all(promises);
+            return Promise.resolve(calculateHash);
           });
       }
-      promises.push(calculateFileHash(absPath)
-        .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-          return { absPath, filehash: res.filehash };
-        }));
-
-      return Promise.all(promises);
-    }).then((res: {absPath: string, filehash: string}[]) => {
+      return Promise.resolve([absPath]);
+    }).then((calculateHashFrom: string[]) => {
+      return PromisePool
+        .withConcurrency(8)
+        .for(calculateHashFrom)
+        .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+        .process((path: string) => {
+          return calculateFileHash(path)
+            .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+              return { absPath: path, filehash: res.filehash };
+            });
+        });
+    }).then((res: {results: {absPath: string, filehash: string}[]}) => {
       const promises = [];
-      for (const r of res) {
+      for (const r of res.results) {
         promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
       }
       return Promise.all(promises);
-    }).then((stats: (fse.Stats | null)[]) => {
+    })
+    .then((stats: (fse.Stats | null)[]) => {
       if (stats.includes(null)) {
         // if there is one null stats object, it means that file isn't stored
         // in the object database, and therefore needs to go to the trash
