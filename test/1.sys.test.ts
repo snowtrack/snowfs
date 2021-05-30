@@ -49,6 +49,14 @@ const exampleFiles = [
 const LOG_DIRECTORY = 'Check getRepoDetails(..) with directory path';
 const LOG_FILE = 'Check getRepoDetails(..) with  filepath:';
 
+async function sleep(delay) {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, delay);
+  });
+}
+
 async function createDirs(t, tmpDir: string, dirs: string[]) {
   if (dirs.length === 0) {
     return Promise.resolve();
@@ -780,14 +788,6 @@ test('fss.writeSafeFile test', async (t) => {
     t.fail(error.message);
   }
 });
-
-async function sleep(delay) {
-  return new Promise<void>((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, delay);
-  });
-}
 
 async function performWriteLockCheckTest(t, fileCount: number) {
   if (fileCount === 0) {

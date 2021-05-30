@@ -172,7 +172,7 @@ export namespace win32 {
             }
           } catch (error) {
             // throw an error if something happened during JSON.parse
-            throw new Error(error);
+            reject(new Error(error));
           }
         }
       });
