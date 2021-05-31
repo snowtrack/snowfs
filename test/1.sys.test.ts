@@ -88,7 +88,7 @@ function getUniquePaths(dirSet: string[]): string[] {
   return Array.from(visitedPaths).sort();
 }
 
-test('proper normalize', async (t) => {
+test('proper normalize', (t) => {
   let error: any;
 
   error = t.throws(() => normalize(undefined));
@@ -861,10 +861,10 @@ async function performWriteLockCheckTest(t, fileCount: number) {
           } else if (i < 15) {
             t.log(`Check if ${path} is detected as being written by another process`);
           }
-          t.true(errorMessages[i++].includes(`File '${path}' is written by`));
+          t.true(errorMessages[i++].includes(`File '${path}' is being written by`));
         } else if (!fh || fh instanceof fse.ReadStream) {
           t.log(`Ensure that ${path} is not being detected as being written by another process`);
-          t.false(errorMessages.includes(`File ${path} is written by`));
+          t.false(errorMessages.includes(`File ${path} is being written by`));
         }
       });
     } else {
@@ -976,7 +976,6 @@ test('performFileAccessCheck / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
-    console.error(error);
     t.fail(error.message);
   }
 });
@@ -985,7 +984,6 @@ test('performFileAccessCheck / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
-    console.error(error);
     t.fail(error.message);
   }
 });
