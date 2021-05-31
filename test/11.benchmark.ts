@@ -35,8 +35,3 @@ test('full-benchmark', async (t) => {
   await startBenchmark(200000000, t);
   t.is(true, true);
 });
-
-test('full-benchmark', async (t) => {
-  t.timeout(3600000);
-  startBenchmark();
-});

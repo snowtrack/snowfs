@@ -113,13 +113,13 @@ export namespace win32 {
 
         for (let i = 0; i < relPaths.length; ++i) {
           const prevStats = stats1.get(relPaths[i]);
-          // When a file is written by another process, either...
+          // When a file is being written by another process, either...
           // ... the size changes through time (e.g. simple write operation)
           // and/or...
           // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
           // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
           if (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime()) {
-            const msg = `File '${relPaths[i]}' is written by another process`;
+            const msg = `File '${relPaths[i]}' is being written by another process`;
             errors.push(new StacklessError(msg));
           }
         }
@@ -678,7 +678,7 @@ export class IoContext {
                 if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
                     || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE
                     || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
-                  const msg = `File '${relPath}' is written by ${fh.processname ?? 'another process'}`;
+                  const msg = `File '${relPath}' is being written by ${fh.processname ?? 'another process'}`;
                   errors.push(new StacklessError(msg));
                 }
               }

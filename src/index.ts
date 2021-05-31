@@ -22,7 +22,7 @@ export enum WRITE {
   NONE = 0,
   /**
    * By default filelocks are checked to ensure none of the given files
-   * is written by another process. Using this flag skips this check.
+   * is being written by another process. Using this flag skips this check.
    */
   SKIP_FILELOCK_CHECKS = 1
 }

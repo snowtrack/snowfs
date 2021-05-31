@@ -198,7 +198,7 @@ export class Odb {
     const refsDir: string = this.repo.options.commondir;
     return fse.readFile(join(refsDir, 'HEAD'))
       .then((buf: Buffer) => buf.toString())
-      .catch((error) => {
+      .catch(() => {
         console.log('No HEAD found');
         return null;
       });

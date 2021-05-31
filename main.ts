@@ -77,7 +77,7 @@ async function parseOptions(opts: any) {
         rl.close();
       });
 
-      tmp = await new Promise<string>((resolve, _reject) => {
+      tmp = await new Promise<string>((resolve) => {
         rl.on('close', () => {
           resolve(res);
         });

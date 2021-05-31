@@ -1,7 +1,5 @@
 import test from 'ava';
-import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
-import os from 'os';
 import { join } from '../src/path';
 import { rmDirRecursive, createRepoPath } from './helper';
 
