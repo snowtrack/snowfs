@@ -79,7 +79,7 @@ function getUniquePaths(dirSet: string[]): string[] {
   return Array.from(visitedPaths).sort();
 }
 
-test('proper normalize', async (t) => {
+test('proper normalize', (t) => {
   let error: any;
 
   error = t.throws(() => normalize(undefined));

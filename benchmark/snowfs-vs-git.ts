@@ -23,7 +23,7 @@ async function input(question: string): Promise<string> {
     rl.close();
   });
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<string>((resolve) => {
     rl.on('close', () => {
       resolve(res);
     });
@@ -64,7 +64,7 @@ async function createFile(dst: string, size: number, t = console) {
 
   const delimiter = `Create ${basename(dst)} file of ${size} bytes`;
   let t0 = new Date().getTime();
-  let curSize: number = 0;
+  let curSize = 0;
 
   // if no terminal available, at least print the information about the size of hte file
   if (!process.stdout.isTTY) {
