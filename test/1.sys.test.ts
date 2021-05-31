@@ -823,7 +823,6 @@ test('performFileAccessCheck / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
-    console.error(error);
     t.fail(error.message);
   }
 });
@@ -832,7 +831,6 @@ test('performFileAccessCheck / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
-    console.error(error);
     t.fail(error.message);
   }
 });
