@@ -708,10 +708,10 @@ async function performWriteLockCheckTest(t, fileCount: number) {
           } else if (i < 15) {
             t.log(`Check if ${path} is detected as being written by another process`);
           }
-          t.true(errorMessages[i++].includes(`File '${path}' is written by`));
+          t.true(errorMessages[i++].includes(`File '${path}' is being written by`));
         } else if (!fh || fh instanceof fse.ReadStream) {
           t.log(`Ensure that ${path} is not being detected as being written by another process`);
-          t.false(errorMessages.includes(`File ${path} is written by`));
+          t.false(errorMessages.includes(`File ${path} is being written by`));
         }
       });
     } else {
