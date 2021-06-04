@@ -267,60 +267,86 @@ export class StatusEntry {
   }
 }
 
-function getSnowFSRepo(path: string): Promise<string | null> {
-  const snowInit: string = join(path, '.snow');
-  return io.pathExists(snowInit).then((exists: boolean) => {
-    if (exists) {
-      return path;
-    }
+export function getSnowFSRepo(dirpath: string): Promise<string | null> {
+  const snowInit: string = join(dirpath, '.snow');
+  return io.pathExists(snowInit)
+    .then((exists: boolean) => {
+      if (exists) {
+        return dirpath;
+      }
 
-    if (dirname(path) === path) { // if arrived at root
-      throw new Error('commondir not found');
-    }
+      if (dirname(dirpath) === dirpath) { // if arrived at root
+        throw new Error('commondir not found');
+      }
 
-    return getSnowFSRepo(dirname(path));
-  });
+      return getSnowFSRepo(dirname(dirpath));
+    });
+}
+
+/**
+ * Retrieve the common dir of a workdir path.
+ * If the path could not be retrieved the function returns null.
+ * @param workdir     The absolute path to the root of the workdir.
+ * @returns           The absolute path to the commondir or null.
+ */
+export function getCommondir(workdir: string): Promise<string | null> {
+  const commondir = join(workdir, '.snow');
+  return io.stat(commondir)
+    .then((stat: fse.Stats) => {
+      if (stat.isFile()) {
+        return fse.readFile(commondir)
+          .then((buf: Buffer) => buf.toString());
+      }
+
+      return commondir;
+    })
+    .catch(() => null);
 }
 
 /**
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
-function deleteOrTrash(repo: Repository, absPath: string, relPath: string): Promise<void> {
+function deleteOrTrash(repo: Repository, absPath: string, putToTrash: string[]): Promise<void> {
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
       isDirectory = stat.isDirectory();
 
-      const promises = [];
+      const calculateHash: string[] = [];
       if (stat.isDirectory()) {
         return io.osWalk(absPath, io.OSWALK.FILES)
           .then((items: io.DirItem[]) => {
             for (const item of items) {
-              promises.push(calculateFileHash(item.absPath)
-                .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                  return { absPath: item.absPath, filehash: res.filehash };
-                }));
+              calculateHash.push(item.absPath);
             }
-            return Promise.all(promises);
+            return Promise.resolve(calculateHash);
           });
       }
-      promises.push(calculateFileHash(absPath)
-        .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-          return { absPath, filehash: res.filehash };
-        }));
-
-      return Promise.all(promises);
-    }).then((res: {absPath: string, filehash: string}[]) => {
+      return Promise.resolve([absPath]);
+    }).then((calculateHashFrom: string[]) => {
+      return PromisePool
+        .withConcurrency(8)
+        .for(calculateHashFrom)
+        .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+        .process((path: string) => {
+          return calculateFileHash(path)
+            .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+              return { absPath: path, filehash: res.filehash };
+            });
+        });
+    }).then((res: {results: {absPath: string, filehash: string}[]}) => {
       const promises = [];
-      for (const r of res) {
+      for (const r of res.results) {
         promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
       }
       return Promise.all(promises);
-    }).then((stats: (fse.Stats | null)[]) => {
+    })
+    .then((stats: (fse.Stats | null)[]) => {
       if (stats.includes(null)) {
         // if there is one null stats object, it means that file isn't stored
         // in the object database, and therefore needs to go to the trash
-        return IoContext.putToTrash(absPath, relPath);
+        putToTrash.push(absPath);
+        return Promise.resolve();
       }
       if (isDirectory) {
         return io.rmdir(absPath);
@@ -782,8 +808,12 @@ export class Repository {
     // Array of async functions that are executed by the promise pool
     const tasks: IoTask[] = [];
 
-    // Array of relative paths to files that will undergo the write-lock check
-    const relPathChecks: string[] = [];
+    // Array of relative paths to files that will undergo the write access check
+    const performAccessCheck: string[] = [];
+
+    const putToTrash: string[] = [];
+
+    const oldHeadHash = this.head.hash;
 
     const ioContext = new IoContext();
     return ioContext.init()
@@ -834,19 +864,23 @@ export class Repository {
             const tfile = oldFilesMap.get(status.path);
             if (tfile) {
               if (tfile instanceof TreeFile) {
-                relPathChecks.push(tfile.path);
-                tasks.push(() => tfile.isFileModified(this, detectionMode).then((res: {file: TreeFile, modified : boolean}) => {
-                  if (res.modified) {
-                    const dst: string = join(this.repoWorkDir, res.file.path);
+                performAccessCheck.push(tfile.path);
 
-                    // We first delete or trash the file before writing to ensure an item that has never been saved
-                    // to the object database will end in the trash and will not be simply overwritten by [Odb.readObject].
-                    return deleteOrTrash(this, dst, res.file.path)
-                      .then(() => {
-                        return this.repoOdb.readObject(res.file, dst, ioContext);
-                      });
-                  }
-                }));
+                const dst: string = join(this.repoWorkDir, tfile.path);
+
+                // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
+                // in the version database and rather sends it to trash than destroying the data
+                const putToTrashImmediately = [];
+                tasks.push(() => deleteOrTrash(this, dst, putToTrashImmediately)
+                  .then(() => {
+                    // Since we replace the object, we can delete the object immediately and we don't
+                    // need to treat it as a delete candidate
+                    if (putToTrashImmediately.length > 0) {
+                      return IoContext.putToTrash(putToTrashImmediately);
+                    }
+                  }).then(() => {
+                    return this.repoOdb.readObject(tfile, dst, ioContext);
+                  }));
               }
             } else {
               throw new Error(`File '${tfile.path}' not found during last-modified-check`);
@@ -879,15 +913,15 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
             }
           } else {
-            relPathChecks.push(candidate.path);
-            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), candidate.path));
+            performAccessCheck.push(candidate.path);
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
           }
         });
 
-        return ioContext.performFileAccessCheck(this.workdir(), relPathChecks, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
+        return ioContext.performFileAccessCheck(this.workdir(), performAccessCheck, TEST_IF.FILE_CAN_BE_WRITTEN_TO);
       })
       .then(() => {
         // After we received the target commit, we update the commit and reference
@@ -908,6 +942,11 @@ export class Repository {
           .process((task: IoTask) => task());
       })
       .then(() => {
+        if (putToTrash.length > 0) {
+          return IoContext.putToTrash(putToTrash);
+        }
+      })
+      .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
           moveTo = target.getName();
@@ -916,7 +955,7 @@ export class Repository {
         } else {
           moveTo = target;
         }
-        return this.repoLog.writeLog(`checkout: move to '${moveTo}' at ${targetCommit.hash} with ${reset}`);
+        return this.repoLog.writeLog(`checkout: move from '${oldHeadHash}' to ${targetCommit.hash} with ${reset}`);
       });
   }
 
