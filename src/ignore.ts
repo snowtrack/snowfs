@@ -13,7 +13,6 @@ export class IgnoreManager {
         '**/.git', // for .git worktree file
         '**/.git/**',
         '**/.snowignore',
-        '**/backup/**',
         '**/*.bkp',
         '**/**/bkp/**',
         '**/Backup_of*', // Auto backup by Corel Draw
@@ -26,7 +25,12 @@ export class IgnoreManager {
         '**/.idea/**',
         '**/.Spotlight-V100',
 
-        '**/*.blend[0-9]+', // Blender auto-saved files
+        '**/RECOVER_*', // Adobe Animate
+        '**/temp.noindex/**', // Adobe Character Animator
+        '**/~*', // Adobe InDesign lock files start with ~ and end with 'idlk'
+        '**/*.blend+([0-9])', // Blender auto-saved files
+        '**/*.bak*([0-9])', // Cinema 4D Backup files
+        '**/backup/**', // Cinema 4D auto-saved
       ];
     }
 
