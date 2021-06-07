@@ -1598,7 +1598,7 @@ test('TreeDir hash stability 1', (t) => {
   }
 });
 
-test.only('Hash Integrity (Empty File)', async (t) => {
+test('Hash Integrity (Empty File)', async (t) => {
   const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
   t.log('Create a file of 0 bytes');
   fse.ensureFileSync(filename);
@@ -1608,7 +1608,7 @@ test.only('Hash Integrity (Empty File)', async (t) => {
   t.is(hashOriginal.filehash, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
 });
 
-test.only('Hash Integrity (1-byte)', async (t) => {
+test('Hash Integrity (1-byte)', async (t) => {
   const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
   t.log('Create a file of 1 byte');
   fse.writeFileSync(filename, 'a');
@@ -1627,7 +1627,10 @@ test.only('Hash Integrity (1-byte)', async (t) => {
   t.not(hashOriginal1.filehash, hashOriginal2.filehash);
 });
 
-test.only('Hash Integrity Test 2', async (t) => {
+test('Hash Integrity Test 2', async (t) => {
+  // This test creates a file of 100.000.000 bytes and modifies some
+  // bytes at certain positions to assert the file hash changes
+
   const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
   t.log('Create a file of 100000000 bytes');
   fse.writeFileSync(filename, 'x'.repeat(100000000));
@@ -1729,29 +1732,101 @@ test.only('Hash Integrity Test 2', async (t) => {
   await test4();
 });
 
-test('HashTest', async (t) => {
-  const calculatedHashes = new Map<string, number>();
+test('Hash Integrity (Hash Block)', async (t) => {
+  // The hash block size for a finger print is 100 MB
+  // This test creates a file of 499.999.999 bytes where
+  // block 1 and 3 are similar, and block 2 and 4.
+  // The last block is similar to block 2 and 4 but has 1 byte less.
+  // This test ensures the hash block of 1,3 and 2,4 are equal.
 
+  const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
+  t.log('Create a file of 499999999 bytes');
+  fse.ensureFileSync(filename);
+  fse.appendFileSync(filename, 'x'.repeat(100000000));
+  fse.appendFileSync(filename, 'y'.repeat(100000000));
+  fse.appendFileSync(filename, 'x'.repeat(100000000));
+  fse.appendFileSync(filename, 'y'.repeat(100000000));
+  fse.appendFileSync(filename, 'y'.repeat(99999999)); // last block has only 99.999.999 bytes
+  const hashOriginal = await calculateFileHash(filename);
+  t.log('Check 5 hash blocks');
+  t.is(hashOriginal.hashBlocks.length, 5);
+  t.log(`Expected 9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb and got ${hashOriginal.hashBlocks[0].hash}`);
+  t.is(hashOriginal.hashBlocks[0].hash, '9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb');
+  t.log(`Expected 6d45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5 and got ${hashOriginal.hashBlocks[1].hash}`);
+  t.is(hashOriginal.hashBlocks[1].hash, '6d45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5');
+  t.log(`Expected 9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb and got ${hashOriginal.hashBlocks[2].hash}`);
+  t.is(hashOriginal.hashBlocks[2].hash, '9031c1664d8691097a77580cb1141ba470054f87d48af18bd18ecc5ca0121adb');
+  t.log(`Expected 6d45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5 and got ${hashOriginal.hashBlocks[3].hash}`);
+  t.is(hashOriginal.hashBlocks[3].hash, '6d45d1fc2a13245c09b2dd875145ef55d8d06921cbdffe5c5bfcc6901653ddc5');
+  t.log(`Expected 7729e12d6824bf7164aee4ed63fd736b6e5cf804aa01df83f178d0d25329926a and got ${hashOriginal.hashBlocks[4].hash}`);
+  t.is(hashOriginal.hashBlocks[4].hash, '7729e12d6824bf7164aee4ed63fd736b6e5cf804aa01df83f178d0d25329926a');
+
+  t.is(hashOriginal.filehash, 'cd20dd504a52128506897b7f89fe6e88722aac6283e6d3dc1a2ae4c8cd1647bc');
+});
+
+test('HashTest', async (t) => {
   const precaculatedHashes = [
-    [1000000000, 'da2073c2a33f3e3e6ddb1108e34cd8f5fda04fd8e6df54d4bfe2019099318544'],
-    /*
-    [20000000, 'f4dd083e78b38bd68104aaa9b04f2275516ca3d0c7ede8db86884ca82374b7b6'],
-    [20000001, '551f70cb8e2b9292c2acbaa4317ff834f53a36a0bc8690f02df817de24af1284'],
-    [39999999, 'b38f9acea55861bec5b110d94d829f7b79f3e5b70a29333100ec6840e39f40cf'],
-    [40000000, '0afbc17f63366eba99ea3645ebe83bb9788a264bd4377bea04bcfa1563466b65'],
-    [40000001, '545f1b0c31973fa340110e8e27cf443897b87f3cf348d029ad4507578cccd44d'],
-    */
+    [0, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
+    [1, '3973e022e93220f9212c18d0d0c543ae7c309e46640da93a4a0314de999f5112'],
+    [2, 'd8156bae0c4243d3742fc4e9774d8aceabe0410249d720c855f98afc88ff846c'],
+    [10, '590ccb73c8a4de29c964c2b9942276ea692f69ba18a38a53ef981edb91e916de'],
+    [100, '7a4c731de37ee1fc22fc30ca452a3eb7a59efe1492df2887e399de26c43db1f8'],
+    [5000, '23e9f874310efc0486e5ddb75cfff5e0e326beedabe81aef44ebba1367bebb40'],
+    [505000, '481761e3572cfb647852a8c7a2fd92f9030e47cca266c39b83b017e0c3fde97f'],
+    [1005000, 'c931ee3e04cfc3a1b8e2880c48821031221f76a01b799bd4629a1c538c3ff6db'],
+    [1505000, 'bad8b489468c6ad0a9cb74cebe0310544f0228ff958dd0c0553279dbe9f49042'],
+    [2005000, '57d1b1b275388314548f5dca5af5623f01726fff7802b71fa98702af5e768adb'],
+    [2505000, 'af0ce51b8a62743886eaa2b6807446657cfa1a52da5e885b5349a2558f36bcbc'],
+    [3005000, '195b404c40bd7365bb90493eb7af8b3b976db926d83ffc636a43fce9c99fdaa4'],
+    [3505000, '8545b62eec043edcc7e281297f21f59739e086b6ab2b32fc0c45589bc21a3b38'],
+    [4005000, 'ec4b6ceb0c7b526ddd1c561412ad42ca484ca23d8769f29844dd35de3c0afe0c'],
+    [4505000, '1c3460c8f0bdd4e426e80330e0eb3ae98f09983efa1379c0b4bce400f3125456'],
+    [5005000, '450a87e792918ea00faaf05ce3df43b254af4e9bcdde2f1a2e49e6043df76ed6'],
+    [5505000, '6f00995070359ff14329d6b7ab9ec08ae0917954bd94513dd00e6203fd7d5f76'],
+    [6005000, 'c22f599b10af88b16915dc74689cb94ecb092f827ffd1d35fa604ce78ce2548c'],
+    [6505000, '112f519c0ff6a2cbe5f1f9319cde8d3c48ba59c7a7d3524cf2ba090b8a83a8b4'],
+    [7005000, '12106beac70f43bfc7b95675c81fa69f972976128e7a91995598042d9eb85892'],
+    [7505000, '7a0e6c66db49e092c5e375fdd290f6a0bcb7bfd037709e4e68b3b389010f45e0'],
+    [8005000, '9a6f9b9263c651eb7864b58269ed8161c58823d620ff00eef3fdf2cd91869f61'],
+    [8505000, '55ca6cf8e50920a6729469a24199148c4183e942dfc7bcf15a478f7df8af82d6'],
+    [9005000, '3864847b1ed24d4bb48696a7b1f8c4115bd0e78efdfd67e171d2231fdef24e98'],
+    [9505000, '04f5adf3b5df72b6b10eb2c203fd075649c44563b92bb3a76ea0f0937185c1f2'],
+    [10005000, '718f8e0e97fe473ce899fdc53348138ba106bed86a49fb78eb79d29be84a38ce'],
+    [10505000, '9e1d7ef63ca7a79e4efb1487379c016ee0e08a218358140772665b53abff0ac4'],
+    [11005000, '998d32f826d61bff5fb2026ae844cc79b5356d62f8ec82066827d3df13c89730'],
+    [11505000, '161b6c8f9b444bb1af36b2e01abca1cb777ef2cbc6fcd8d8d84b7f3a16b47479'],
+    [12005000, 'e17734ff8defa24e5425fec572106207f35525dd012cee63783f74891e2aeb64'],
+    [12505000, 'f8c19cbca9ce416e131392e6251735bc595e039318259fd7b0b9b0ee70df559b'],
+    [13005000, '549a5f105ce1894850ac6e6fa31666399ca127b59dc0675e51604e3be1ef5d45'],
+    [13505000, 'fd09f7e0ce342de77b2df107f1e83e6f23dc2d911642e9f7729d1025e3905eb1'],
+    [14005000, '3563b9c6645921113fd1eee3aaf14bc8a7b16a45e5d8f551637f2aaf596a1817'],
+    [14505000, '991bfa3150ddc039241b02a3e80932f7de64bbc3f54b24be0cd51fae85819d97'],
+    [15005000, '67d4bb2883454ab187e514d3fd3956abee6396d42423cc0b5740cbdde33f4f9b'],
+    [15505000, '454623ee200c6cb9d5ae3bac3d5fab6151c935353fc42584ae531263a8fb9ada'],
+    [16005000, '013353c5785454da30db18fb3d864e65ecb46f77a961f5d47caa97cbb9c2def2'],
+    [16505000, 'a19e2a595a7a7aef9b12001878cb506befbb5e2b60894aacf1fbaeba7c9b9eeb'],
+    [17005000, '961e03c056cdda3160131a484e94a74da91643dab1e4dfad17d1ee66daa355c9'],
+    [17505000, '78acc9f5aaae886cf5387b0393033ece9c4c78f7b2bd29176bf3bfbb969fb9ad'],
+    [18005000, '115bc3b69770d145c7f2ea017225fc6074412cb912d8dc777c14a600ec628e6d'],
+    [18505000, '842e7bb3263a35ba72fbcda6f1a94222c2fe2ac3c655d7d6c01543f28239540b'],
+    [19005000, 'c975ec5186a4cc7643b4ff052a20da6a3193b3572aa360aee0a22c5d16fde9df'],
+    [19505000, '62e4e69694bb174857c6d346b77a22b41ab90ad7bfc762615b3dc58add51320a'],
+    [1000000000, 'e186adedcecbfca4f9a0c923c25889a0c313dce30c2fc329d9424bb38a7fe2a3'],
   ];
+
+  const calculatedHashes = new Map<string, number>();
 
   for (const preHash of precaculatedHashes) {
     const i = preHash[0] as number;
-    const foo: string = join(os.tmpdir(), `foo${i}.txt`);
-    fse.writeFileSync(foo, '-'.repeat(i));
-    const res = await calculateFileHash(foo);
+    const filename: string = join(os.tmpdir(), `foo${i}.txt`);
+    t.log(`Create file ${filename}`);
+    fse.writeFileSync(filename, '-'.repeat(i));
+    const res = await calculateFileHash(filename);
     if (calculatedHashes.has(res.filehash)) {
       throw new Error('hash already calculated');
     }
     calculatedHashes.set(res.filehash, i);
+    t.log(`Expect hash ${preHash[1]} and received ${res.filehash}`);
     t.is(preHash[1], res.filehash);
   }
   t.pass();
