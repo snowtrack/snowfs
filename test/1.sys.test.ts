@@ -1764,7 +1764,8 @@ test('Hash Integrity (Hash Block)', async (t) => {
   t.is(hashOriginal.filehash, 'cd20dd504a52128506897b7f89fe6e88722aac6283e6d3dc1a2ae4c8cd1647bc');
 });
 
-test.only('HashTest', async (t) => {
+test('Hash Integrity Test (Multiple)', async (t) => {
+  // this array was created by precalculate_hashes.py
   const precaculatedHashes = [
     [0, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
     [1, '3973e022e93220f9212c18d0d0c543ae7c309e46640da93a4a0314de999f5112'],
