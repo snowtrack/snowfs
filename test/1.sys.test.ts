@@ -13,8 +13,10 @@ import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { IoContext, TEST_IF } from '../src/io_context';
 import {
+  calculateFileHash,
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
+import { createRandomString } from './helper';
 import {
   calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
@@ -1594,4 +1596,163 @@ test('TreeDir hash stability 1', (t) => {
     t.log(res[1]);
     t.is(res[1], hash);
   }
+});
+
+test.only('Hash Integrity (Empty File)', async (t) => {
+  const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
+  t.log('Create a file of 0 bytes');
+  fse.ensureFileSync(filename);
+
+  const hashOriginal = await calculateFileHash(filename);
+  t.log(`Expected e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, got ${hashOriginal.filehash}`);
+  t.is(hashOriginal.filehash, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+});
+
+test.only('Hash Integrity (1-byte)', async (t) => {
+  const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
+  t.log('Create a file of 1 byte');
+  fse.writeFileSync(filename, 'a');
+
+  const hashOriginal1 = await calculateFileHash(filename);
+  t.log(`Expected ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb, got ${hashOriginal1.filehash}`);
+  t.is(hashOriginal1.filehash, 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb');
+
+  t.log('Create another file of 1 byte');
+  fse.writeFileSync(filename, 'b');
+
+  const hashOriginal2 = await calculateFileHash(filename);
+  t.log(`Expected 3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d, got ${hashOriginal2.filehash}`);
+  t.is(hashOriginal2.filehash, '3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d');
+
+  t.not(hashOriginal1.filehash, hashOriginal2.filehash);
+});
+
+test.only('Hash Integrity Test 2', async (t) => {
+  const filename = join(os.tmpdir(), `snowfs-hash-unittest-${createRandomString(10)}`);
+  t.log('Create a file of 100000000 bytes');
+  fse.writeFileSync(filename, 'x'.repeat(100000000));
+
+  t.log(`Calculate hash of ${filename}`);
+  const hashOriginal1 = await calculateFileHash(filename);
+  const hashOriginal2 = await calculateFileHash(filename);
+  t.log(`Expected d15aa13358a8d5f90faa99d6e4f168f2f58101b2c7db3bdda96ca68694883c07, got ${hashOriginal1.filehash}`);
+  t.is(hashOriginal1.filehash, hashOriginal2.filehash);
+  t.is(hashOriginal1.filehash, 'd15aa13358a8d5f90faa99d6e4f168f2f58101b2c7db3bdda96ca68694883c07');
+
+  async function test0() {
+    // Copy1 (overwrite byte at position 99999998)
+    const copy0 = `${filename}.copy0`;
+    t.log('Create copy and overwrite byte at position 99999998');
+    fse.copyFileSync(filename, copy0);
+    const fh0 = fse.openSync(copy0, 'r+');
+    fse.writeSync(fh0, new Uint8Array([0x65]), 0, 1, 99999998);
+    fse.closeSync(fh0);
+    const hashCopy0 = await calculateFileHash(copy0);
+    t.log(hashCopy0.filehash);
+    t.is(fse.statSync(copy0).size, 100000000); // just to ensure the file didn't change its size
+    t.log(`Expected 4ed783a2bad9613bb60864b6e4a7825ac37ab634c1b42c35c3a054e440a211ad, got ${hashCopy0.filehash}`);
+    t.is(hashCopy0.filehash, '4ed783a2bad9613bb60864b6e4a7825ac37ab634c1b42c35c3a054e440a211ad');
+    fse.removeSync(copy0);
+  }
+
+  async function test1() {
+    // Copy1 (overwrite byte at position 99999999)
+    const copy1 = `${filename}.copy1`;
+    t.log('Create copy and overwrite byte at position 99999999');
+    fse.copyFileSync(filename, copy1);
+    const fh1 = fse.openSync(copy1, 'r+');
+    fse.writeSync(fh1, new Uint8Array([0x65]), 0, 1, 99999999);
+    fse.closeSync(fh1);
+    const hashCopy1 = await calculateFileHash(copy1);
+    t.log(hashCopy1.filehash);
+    t.is(fse.statSync(copy1).size, 100000000); // just to ensure the file didn't change its size
+    t.log(`Expected a37da7994c24396ab37507ad0c7efd27945ee7b6662bffd60f959b17a45d722a, got ${hashCopy1.filehash}`);
+    t.is(hashCopy1.filehash, 'a37da7994c24396ab37507ad0c7efd27945ee7b6662bffd60f959b17a45d722a');
+    fse.removeSync(copy1);
+  }
+
+  async function test2() {
+    // Copy2 (overwrite 2nd byte at position 1)
+    const copy2 = `${filename}.copy2`;
+    t.log('Create copy and overwrite byte at position 1');
+    fse.copyFileSync(filename, copy2);
+    const fh2 = fse.openSync(copy2, 'r+');
+    fse.writeSync(fh2, new Uint8Array([0x65]), 0, 1, 1);
+    fse.closeSync(fh2);
+    const hashCopy2 = await calculateFileHash(copy2);
+    t.log(hashCopy2.filehash);
+    t.is(fse.statSync(copy2).size, 100000000); // just to ensure the file didn't change its size
+    t.log(`Expected a901ca0c8fa3b3dc3946c50c59316c94d95e0504041fab7a82a11bef56a62479, got ${hashCopy2.filehash}`);
+    t.is(hashCopy2.filehash, 'a901ca0c8fa3b3dc3946c50c59316c94d95e0504041fab7a82a11bef56a62479');
+    fse.removeSync(copy2);
+  }
+
+  async function test3() {
+    // Copy3 (overwrite 1st byte at position 0)
+    const copy3 = `${filename}.copy3`;
+    t.log('Create copy and overwrite byte at position 0');
+    fse.copyFileSync(filename, copy3);
+    const fh3 = fse.openSync(copy3, 'r+');
+    fse.writeSync(fh3, new Uint8Array([0x65]), 0, 1, 0);
+    fse.closeSync(fh3);
+    const hashCopy3 = await calculateFileHash(copy3);
+    t.log(hashCopy3.filehash);
+    t.is(fse.statSync(copy3).size, 100000000); // just to ensure the file didn't change its size
+    t.log(`Expected db10941e21bcc109dce822216a5bc37f133222643581f1b00e13828c7891efe7, got ${hashCopy3.filehash}`);
+    t.is(hashCopy3.filehash, 'db10941e21bcc109dce822216a5bc37f133222643581f1b00e13828c7891efe7');
+    fse.removeSync(copy3);
+  }
+
+  async function test4() {
+    // Copy4 (append a single byte to file)
+    t.log('Create copy and append byte');
+    const copy4 = `${filename}.copy4`;
+    fse.copyFileSync(filename, copy4);
+    fse.appendFileSync(copy4, new Uint8Array([0x65]));
+    const hashCopy4 = await calculateFileHash(copy4);
+    t.log(hashCopy4.filehash);
+    t.is(fse.statSync(copy4).size, 100000001); // ensures the file grew by 1 byte
+    t.log(`Expected 41f21cfcc442e7c23a7387007bcb24dc82b4d2292669edb7f5bed091f296b4de, got ${hashCopy4.filehash}`);
+    t.is(hashCopy4.filehash, '41f21cfcc442e7c23a7387007bcb24dc82b4d2292669edb7f5bed091f296b4de');
+    fse.removeSync(copy4);
+  }
+
+  t.log('--');
+  await test0();
+  t.log('--');
+  await test1();
+  t.log('--');
+  await test2();
+  t.log('--');
+  await test3();
+  t.log('--');
+  await test4();
+});
+
+test('HashTest', async (t) => {
+  const calculatedHashes = new Map<string, number>();
+
+  const precaculatedHashes = [
+    [1000000000, 'da2073c2a33f3e3e6ddb1108e34cd8f5fda04fd8e6df54d4bfe2019099318544'],
+    /*
+    [20000000, 'f4dd083e78b38bd68104aaa9b04f2275516ca3d0c7ede8db86884ca82374b7b6'],
+    [20000001, '551f70cb8e2b9292c2acbaa4317ff834f53a36a0bc8690f02df817de24af1284'],
+    [39999999, 'b38f9acea55861bec5b110d94d829f7b79f3e5b70a29333100ec6840e39f40cf'],
+    [40000000, '0afbc17f63366eba99ea3645ebe83bb9788a264bd4377bea04bcfa1563466b65'],
+    [40000001, '545f1b0c31973fa340110e8e27cf443897b87f3cf348d029ad4507578cccd44d'],
+    */
+  ];
+
+  for (const preHash of precaculatedHashes) {
+    const i = preHash[0] as number;
+    const foo: string = join(os.tmpdir(), `foo${i}.txt`);
+    fse.writeFileSync(foo, '-'.repeat(i));
+    const res = await calculateFileHash(foo);
+    if (calculatedHashes.has(res.filehash)) {
+      throw new Error('hash already calculated');
+    }
+    calculatedHashes.set(res.filehash, i);
+    t.is(preHash[1], res.filehash);
+  }
+  t.pass();
 });
