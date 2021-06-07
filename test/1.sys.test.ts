@@ -1813,6 +1813,7 @@ test.only('HashTest', async (t) => {
     calculatedHashes.set(res.filehash, i);
     t.log(`Expect hash ${preHash[1]} and received ${res.filehash}`);
     t.is(preHash[1], res.filehash);
+    fse.removeSync(filename);
   }
   t.pass();
 });
