@@ -1811,7 +1811,6 @@ test('HashTest', async (t) => {
     [18505000, '842e7bb3263a35ba72fbcda6f1a94222c2fe2ac3c655d7d6c01543f28239540b'],
     [19005000, 'c975ec5186a4cc7643b4ff052a20da6a3193b3572aa360aee0a22c5d16fde9df'],
     [19505000, '62e4e69694bb174857c6d346b77a22b41ab90ad7bfc762615b3dc58add51320a'],
-    [1000000000, 'e186adedcecbfca4f9a0c923c25889a0c313dce30c2fc329d9424bb38a7fe2a3'],
   ];
 
   const calculatedHashes = new Map<string, number>();
