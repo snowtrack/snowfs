@@ -172,7 +172,7 @@ $ snow log
 
 ```bash
 $ git clone https://github.com/Snowtrack/snowfs.git
-$ cd snowfs.git
+$ cd snowfs
 $ npm install
 $ npm run ava
 ```
