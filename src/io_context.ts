@@ -9,6 +9,7 @@ import {
 import { MB1 } from './common';
 import * as io from './io';
 
+const trash = require('trash');
 const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
 
@@ -719,10 +720,22 @@ export class IoContext {
 
     // just to be on the safe side
     absPaths.forEach((absPath: string) => {
-      if ((process.platform === 'win32' && absPath.length <= 3) // X:\
-          || (process.platform === 'darwin' && absPath.length <= 1) // '/'
-      ) {
-        throw new Error(`cannot move '${absPath}' to trash`);
+      switch (process.platform) {
+        case 'win32': {
+          if (absPath.length <= 3) { // if empty or C:\ or C:/
+            throw new Error(`cannot move '${absPath}' to trash`);
+          }
+          break;
+        }
+        case 'darwin':
+        case 'linux': {
+          if (absPath.length <= 1) { // if empty or root (/)
+            throw new Error(`cannot move '${absPath}' to trash`);
+          }
+          break;
+        }
+        default:
+          throw new Error("Unsupported operating system");
       }
     });
 
@@ -739,6 +752,12 @@ export class IoContext {
 
     if (!trashPath) {
       switch (process.platform) {
+        case 'linux': {
+          // if no trash path is set, we use the trash module right away
+          // since there is no executable and 'trash' already splits the absPaths
+          // into chunks if too many files are passed
+          return trash(absPaths);
+        }
         case 'darwin': {
           if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', 'trash'))) {
             trashPath = join(dirname(process.execPath), 'resources', 'trash');

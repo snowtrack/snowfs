@@ -78,6 +78,7 @@ export function createRandomFile(dst: string, size: number): Promise<{filepath: 
 
 export function getSnowexec(): string {
   switch (process.platform) {
+    case 'linux':
     case 'darwin':
       return join(__dirname, '..', './bin/snow');
     case 'win32':
