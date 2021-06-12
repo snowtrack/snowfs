@@ -735,7 +735,7 @@ export class IoContext {
           break;
         }
         default:
-          throw new Error("Unsupported operating system");
+          throw new Error('Unsupported operating system');
       }
     });
 

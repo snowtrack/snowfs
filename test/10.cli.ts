@@ -3,11 +3,12 @@ import test from 'ava';
 import * as fse from 'fs-extra';
 
 import { join, dirname, basename } from '../src/path';
-import { exec, generateUniqueTmpDirName, EXEC_OPTIONS, getSnowexec } from './helper';
+import {
+  exec, generateUniqueTmpDirName, EXEC_OPTIONS, getSnowexec,
+} from './helper';
 import { COMMIT_ORDER, REFERENCE_TYPE, Repository } from '../src/repository';
 import { Reference } from '../src/reference';
 import { DirItem, OSWALK, osWalk } from '../src/io';
-
 
 // test doesn't work on the GitHub runners
 // https://github.com/seb-mtl/SnowFS/runs/1923599289?check_suite_focus=true#step:7:245
