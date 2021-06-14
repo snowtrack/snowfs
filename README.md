@@ -11,7 +11,7 @@
 
 ## Overview
 
-SnowFS is a lightweight command-line application and library with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
+SnowFS is a high-performance command-line application and node library for *Windows*, *macOS* and *Linux* with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
 
 **Disclaimer:** This project is in alpha state and actively developed. Do not use this yet in a production environment or without backups.
 

@@ -10,7 +10,7 @@ on:
 
 
 jobs:
-  linux:
+  discord-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -67,6 +67,54 @@ jobs:
       - name: npm run benchmark
         run: |
           npm run benchmark
+
+
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          lfs: true
+          node-version: 14
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-v4-${{ hashFiles('**/yarn.lock') }}
+      - run: npm install
+
+      - name: Run Tests
+        run: npm run ava
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build -- --target node14-linux-x64 --output=dist/out-tsc/snow
+          dist/out-tsc/snow --version
+          find dist/out-tsc -mindepth 1 ! -name snow -delete
+          mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
+          cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist/out-tsc
+
+      - name: 'Tar files'
+        run: tar -cvf snow.tar -C dist/out-tsc .
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-linux-x64.zip
+          path: snow.tar
 
 
   macos:
@@ -163,8 +211,9 @@ jobs:
             dist/out-tsc/resources
             dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node
 
+
   finish:
-    needs: [macos, windows]
+    needs: [macos, windows, linux]
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished
