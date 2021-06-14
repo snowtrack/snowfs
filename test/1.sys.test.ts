@@ -1733,7 +1733,7 @@ test('Hash Integrity Test 2', async (t) => {
 });
 
 test('Hash Integrity (Hash Block)', async (t) => {
-  // The hash block size for a finger print is 100 MB
+  // The hash block size for a fingerprint is 100 MB
   // This test creates a file of 499.999.999 bytes where
   // block 1 and 3 are similar, and block 2 and 4.
   // The last block is similar to block 2 and 4 but has 1 byte less.

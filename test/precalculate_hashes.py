@@ -25,7 +25,7 @@ def calculate_hash(total_size: int) -> str:
     h.update(b"-" * total_size)
     return h.hexdigest()
 
-def print_hash(i: int, hash: str):
+def print_hash(i: int):
     print(f"        [{i}, '{calculate_hash(i)}'],")
 
 

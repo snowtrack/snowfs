@@ -15,7 +15,6 @@ export class IgnoreManager {
         '**/.snowignore',
         '**/*.bkp',
         '**/**/bkp/**',
-        '**/Backup_of*', // Auto backup by Corel Draw
         '**/*_bak[0-9]*.[A-Za-z0-9]+',
         '**/**/*.tmp',
         '**/tmp/**',
@@ -25,6 +24,9 @@ export class IgnoreManager {
         '**/.idea/**',
         '**/.Spotlight-V100',
 
+        '**/Backup_of*', // Auto backup by Corel Draw
+        '**/Adobe Premiere Pro Auto-Save/**', // Adobe Premiere
+        '**/Adobe After Effects Auto-Save/**', // Adobe After Effects
         '**/RECOVER_*', // Adobe Animate
         '**/temp.noindex/**', // Adobe Character Animator
         '**/~*', // Adobe InDesign lock files start with ~ and end with 'idlk'
