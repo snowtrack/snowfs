@@ -22,7 +22,7 @@ function createRepoPath(): string {
 
 async function rmDirRecursive(dir: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    fs.rmdir(dir, { recursive: true }, (err) => {
+    fs.rm(dir, { recursive: true }, (err) => {
       if (err) {
         reject(err);
       }
@@ -120,10 +120,8 @@ test('repo init-commondir-outside', async (t) => {
       repo = repoResult;
       return testRepoCommondirOutside(t, repo);
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()))
+    .then(() => rmDirRecursive(repo.commondir()));
 });
 
 test('repo init-commondir-inside', async (t) => {
@@ -135,8 +133,5 @@ test('repo init-commondir-inside', async (t) => {
       repo = repoResult;
       return testRepoCommondirInside(t, repo);
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()));
 });
