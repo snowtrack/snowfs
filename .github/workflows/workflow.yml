@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 14
+          node-version: 16
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 14
+          node-version: 16
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 14
+          node-version: 16
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -126,7 +126,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 14
+          node-version: 16
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -174,7 +174,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           lfs: true
-          node-version: 14
+          node-version: 16
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
