@@ -61,7 +61,7 @@ async function repoTest(t, commondirInside: boolean) {
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
-        t.log(dirItems.map((value: DirItem) => value.absPath).join('\n'));
+        console.log(dirItems);
         t.is(dirItems.length, 24, 'expect 24 items');
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
@@ -169,7 +169,7 @@ test.only('repo open-commondir-inside', async (t) => {
   1st commit: Add file 'foo'
   2nd commit: Delete file  'foo'
   */
-  for (let i = 0; i < 100; ++i) {
+  for (let i = 0; i < 50; ++i) {
     // eslint-disable-next-line no-await-in-loop
     await repoTest(t, true);
   }
