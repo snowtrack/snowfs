@@ -21,10 +21,8 @@ test('repo open-commondir-outside', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       return testRepoCommondirOutside(t, repo);
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()))
+    .then(() => rmDirRecursive(repo.commondir()));
 });
 
 test('repo open-commondir-outside-subdirectory', async (t) => {
@@ -47,10 +45,8 @@ test('repo open-commondir-outside-subdirectory', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       t.is(repoResult.workdir(), repoPath, 'expect repository being opened from subdirectory');
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()))
+    .then(() => rmDirRecursive(repo.commondir()));
 });
 
 test('repo open-commondir-inside', async (t) => {
@@ -67,10 +63,7 @@ test('repo open-commondir-inside', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       return testRepoCommondirInside(t, repo);
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()));
 });
 
 test('repo open-commondir-inside-subdirectory', async (t) => {
@@ -92,8 +85,5 @@ test('repo open-commondir-inside-subdirectory', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       t.is(repoResult.workdir(), repoPath, 'expect repository being opened from subdirectory');
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()));
 });

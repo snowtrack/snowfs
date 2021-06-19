@@ -147,10 +147,12 @@ async function repoTest(t, commondirInside: boolean) {
           .snow/versions/c5f79ed5edfd5dcb27d4bfd61d115f4b242f8b647393c4dd441dec7c48673d53
         */
     })
-    .then(() => // cleanup unit-test
-      rmDirRecursive(repo.workdir()))
-    .then((): Promise<void> => // cleanup unit-test
-      rmDirRecursive(repo.commondir()));
+    .then(() => rmDirRecursive(repo.workdir()))
+    .then(() => {
+      if (!commondirInside) {
+        return rmDirRecursive(repo.commondir());
+      }
+    });
 }
 
 test('repo open-commondir-outside', async (t) => {
