@@ -10,23 +10,10 @@ on:
 
 
 jobs:
-  discord-bot:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - if: false  # temporarily disable until https://github.com/appleboy/discord-action/issues/4 is fixed
-        name: Discord Message
-        uses: appleboy/discord-action@master
-        with:
-          webhook_id: ${{ secrets.WEBHOOK_ID }}
-          webhook_token: ${{ secrets.WEBHOOK_TOKEN }}
-          color: "#48f442"
-          username: "GitHub Bot"
-          message: "A new commit has been pushed."
 
   windows-benchmark:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
     
       - uses: actions/checkout@v2
@@ -39,7 +26,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v6-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -48,7 +35,7 @@ jobs:
 
   macos-benchmark:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
     
       - uses: actions/checkout@v2
@@ -61,7 +48,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v6-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -71,7 +58,7 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
     
       - uses: actions/checkout@v2
@@ -84,7 +71,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v6-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -119,7 +106,7 @@ jobs:
 
   macos:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
     
       - uses: actions/checkout@v2
@@ -132,7 +119,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v6-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -167,7 +154,7 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
     
       - uses: actions/checkout@v2
@@ -180,7 +167,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v6-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
