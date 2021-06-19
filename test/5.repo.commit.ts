@@ -164,12 +164,15 @@ test('repo open-commondir-outside', async (t) => {
   await repoTest(t, false);
 });
 
-test('repo open-commondir-inside', async (t) => {
+test.only('repo open-commondir-inside', async (t) => {
   /* This test creates a repo, and creates 2 commits.
   1st commit: Add file 'foo'
   2nd commit: Delete file  'foo'
   */
-  await repoTest(t, true);
+  for (let i = 0; i < 100; ++i) {
+    // eslint-disable-next-line no-await-in-loop
+    await repoTest(t, true);
+  }
 });
 
 test('custom-commit-data', async (t) => {
