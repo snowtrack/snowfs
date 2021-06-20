@@ -61,8 +61,8 @@ async function repoTest(t, commondirInside: boolean) {
     })
     .then((dirItems: DirItem[]) => {
       if (commondirInside) {
-        console.log(dirItems);
         t.is(dirItems.length, 24, 'expect 24 items');
+        console.log(dirItems);
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
       }
