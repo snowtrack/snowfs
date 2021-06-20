@@ -59,10 +59,17 @@ async function repoTest(t, commondirInside: boolean) {
 
       return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS);
     })
-    .then((dirItems: DirItem[]) => {
+    .then(async (dirItems: DirItem[]) => {
       if (commondirInside) {
         t.is(dirItems.length, 24, 'expect 24 items');
+        console.log(dirItems.length);
         console.log(dirItems);
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            resolve();
+          }, 1000);
+        });
+        console.log(dirItems.length);
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
       }
