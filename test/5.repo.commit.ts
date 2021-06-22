@@ -188,7 +188,7 @@ test('repo open-commondir-outside', async (t) => {
   await repoTest(t, false);
 });
 
-test.only('repo open-commondir-inside', async (t) => {
+test('repo open-commondir-inside', async (t) => {
   /* This test creates a repo, and creates 2 commits.
   1st commit: Add file 'foo'
   2nd commit: Delete file  'foo'
