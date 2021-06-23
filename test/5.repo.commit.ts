@@ -72,19 +72,19 @@ async function repoTest(t, commondirInside: boolean) {
     .then(async (dirItems: DirItem[]) => {
       if (commondirInside) {
         // Two random files can generate hashes where the first 2 or 4 digits are equal.
-        // Depending on the situation, we expect either 22, 23 or 24 items since we might have fewer
+        // Depending on the situation, we expect either 23, 24 or 25 items since we might have fewer
         // directories in the object database
 
         // eslint-disable-next-line default-case
         switch (howManyCharsAreEqualInHash) {
           case 4: // if 4-digits of hash are equal, we have 2 directories less
-            t.is(dirItems.length, 22, 'expect 22 items');
-            break;
-          case 2: // if 2-digits of hash are equal, we have 1 directory less
             t.is(dirItems.length, 23, 'expect 23 items');
             break;
-          case 0: // by default we expect 24 items
+          case 2: // if 2-digits of hash are equal, we have 1 directory less
             t.is(dirItems.length, 24, 'expect 24 items');
+            break;
+          case 0: // by default we expect 25 items
+            t.is(dirItems.length, 25, 'expect 25 items');
             break;
         }
       } else {
