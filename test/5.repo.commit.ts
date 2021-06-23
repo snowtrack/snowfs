@@ -25,6 +25,8 @@ async function repoTest(t, commondirInside: boolean) {
     await Repository.initExt(repoPath, { commondir: `${commondir}.external-snow` });
   }
 
+  let howManyCharsAreEqualInHash = 0;
+
   const firstCommitMessage = 'Add Foo';
   const secondCommitMessage = 'Delete Foo';
   await Repository.open(repoPath)
@@ -45,6 +47,14 @@ async function repoTest(t, commondirInside: boolean) {
       const file2 = await createRandomFile(foopath2, 2048);
       index.addFiles([file2.filepath]);
 
+      if (file1.filehash.substr(0, 4) === file2.filehash.substr(0, 4)) {
+        howManyCharsAreEqualInHash = 4;
+      } else if (file1.filehash.substr(0, 2) === file2.filehash.substr(0, 2)) {
+        howManyCharsAreEqualInHash = 2;
+      } else {
+        howManyCharsAreEqualInHash = 0;
+      }
+
       return index.writeFiles();
     }).then(() => repo.createCommit(repo.getFirstIndex(), firstCommitMessage))
     .then((commit: Commit) => {
@@ -59,9 +69,24 @@ async function repoTest(t, commondirInside: boolean) {
 
       return osWalk(repo.workdir(), OSWALK.DIRS | OSWALK.FILES | OSWALK.HIDDEN | OSWALK.BROWSE_REPOS);
     })
-    .then((dirItems: DirItem[]) => {
+    .then(async (dirItems: DirItem[]) => {
       if (commondirInside) {
-        t.is(dirItems.length, 25, 'expect 25 items'); // normally 24 but additional IMPORTANT.txt
+        // Two random files can generate hashes where the first 2 or 4 digits are equal.
+        // Depending on the situation, we expect either 22, 23 or 24 items since we might have fewer
+        // directories in the object database
+
+        // eslint-disable-next-line default-case
+        switch (howManyCharsAreEqualInHash) {
+          case 4: // if 4-digits of hash are equal, we have 2 directories less
+            t.is(dirItems.length, 22, 'expect 22 items');
+            break;
+          case 2: // if 2-digits of hash are equal, we have 1 directory less
+            t.is(dirItems.length, 23, 'expect 23 items');
+            break;
+          case 0: // by default we expect 24 items
+            t.is(dirItems.length, 24, 'expect 24 items');
+            break;
+        }
       } else {
         t.is(dirItems.length, 4, 'expect 3 items (foo + subdir + subdir/bar + .snow)');
       }
