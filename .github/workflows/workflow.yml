@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: '12'
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: '12'
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: '12'
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -87,7 +87,7 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build -- --target node14-linux-x64 --output=dist/out-tsc/snow
+          npm run build -- --target node12-linux-x64 --output=dist/out-tsc/snow
           dist/out-tsc/snow --version
           find dist/out-tsc -mindepth 1 ! -name snow -delete
           mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
@@ -113,7 +113,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: '12'
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -135,7 +135,7 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build -- --target node14-macos-x64 --output=dist/out-tsc/snow
+          npm run build -- --target node12-macos-x64 --output=dist/out-tsc/snow
           dist/out-tsc/snow --version
           find dist/out-tsc -mindepth 1 ! -name snow -delete
           mkdir -p dist/out-tsc/node_modules/drivelist/build/Release/
@@ -161,7 +161,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: '12'
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
@@ -183,7 +183,7 @@ jobs:
       - name: npm run tsc, build
         run: |
           npm run tsc
-          npm run build -- --target node14-win-x64 --output=dist/out-tsc/snow.exe
+          npm run build -- --target node12-win-x64 --output=dist/out-tsc/snow.exe
           dist/out-tsc/snow.exe --version
           New-Item -Path dist/out-tsc/node_modules/drivelist/build/Release -ItemType Directory -Force
           cp node_modules/drivelist/build/Release/drivelist.node dist/out-tsc/node_modules/drivelist/build/Release/drivelist.node

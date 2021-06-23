@@ -42,7 +42,7 @@
     "url": "https://github.com/snowtrack/snowfs.git"
   },
   "engines": {
-    "node": ">=12.13.1"
+    "node": ">=12.14.1"
   },
   "dependencies": {
     "@supercharge/promise-pool": "^1.7.0",
@@ -76,7 +76,7 @@
     "kleur": "^4.1.4",
     "nyc": "^15.1.0",
     "pkg": "github:vercel/pkg",
-    "typedoc": "^0.21.0",
+    "typedoc": "^0.20.20",
     "typedoc-neo-theme": "^1.1.1",
     "typescript": "^4.3.4",
     "unzipper": "^0.10.11"
