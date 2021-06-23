@@ -236,7 +236,7 @@ export async function rmdir(dir: string): Promise<void> {
       });
 
       return new Promise<void>((resolve, reject) => {
-        fs.rm(dir, (error) => (error ? reject(error) : resolve()));
+        fs.rmdir(dir, (error) => (error ? reject(error) : resolve()));
       }).then(() => resolve());
     });
   });
