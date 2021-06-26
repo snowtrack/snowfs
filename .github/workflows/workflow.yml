@@ -20,13 +20,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: 14.x
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -42,13 +42,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: 14.x
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -65,13 +65,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: 14.x
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -113,13 +113,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: 14.x
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -161,13 +161,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           lfs: true
-          node-version: '14'
+          node-version: 14.x
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v7-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
