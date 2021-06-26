@@ -2,13 +2,16 @@ import * as fse from 'fs-extra';
 
 import test from 'ava';
 
+import {
+  rmdir, DirItem, OSWALK, osWalk,
+} from '../src/io';
 import { join, dirname } from '../src/path';
 import { Commit } from '../src/commit';
 import { Index } from '../src/index';
-import { DirItem, OSWALK, osWalk } from '../src/io';
+
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
-import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { createRandomFile, getRandomPath } from './helper';
 import { TreeEntry } from '../src/treedir';
 
 async function repoTest(t, commondirInside: boolean) {
@@ -172,10 +175,10 @@ async function repoTest(t, commondirInside: boolean) {
           .snow/versions/c5f79ed5edfd5dcb27d4bfd61d115f4b242f8b647393c4dd441dec7c48673d53
         */
     })
-    .then(() => rmDirRecursive(repo.workdir()))
+    .then(() => rmdir(repo.workdir()))
     .then(() => {
       if (!commondirInside) {
-        return rmDirRecursive(repo.commondir());
+        return rmdir(repo.commondir());
       }
     });
 }

@@ -5,9 +5,11 @@ import test from 'ava';
 
 import { difference } from 'lodash';
 import { join } from '../src/path';
-import { DirItem, OSWALK, osWalk } from '../src/io';
+import {
+  DirItem, OSWALK, osWalk, rmdir,
+} from '../src/io';
 import { COMMIT_ORDER, Repository, RESET } from '../src/repository';
-import { createRandomFile, getRandomPath, rmDirRecursive } from './helper';
+import { createRandomFile, getRandomPath } from './helper';
 import { Commit } from '../src/commit';
 
 test('checkout test', async (t) => {
@@ -291,5 +293,5 @@ test('checkout test', async (t) => {
     }
   }
 
-  rmDirRecursive(repoPath);
+  rmdir(repoPath);
 });

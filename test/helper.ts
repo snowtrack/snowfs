@@ -1,6 +1,5 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
-import * as fs from 'fs';
 
 import { spawn } from 'child_process';
 
@@ -37,17 +36,6 @@ export function createRepoPath(): string {
       return repoPath;
     }
   }
-}
-
-export function rmDirRecursive(dir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    fs.rm(dir, { recursive: true }, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
 }
 
 export function createRandomString(length: number): string {

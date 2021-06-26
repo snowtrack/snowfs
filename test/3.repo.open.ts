@@ -1,8 +1,9 @@
 import test from 'ava';
 import * as fse from 'fs-extra';
 import { join } from '../src/path';
-import { rmDirRecursive, createRepoPath } from './helper';
+import { createRepoPath } from './helper';
 
+import { rmdir } from '../src/io';
 import { Repository } from '../src/repository';
 import { testRepoCommondirInside, testRepoCommondirOutside } from './2.repo.init';
 
@@ -21,8 +22,8 @@ test('repo open-commondir-outside', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       return testRepoCommondirOutside(t, repo);
     })
-    .then(() => rmDirRecursive(repo.workdir()))
-    .then(() => rmDirRecursive(repo.commondir()));
+    .then(() => rmdir(repo.workdir()))
+    .then(() => rmdir(repo.commondir()));
 });
 
 test('repo open-commondir-outside-subdirectory', async (t) => {
@@ -45,8 +46,8 @@ test('repo open-commondir-outside-subdirectory', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       t.is(repoResult.workdir(), repoPath, 'expect repository being opened from subdirectory');
     })
-    .then(() => rmDirRecursive(repo.workdir()))
-    .then(() => rmDirRecursive(repo.commondir()));
+    .then(() => rmdir(repo.workdir()))
+    .then(() => rmdir(repo.commondir()));
 });
 
 test('repo open-commondir-inside', async (t) => {
@@ -63,7 +64,7 @@ test('repo open-commondir-inside', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       return testRepoCommondirInside(t, repo);
     })
-    .then(() => rmDirRecursive(repo.workdir()));
+    .then(() => rmdir(repo.workdir()));
 });
 
 test('repo open-commondir-inside-subdirectory', async (t) => {
@@ -85,5 +86,5 @@ test('repo open-commondir-inside-subdirectory', async (t) => {
       t.log(`Found commondir at ${repo.commondir()}`);
       t.is(repoResult.workdir(), repoPath, 'expect repository being opened from subdirectory');
     })
-    .then(() => rmDirRecursive(repo.workdir()));
+    .then(() => rmdir(repo.workdir()));
 });
