@@ -1,12 +1,14 @@
 import test from 'ava';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
 import * as fse from 'fs-extra';
 
 import { tmpdir } from 'os';
+import {
+  rmdir, DirItem, OSWALK, osWalk,
+} from '../src/io';
 import { join } from '../src/path';
 import { Commit } from '../src/commit';
-import { DirItem, OSWALK, osWalk } from '../src/io';
+
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
 
@@ -18,17 +20,6 @@ function createRepoPath(): string {
       return repoPath;
     }
   }
-}
-
-async function rmDirRecursive(dir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    fs.rmdir(dir, { recursive: true }, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
 }
 
 test('repo commondir', async (t) => {
@@ -122,8 +113,8 @@ test('repo init-commondir-outside', async (t) => {
       repo = repoResult;
       return testRepoCommondirOutside(t, repo);
     })
-    .then(() => rmDirRecursive(repo.workdir()))
-    .then(() => rmDirRecursive(repo.commondir()));
+    .then(() => rmdir(repo.workdir()))
+    .then(() => rmdir(repo.commondir()));
 });
 
 test('repo init-commondir-inside', async (t) => {
@@ -135,5 +126,5 @@ test('repo init-commondir-inside', async (t) => {
       repo = repoResult;
       return testRepoCommondirInside(t, repo);
     })
-    .then(() => rmDirRecursive(repo.workdir()));
+    .then(() => rmdir(repo.workdir()));
 });

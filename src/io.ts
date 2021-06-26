@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 import { PathLike, Stats } from 'fs-extra';
-import { join, normalize, parse } from './path';
+import { normalize, parse } from './path';
 
 export { PathLike, Stats } from 'fs-extra';
 
@@ -142,7 +142,7 @@ const getMode = (options) => {
  * Ensures that the directory exists. If the directory structure does not exist, it is created.
  * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
  */
 export function ensureDir(dir: string, options?: number | any): Promise<void> {
@@ -170,7 +170,7 @@ export function ensureDir(dir: string, options?: number | any): Promise<void> {
  * Tests a user's permissions for the file or directory specified by path.
  * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
  */
 export function access(path: PathLike, mode: number | undefined): Promise<void> {
@@ -193,7 +193,7 @@ export function access(path: PathLike, mode: number | undefined): Promise<void> 
  * Test whether or not the given path exists by checking with the file system.
  * Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [pathExists] visit https://nodejs.org/api/fs.html#fs_fs_exists_path_callback
  */
 export function pathExists(path: PathLike): Promise<boolean> {
@@ -211,7 +211,7 @@ export function pathExists(path: PathLike): Promise<boolean> {
 /**
  * Change the file system timestamps of the object referenced by the <FileHandle> then resolves the promise with no arguments upon success.
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [createReadStream] visit https://nodejs.org/api/fs.html#fs_fs_createreadstream_path_options
  */
 export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> {
@@ -231,18 +231,17 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
 }
 
 export async function rmdir(dir: string): Promise<void> {
-
   return new Promise((resolve, reject) => {
     try {
-      fs.rmdir(dir, {recursive: true}, (error) => {
+      (fs.rmdir || fs.rm)(dir, { recursive: true }, (error) => {
         if (error) {
           reject(error);
         } else {
           resolve();
         }
-      })
+      });
     } catch (error) {
-      reject(error);
+      resolve(error);
     }
   });
 }
@@ -250,7 +249,7 @@ export async function rmdir(dir: string): Promise<void> {
 /**
  * Retrieve the statistics about a directory item. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [stat] visit https://nodejs.org/api/fs.html#fs_fs_fstat_fd_options_callback
  */
 export function stat(path: PathLike): Promise<Stats> {
@@ -272,7 +271,7 @@ export function stat(path: PathLike): Promise<Stats> {
 /**
  * Asynchronously copies `src` to `dest`. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [copyFile] visit https://nodejs.org/api/fs.html#fs_fs_copyfilesync_src_dest_mode
  */
 export function copyFile(src: PathLike, dest: PathLike, flags: number): Promise<void> {
@@ -294,7 +293,7 @@ export function copyFile(src: PathLike, dest: PathLike, flags: number): Promise<
 /**
  * Read the contents of a directory. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [readdir] visit https://nodejs.org/api/fs.html#fs_fs_readdir_path_options_callback
  */
 export function readdir(path: PathLike, callback: (err: Error | null, files: string[]) => void): void {
@@ -304,7 +303,7 @@ export function readdir(path: PathLike, callback: (err: Error | null, files: str
 /**
  * Open a read stream. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.
- * For more information check the module import ocmments above.
+ * For more information check the module import comments above.
  * For more information about the API of [createReadStream] visit https://nodejs.org/api/fs.html#fs_fs_createreadstream_path_options
  */
 export function createReadStream(path: PathLike, options?: string | {

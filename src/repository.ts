@@ -111,6 +111,16 @@ export const enum RESET {
   DETACH = 8,
 
   /**
+   * If a checkout is performed on HEAD to restore the working directory some files might get deleted
+   * if they are new or were modified.
+   *
+   * By using this flag, each items hash will be checked if it exists in the object database.
+   * If no match was found the item will be moved to the trash instead. This flag might increase
+   * the runtime significantly due to the potential hash calculation.
+   */
+  MOVE_FILES_TO_TRASH_IF_NEEDED = 16,
+
+  /**
    * Overwrites the default detection mode, which only to trust the mktime (or content if text-files).
    * Please check [[DETECTIONMODE.ONLY_SIZE_AND_MKTIME]] for more information.
    */
@@ -316,13 +326,13 @@ export function getCommondir(workdir: string): Promise<string | null> {
 /**
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
-function deleteOrTrash(repo: Repository, absPath: string, instantDelete: boolean, putToTrash: string[]): Promise<void> {
+function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean, putToTrash: string[]): Promise<void> {
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
       isDirectory = stat.isDirectory();
 
-      if (instantDelete) {
+      if (alwaysDelete) {
         if (isDirectory) {
           return io.rmdir(absPath);
         }
@@ -349,12 +359,9 @@ function deleteOrTrash(repo: Repository, absPath: string, instantDelete: boolean
           .for(calculateHashFrom)
           .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((path: string) => {
-            return fse.stat(path)
-              .then((stats: fse.Stats) => {
-                return calculateFileHash(path)
-                  .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                    return { absPath: path, filehash: res.filehash };
-                  });
+            return calculateFileHash(path)
+              .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                return { absPath: path, filehash: res.filehash };
               });
           });
       })
@@ -945,11 +952,12 @@ export class Repository {
     const oldHeadHash = this.head.hash;
 
     // checkout(..) can either be used to switch between different commits, or to
-    // stay on the current commit and to use to discard the currently changed items.
+    // stay on the current commit to discard the currently changed items.
     const commitChange: boolean = targetCommit.hash !== this.head.hash;
 
-    // If we switch to another commit, we instantly delete files
-    const instantDelete = commitChange;
+    // If we switch to another commit or RESET.MOVE_FILES_TO_TRASH_IF_NEEDED is unset
+    // we can safely delete all affected items
+    const alwaysDelete = commitChange || !(reset & RESET.MOVE_FILES_TO_TRASH_IF_NEEDED);
 
     const ioContext = new IoContext();
     return ioContext.init()
@@ -1016,7 +1024,7 @@ export class Repository {
                 // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
                 // in the version database and rather sends it to trash than destroying the data
                 const putToTrashImmediately = [];
-                tasks.push(() => deleteOrTrash(this, dst, instantDelete, putToTrashImmediately)
+                tasks.push(() => deleteOrTrash(this, dst, alwaysDelete, putToTrashImmediately)
                   .then(() => {
                     // Since we replace the object, we can delete the object immediately and we don't
                     // need to treat it as a delete candidate
@@ -1058,11 +1066,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), instantDelete, putToTrash));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), alwaysDelete, putToTrash));
             }
           } else {
             performAccessCheck.push(candidate.path);
-            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), instantDelete, putToTrash));
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), alwaysDelete, putToTrash));
           }
         });
 
