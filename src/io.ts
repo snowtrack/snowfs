@@ -242,7 +242,7 @@ export async function rmdir(dir: string): Promise<void> {
         }
       })
     } catch (error) {
-      resolve(error);
+      reject(error);
     }
   });
 }
