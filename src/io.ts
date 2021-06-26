@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
 import { PathLike, Stats } from 'fs-extra';
-import { join, normalize, parse } from './path';
+import { normalize, parse } from './path';
 
 export { PathLike, Stats } from 'fs-extra';
 

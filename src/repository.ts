@@ -349,12 +349,9 @@ function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean,
           .for(calculateHashFrom)
           .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((path: string) => {
-            return fse.stat(path)
-              .then((stats: fse.Stats) => {
-                return calculateFileHash(path)
-                  .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-                    return { absPath: path, filehash: res.filehash };
-                  });
+            return calculateFileHash(path)
+              .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                return { absPath: path, filehash: res.filehash };
               });
           });
       })

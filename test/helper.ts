@@ -1,6 +1,5 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
-import * as fs from 'fs';
 
 import { spawn } from 'child_process';
 
