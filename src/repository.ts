@@ -316,15 +316,24 @@ export function getCommondir(workdir: string): Promise<string | null> {
 /**
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
-function deleteOrTrash(repo: Repository, absPath: string, putToTrash: string[]): Promise<void> {
+function deleteOrTrash(repo: Repository, absPath: string, instantDelete: boolean, putToTrash: string[]): Promise<void> {
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
       isDirectory = stat.isDirectory();
 
+      if (instantDelete) {
+        if (isDirectory) {
+          return io.rmdir(absPath);
+        }
+        return fse.remove(absPath);
+      }
+
+      let res: Promise<string[]>;
+
       const calculateHash: string[] = [];
       if (stat.isDirectory()) {
-        return io.osWalk(absPath, io.OSWALK.FILES)
+        res = io.osWalk(absPath, io.OSWALK.FILES)
           .then((items: io.DirItem[]) => {
             for (const item of items) {
               calculateHash.push(item.absPath);
@@ -332,36 +341,42 @@ function deleteOrTrash(repo: Repository, absPath: string, putToTrash: string[]):
             return Promise.resolve(calculateHash);
           });
       }
-      return Promise.resolve([absPath]);
-    }).then((calculateHashFrom: string[]) => {
-      return PromisePool
-        .withConcurrency(8)
-        .for(calculateHashFrom)
-        .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
-        .process((path: string) => {
-          return calculateFileHash(path)
-            .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
-              return { absPath: path, filehash: res.filehash };
-            });
+
+      res = Promise.resolve([absPath]);
+      return res.then((calculateHashFrom: string[]) => {
+        return PromisePool
+          .withConcurrency(8)
+          .for(calculateHashFrom)
+          .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
+          .process((path: string) => {
+            return fse.stat(path)
+              .then((stats: fse.Stats) => {
+                return calculateFileHash(path)
+                  .then((res: {filehash: string, hashBlocks?: HashBlock[]}) => {
+                    return { absPath: path, filehash: res.filehash };
+                  });
+              });
+          });
+      })
+        .then((res: {results: {absPath: string, filehash: string}[]}) => {
+          const promises = [];
+          for (const r of res.results) {
+            promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
+          }
+          return Promise.all(promises);
+        })
+        .then((stats: (fse.Stats | null)[]) => {
+          if (stats.includes(null)) {
+            // if there is one null stats object, it means that file isn't stored
+            // in the object database, and therefore needs to go to the trash
+            putToTrash.push(absPath);
+            return Promise.resolve();
+          }
+          if (isDirectory) {
+            return io.rmdir(absPath);
+          }
+          return fse.remove(absPath);
         });
-    }).then((res: {results: {absPath: string, filehash: string}[]}) => {
-      const promises = [];
-      for (const r of res.results) {
-        promises.push(repo.repoOdb.getObjectByHash(r.filehash, extname(r.absPath)));
-      }
-      return Promise.all(promises);
-    })
-    .then((stats: (fse.Stats | null)[]) => {
-      if (stats.includes(null)) {
-        // if there is one null stats object, it means that file isn't stored
-        // in the object database, and therefore needs to go to the trash
-        putToTrash.push(absPath);
-        return Promise.resolve();
-      }
-      if (isDirectory) {
-        return io.rmdir(absPath);
-      }
-      return fse.remove(absPath);
     });
 }
 
@@ -929,6 +944,13 @@ export class Repository {
 
     const oldHeadHash = this.head.hash;
 
+    // checkout(..) can either be used to switch between different commits, or to
+    // stay on the current commit and to use to discard the currently changed items.
+    const commitChange: boolean = targetCommit.hash !== this.head.hash;
+
+    // If we switch to another commit, we instantly delete files
+    const instantDelete = commitChange;
+
     const ioContext = new IoContext();
     return ioContext.init()
       .then(() => this.getStatus(FILTER.INCLUDE_UNTRACKED
@@ -994,7 +1016,7 @@ export class Repository {
                 // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
                 // in the version database and rather sends it to trash than destroying the data
                 const putToTrashImmediately = [];
-                tasks.push(() => deleteOrTrash(this, dst, putToTrashImmediately)
+                tasks.push(() => deleteOrTrash(this, dst, instantDelete, putToTrashImmediately)
                   .then(() => {
                     // Since we replace the object, we can delete the object immediately and we don't
                     // need to treat it as a delete candidate
@@ -1036,11 +1058,11 @@ export class Repository {
                 }
               });
               /// ... the delete operation below.
-              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
+              tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), instantDelete, putToTrash));
             }
           } else {
             performAccessCheck.push(candidate.path);
-            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), putToTrash));
+            tasks.push(() => deleteOrTrash(this, join(this.workdir(), candidate.path), instantDelete, putToTrash));
           }
         });
 
