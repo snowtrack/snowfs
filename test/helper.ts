@@ -39,17 +39,6 @@ export function createRepoPath(): string {
   }
 }
 
-export function rmDirRecursive(dir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    fs.rm(dir, { recursive: true }, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
-}
-
 export function createRandomString(length: number): string {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
