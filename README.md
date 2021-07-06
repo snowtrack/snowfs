@@ -43,7 +43,7 @@ SnowFS is a high-performance command-line application and node library for *Wind
 
 \*\* If the underlying filesystem supports it (e.g. APFS, ReFS and Btrfs)
 
-## Used in
+## Made with SnowFS
 
 - [Snowtrack](https://www.snowtrack.io)
 - [SnowFS for Unity](https://github.com/daniellanner/snowfs-for-unity)
