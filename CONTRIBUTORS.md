@@ -5,3 +5,4 @@
 - M. McKester <https://github.com/MMcKester>
 - Jonathan Dupre <hello@jonathandupre.com>
 - Sean Mitchell https://github.com/dskvr 
+- Nicola Dardanis <https://github.com/nicdard>
