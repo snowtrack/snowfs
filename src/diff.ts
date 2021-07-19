@@ -13,15 +13,15 @@ export class Diff {
   }
 
   * added() {
-    const sameFiles: string[] = difference(Array.from(this.left.keys()), Array.from(this.right.keys()));
-    for (const sameFile of sameFiles) {
+    const filenames: string[] = difference(Array.from(this.left.keys()), Array.from(this.right.keys()));
+    for (const sameFile of filenames) {
       yield this.left.get(sameFile);
     }
   }
 
   * deleted() {
-    const sameFiles: string[] = difference(Array.from(this.right.keys()), Array.from(this.left.keys()));
-    for (const sameFile of sameFiles) {
+    const filenames: string[] = difference(Array.from(this.right.keys()), Array.from(this.left.keys()));
+    for (const sameFile of filenames) {
       yield this.right.get(sameFile);
     }
   }
