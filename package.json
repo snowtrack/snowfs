@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "tsc": "tsc",
-    "build": "pkg dist/out-tsc/main.js",
+    "build": "pkg dist/main.js",
     "snowfs": "node -r ts-node/register main.ts",
     "benchmark": "cross-env NODE_ENV=benchmark node --require ts-node/register benchmark/snowfs-vs-git.ts",
     "ava": "nyc --reporter=html --reporter=lcov --reporter=text ava --timeout 900s --verbose --serial --fail-fast --color true",
