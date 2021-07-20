@@ -187,7 +187,7 @@ $ npm run ava
 ```bash
 $ npm run tsc
 $ npm run build
-$ cd dist/out-tsc
+$ cd dist
 ```
 
 ### How To Debug
