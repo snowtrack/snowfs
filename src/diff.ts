@@ -3,7 +3,7 @@ import { Commit } from './commit';
 import { TreeEntry } from './treedir';
 
 /**
- * Class to generate a diff between commits.
+ * Class to generate a diff between commits. The order of the returned items is undefined.
  */
 export class Diff {
   target: Map<string, TreeEntry>;
