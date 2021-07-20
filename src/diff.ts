@@ -2,48 +2,71 @@ import { difference, intersection } from 'lodash';
 import { Commit } from './commit';
 import { TreeEntry } from './treedir';
 
+/**
+ * Class to generate a diff between commits.
+ */
 export class Diff {
-  left: Map<string, TreeEntry>;
+  target: Map<string, TreeEntry>;
 
-  right: Map<string, TreeEntry>;
+  base: Map<string, TreeEntry>;
 
-  constructor(left: Commit, right: Commit, opts: { includeDirs: boolean}) {
-    this.left = left.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: opts.includeDirs });
-    this.right = right.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: opts.includeDirs });
+  /**
+   * Constructor of the diff object. Return a diff for added, deleted, modified or non-modified
+   * objects based on the 'base' commit. Typically the base commit is the older commit, whereas the target
+   * commit represents a newer commit.
+   * @param target    Target commit.
+   * @param base      Base commit.
+   * @param opts      Boolean option to include directories in the results.
+   */
+  constructor(target: Commit, base: Commit, opts: { includeDirs: boolean}) {
+    this.target = target.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: opts.includeDirs });
+    this.base = base.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: opts.includeDirs });
   }
 
+  /**
+   * Generator function. Return added items between the base and target commit.
+   */
   * added() {
-    const filenames: string[] = difference(Array.from(this.left.keys()), Array.from(this.right.keys()));
+    const filenames: string[] = difference(Array.from(this.target.keys()), Array.from(this.base.keys()));
     for (const sameFile of filenames) {
-      yield this.left.get(sameFile);
+      yield this.target.get(sameFile);
     }
   }
 
+  /**
+   * Generator function. Return deleted items between the base and target commit.
+   */
   * deleted() {
-    const filenames: string[] = difference(Array.from(this.right.keys()), Array.from(this.left.keys()));
+    const filenames: string[] = difference(Array.from(this.base.keys()), Array.from(this.target.keys()));
     for (const sameFile of filenames) {
-      yield this.right.get(sameFile);
+      yield this.base.get(sameFile);
     }
   }
 
+  /**
+   * Generator function. Return modified items between the base and target commit.
+   */
   * modified() {
-    const filenames: string[] = intersection(Array.from(this.left.keys()), Array.from(this.right.keys()));
+    const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
     for (const sameFile of filenames) {
-      const l = this.left.get(sameFile);
-      const r = this.right.get(sameFile);
+      const l = this.target.get(sameFile);
+      const r = this.base.get(sameFile);
       if (l.hash !== r.hash) {
         yield l;
       }
     }
   }
 
+  /**
+   * Generator function. Return non-modified items between the base and target commit.
+   */
   * nonModified() {
-    const filenames: string[] = intersection(Array.from(this.left.keys()), Array.from(this.right.keys()));
+    const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
     for (const sameFile of filenames) {
-      const l = this.left.get(sameFile);
-      const r = this.right.get(sameFile);
+      const l = this.target.get(sameFile);
+      const r = this.base.get(sameFile);
       if (l.hash === r.hash) {
         yield l;
       }
