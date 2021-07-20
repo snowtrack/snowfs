@@ -1,3 +1,4 @@
+import * as hasha from 'hasha';
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 import * as io from './io';
@@ -72,21 +73,14 @@ export interface HashBlock {
  * @param options The start, end and highwatermark value (aka the internal read-buffer size).
  */
 export function getPartHash(filepath: string, options?: {start?: number; end?: number; highWaterMark?: number;}): Promise<HashBlock> {
-  return new Promise<HashBlock>((resolve, reject) => {
-    const hash = crypto.createHash('sha256');
-
-    const fh = io.createReadStream(filepath, {
-      start: options?.start, end: options?.end, highWaterMark: options?.highWaterMark ?? MB2, autoClose: true,
-    });
-
-    fh.on('data', (d) => {
-      hash.update(d);
-    });
-    fh.on('end', () => {
-      resolve({ hash: hash.digest('hex'), start: options?.start ?? -1, end: options?.end ?? -1 });
-    });
-    fh.on('error', reject);
+  const fh = io.createReadStream(filepath, {
+    start: options?.start, end: options?.end, highWaterMark: options?.highWaterMark ?? MB2, autoClose: true,
   });
+
+  return hasha.fromStream(fh, { algorithm: 'sha256' })
+    .then((hash: string) => {
+      return { hash, start: options?.start ?? -1, end: options?.end ?? -1 };
+    });
 }
 
 /**
