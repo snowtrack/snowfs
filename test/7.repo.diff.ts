@@ -196,3 +196,119 @@ test('Diff.basic', async (t) => {
   test5();
   test6();
 });
+
+test('Diff with subdirectories', async (t) => {
+  const repoPath = getRandomPath();
+  const repo = await Repository.initExt(repoPath);
+
+  const commit0: Commit = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST)[0];
+
+  fse.ensureDirSync(join(repo.workdir(), 'subdir1'));
+  fse.ensureDirSync(join(repo.workdir(), 'subdir2'));
+
+  // Commit 1: create various files and commit
+  fse.writeFileSync(join(repo.workdir(), 'subdir1/fooA.txt'), 'content: subdir1/fooA.txt');
+  fse.writeFileSync(join(repo.workdir(), 'subdir1/fooB.txt'), 'content: subdir1/fooB.txt');
+  fse.writeFileSync(join(repo.workdir(), 'subdir1/fooC.txt'), 'content: subdir1/fooC.txt');
+  fse.writeFileSync(join(repo.workdir(), 'subdir1/fooD.txt'), 'content: subdir1/fooD.txt');
+
+  fse.writeFileSync(join(repo.workdir(), 'subdir2/fooA.txt'), 'content: subdir2/fooA.txt');
+  fse.writeFileSync(join(repo.workdir(), 'subdir2/fooB.txt'), 'content: subdir2/fooB.txt');
+
+  fse.writeFileSync(join(repo.workdir(), 'fooA.txt'), 'content: fooA');
+
+  let index = repo.ensureMainIndex();
+  index.addFiles([
+    'subdir1/fooA.txt',
+    'subdir1/fooB.txt',
+    'subdir1/fooC.txt',
+    'subdir1/fooD.txt',
+    'subdir2/fooA.txt',
+    'subdir2/fooB.txt',
+    'fooA.txt',
+  ]);
+
+  await index.writeFiles();
+
+  const commit1 = await repo.createCommit(index, 'commit1');
+
+  fse.writeFileSync(join(repo.workdir(), 'subdir2/fooA.txt'), 'content: subdir2/fooA.txt modified');
+
+  index = repo.ensureMainIndex();
+  index.addFiles(['subdir2/fooA.txt']);
+
+  await index.writeFiles();
+
+  const commit2 = await repo.createCommit(index, 'commit2');
+
+  const test0 = () => {
+    t.log('Compare initial commit with first commit');
+    const diff = new Diff(commit1, commit0, { includeDirs: true });
+
+    const addedArray = Array.from(diff.added());
+    t.is(addedArray.length, 9, 'expected 1 element: fooA.txt');
+    t.is(addedArray[0].path, 'fooA.txt');
+    t.is(addedArray[0].hash, 'fbb70f5f22a0f1040c9978351c8b3302fa0f77044e36d6ca0fdb0b646fc32611');
+    t.is(addedArray[1].path, 'subdir1');
+    t.is(addedArray[1].hash, '34f40a8f2533b51ed3cdc44d0913431f7b6642cea194eea982ff6aa268c85e48');
+    t.is(addedArray[2].path, 'subdir1/fooA.txt');
+    t.is(addedArray[2].hash, 'eb4d879649dbc97e1bcc280c1abcd56c30d211da2a0f3ec7e6251124c7646edd');
+    t.is(addedArray[3].path, 'subdir1/fooB.txt');
+    t.is(addedArray[3].hash, '81a281150cd97e24ce7628d98f90b1789676fbad19f6bb7c50676d41144b813c');
+    t.is(addedArray[4].path, 'subdir1/fooC.txt');
+    t.is(addedArray[4].hash, '1911748a6284c23df9f9619151a364c0d0fd9d05b3386a1b808fa7773f90c2ad');
+    t.is(addedArray[5].path, 'subdir1/fooD.txt');
+    t.is(addedArray[5].hash, '1baf798eba71b480295794fadf3e929b97c36001a985ccddffdddad445b21aa4');
+    t.is(addedArray[6].path, 'subdir2');
+    t.is(addedArray[6].hash, '86aee0487e56510ef47d0c6c369f08ba5585e57a251d9c39461519430bc358d4');
+    t.is(addedArray[8].path, 'subdir2/fooB.txt');
+    t.is(addedArray[8].hash, '26a9e4753ef2791e012bca321f9f9cacba992b752d9e38710e157d05396af65a');
+
+    const modifiedArray = Array.from(diff.modified());
+    t.is(modifiedArray.length, 0, 'expected 0 elements');
+
+    const nonModifiedArray = Array.from(diff.nonModified());
+    t.is(nonModifiedArray.length, 0, 'expected 0 elements');
+
+    const deletedArray = Array.from(diff.deleted());
+    t.is(deletedArray.length, 0, 'expected 0 elements');
+  };
+
+  const test1 = () => {
+    t.log('Compare initial commit with first commit');
+    const diff = new Diff(commit2, commit1, { includeDirs: true });
+
+    const addedArray = Array.from(diff.added());
+    t.is(addedArray.length, 0, 'expected 0 elements');
+
+    const modifiedArray = Array.from(diff.modified());
+    t.is(modifiedArray.length, 2, 'expected 1 element: fooA.txt');
+    t.is(modifiedArray[0].path, 'subdir2');
+    t.is(modifiedArray[0].hash, '694f3d7ec5fc89cf64dc1ada0b3117ed78dec08e0794328e5836edc7f4ca69ef');
+    t.is(modifiedArray[1].path, 'subdir2/fooA.txt');
+    t.is(modifiedArray[1].hash, '0c6611c83f11f7dc822c64c3f1e934907bef406b802e6d7be979171743b25da2');
+
+    const nonModifiedArray = Array.from(diff.nonModified());
+    t.is(nonModifiedArray.length, 7, 'expected 8 elements');
+    t.is(nonModifiedArray[0].path, 'fooA.txt');
+    t.is(nonModifiedArray[0].hash, 'fbb70f5f22a0f1040c9978351c8b3302fa0f77044e36d6ca0fdb0b646fc32611');
+    t.is(nonModifiedArray[1].path, 'subdir1');
+    t.is(nonModifiedArray[1].hash, '34f40a8f2533b51ed3cdc44d0913431f7b6642cea194eea982ff6aa268c85e48');
+    t.is(nonModifiedArray[2].path, 'subdir1/fooA.txt');
+    t.is(nonModifiedArray[2].hash, 'eb4d879649dbc97e1bcc280c1abcd56c30d211da2a0f3ec7e6251124c7646edd');
+    t.is(nonModifiedArray[3].path, 'subdir1/fooB.txt');
+    t.is(nonModifiedArray[3].hash, '81a281150cd97e24ce7628d98f90b1789676fbad19f6bb7c50676d41144b813c');
+    t.is(nonModifiedArray[4].path, 'subdir1/fooC.txt');
+    t.is(nonModifiedArray[4].hash, '1911748a6284c23df9f9619151a364c0d0fd9d05b3386a1b808fa7773f90c2ad');
+    t.is(nonModifiedArray[5].path, 'subdir1/fooD.txt');
+    t.is(nonModifiedArray[5].hash, '1baf798eba71b480295794fadf3e929b97c36001a985ccddffdddad445b21aa4');
+    t.is(nonModifiedArray[6].path, 'subdir2/fooB.txt');
+    t.is(nonModifiedArray[6].hash, '26a9e4753ef2791e012bca321f9f9cacba992b752d9e38710e157d05396af65a');
+
+    const deletedArray = Array.from(diff.deleted());
+    t.is(deletedArray.length, 0, 'expected 0 elements');
+  };
+
+  test0();
+  test1();
+});
