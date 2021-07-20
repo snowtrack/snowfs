@@ -11,7 +11,7 @@
 
 ## Overview
 
-SnowFS is a high-performance command-line application and node library for *Windows*, *macOS* and *Linux* with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack].
+SnowFS is a high-performance command-line application and node library for *Windows*, *macOS* and *Linux* with a focus on binary file versioning. It is made for the graphics industry and was initially developed for [Snowtrack](https://www.snowtrack.io).
 
 **Disclaimer:** This project is in alpha state and actively developed. Do not use this yet in a production environment or without backups.
 
@@ -42,6 +42,11 @@ SnowFS is a high-performance command-line application and node library for *Wind
 - Feature XYZ made by you!
 
 \*\* If the underlying filesystem supports it (e.g. APFS, ReFS and Btrfs)
+
+## Made with SnowFS
+
+- [Snowtrack](https://www.snowtrack.io)
+- [SnowFS for Unity](https://github.com/daniellanner/snowfs-for-unity)
 
 ## Why not Git/Git-LFS, libgit2, or SVN?
 
@@ -223,6 +228,5 @@ See the [guidelines for contributing][].
 
 [node.js]: http://nodejs.org/
 [terminal_preview]: https://github.com/snowtrack/snowfs/raw/main/img/terminal.gif
-[Snowtrack]: https://www.snowtrack.io/
 [guidelines for contributing]: https://github.com/snowtrack/snowfs/blob/main/CONTRIBUTING.md
 [snowfs_banner]: https://github.com/snowtrack/snowfs/raw/main/img/banner.png
