@@ -28,8 +28,8 @@ export class Diff {
    */
   * added() {
     const filenames: string[] = difference(Array.from(this.target.keys()), Array.from(this.base.keys()));
-    for (const sameFile of filenames) {
-      yield this.target.get(sameFile);
+    for (const filename of filenames) {
+      yield this.target.get(filename);
     }
   }
 
@@ -38,8 +38,8 @@ export class Diff {
    */
   * deleted() {
     const filenames: string[] = difference(Array.from(this.base.keys()), Array.from(this.target.keys()));
-    for (const sameFile of filenames) {
-      yield this.base.get(sameFile);
+    for (const filename of filenames) {
+      yield this.base.get(filename);
     }
   }
 
@@ -49,9 +49,9 @@ export class Diff {
   * modified() {
     const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
-    for (const sameFile of filenames) {
-      const l = this.target.get(sameFile);
-      const r = this.base.get(sameFile);
+    for (const filename of filenames) {
+      const l = this.target.get(filename);
+      const r = this.base.get(filename);
       if (l.hash !== r.hash) {
         yield l;
       }
@@ -64,9 +64,9 @@ export class Diff {
   * nonModified() {
     const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
-    for (const sameFile of filenames) {
-      const l = this.target.get(sameFile);
-      const r = this.base.get(sameFile);
+    for (const filename of filenames) {
+      const l = this.target.get(filename);
+      const r = this.base.get(filename);
       if (l.hash === r.hash) {
         yield l;
       }
