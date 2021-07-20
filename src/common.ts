@@ -77,7 +77,7 @@ export function getPartHash(filepath: string, options?: {start?: number; end?: n
     start: options?.start, end: options?.end, highWaterMark: options?.highWaterMark ?? MB2, autoClose: true,
   });
 
-  return hasha.fromStream(fh)
+  return hasha.fromStream(fh, { algorithm: 'sha256' })
     .then((hash: string) => {
       return { hash, start: options?.start ?? -1, end: options?.end ?? -1 };
     });
