@@ -61,6 +61,7 @@
     "hasha": "^5.2.2",
     "lodash": "^4.17.21",
     "micromatch": "^4.0.2",
+    "rxjs": "^6.6.7",
     "sort-paths": "^1.1.1",
     "trash": "^7.1.1",
     "ts-node": "^9.1.1"
