@@ -1125,6 +1125,26 @@ export class Repository {
         }
       })
       .then(() => {
+        if (commitChange) {
+          // if we switch to another commit, we browse through all commits
+          // and delete each one that was marked for deletion
+
+          let promise: Promise<void>;
+          const commits: Commit[] = this.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
+          for (const commit of commits) {
+            if (commit.systemData && commit.systemData?.markForDeletion) {
+              delete commit.systemData.markForDeletion; // delete item, now commit can be deleted
+              if (promise) {
+                promise.then(() => this.deleteCommit(commit.hash));
+              } else {
+                promise = this.deleteCommit(commit.hash);
+              }
+            }
+          }
+          return Promise.resolve(promise);
+        }
+      })
+      .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
           moveTo = target.getName();
