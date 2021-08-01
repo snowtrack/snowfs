@@ -18,6 +18,8 @@ export class Reference {
 
     type: REFERENCE_TYPE;
 
+    lastModifiedDate: Date | null;
+
     constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
       this.hash = c.hash;
       this.userData = c.userData ?? {};
@@ -62,6 +64,7 @@ export class Reference {
           start: this.startHash,
         });
 
+      ref.lastModifiedDate = this.lastModifiedDate;
       ref.userData = {};
       if (this.userData != null) {
         ref.userData = { ...this.userData };

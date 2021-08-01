@@ -808,6 +808,7 @@ export class Repository {
       // every commit that is a child commit (direct descendant) of the
       // deleted commit must be updated
       if (c.parent.includes(commitHash)) {
+        c.lastModifiedDate = new Date();
         c.parent = parentsOfDeletedCommit;
         promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
@@ -842,6 +843,7 @@ export class Repository {
         let headUpdated = false;
         for (const ref of branchesPointingToDeletedCommit) {
           ref.hash = commitToDelete.parent[0];
+          ref.lastModifiedDate = new Date();
 
           // if we are in a detached head, and we update a branch
           // that now points to the 'detached head', we switch from detached head

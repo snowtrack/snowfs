@@ -233,6 +233,7 @@ export class Odb {
     return fss.writeSafeFile(refPath, JSON.stringify({
       hash: ref.hash,
       type: ref.type,
+      lastModifiedDate: ref.lastModifiedDate?.getTime(),
       start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
     })).then(() => this.repo.modified());
@@ -254,6 +255,8 @@ export class Odb {
       hash: commit.hash,
       message: commit.message,
       date: commit.date.getTime(),
+      lastModifiedDate: commit.lastModifiedDate?.getTime(),
+      systemData: commit.systemData,
       parent,
       root,
       tags,
