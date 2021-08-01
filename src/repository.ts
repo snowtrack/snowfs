@@ -3,6 +3,7 @@
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
+import { Subject } from 'rxjs';
 import {
   resolve, join, dirname, extname,
 } from './path';
@@ -423,6 +424,8 @@ export class Repository {
   /** See [[Repository.commondir]] */
   repoCommonDir: string;
 
+  commitObservable$ = new Subject<{commitHash: string, action: 'created' | 'deleted' | 'changed'}>();
+
   /**
    * Path to the repositories commondir, also known as the `.snow` directory.
    * The commondir might be located outside [[Repository.repoWorkDir]].
@@ -775,8 +778,17 @@ export class Repository {
     }
 
     const commit: Commit = this.commitMap.get(commitHash);
-    commit.message = message;
-    return this.repoOdb.writeCommit(commit).then(() => {
+
+    // copy the commit and apply the changes on the commit
+    // only after the write commit is succesfull we apply
+    // the change to the original commit
+    const commitCopy = commit.clone();
+    commitCopy.setCommitMessage(message);
+
+    return this.repoOdb.writeCommit(commitCopy).then(() => {
+      // move copy back to the original commit object
+      Object.assign(commit, commitCopy);
+      this.commitObservable$.next({commitHash: commit.hash, action:'changed'});
       return this.modified();
     });
   }
@@ -812,7 +824,9 @@ export class Repository {
         c.parent = parentsOfDeletedCommit;
         promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
-        });
+        }).then(() => {
+          this.commitObservable$.next({commitHash: c.hash, action:'changed'});
+        })
       }
 
       // Fill 'parentsOfCommitReferencedByOtherCommits' with all the commits
@@ -862,16 +876,18 @@ export class Repository {
       }
     }
 
-    // we now delete the commit from the commit map and the commit array
-    this.commitMap.delete(commitHash);
-    const index = this.commits.findIndex((c) => c.hash === commitHash);
-    if (index > -1) {
-      this.commits.splice(index, 1);
-    }
-
     return promise
       .then(() => {
         return this.repoOdb.deleteCommit(commitToDelete);
+      }).then(() => {
+        // we now delete the commit from the commit map and the commit array
+
+        this.commitObservable$.next({commitHash, action:'deleted'});
+        this.commitMap.delete(commitHash);
+        const index = this.commits.findIndex((c) => c.hash === commitHash);
+        if (index > -1) {
+          this.commits.splice(index, 1);
+        }
       });
   }
 
@@ -1477,32 +1493,37 @@ export class Repository {
         }
       }
 
-      this.commits.push(commit);
-      this.commitMap.set(commit.hash.toString(), commit);
-
-      if (this.head.hash) {
-        this.head.hash = commit.hash;
-        // update the hash of the current head reference as well
-        const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
-        if (curRef) {
-          curRef.hash = commit.hash;
-        }
-      } else {
-        this.head.setName(this.options.defaultBranchName ?? 'Main');
-        this.head.hash = commit.hash;
-        this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
-      }
-
       return this.repoOdb.writeCommit(commit);
     })
       .then(() => {
-        this.head.hash = commit.hash;
+        this.commits.push(commit);
+        this.commitMap.set(commit.hash.toString(), commit);
+  
+        let ref: Reference;
+        if (this.head.hash) {
+          this.head.hash = commit.hash;
+          // update the hash of the current head reference as well
+          ref = this.references.find((r: Reference) => r.getName() === this.head.getName());
+          if (ref) {
+            ref.lastModifiedDate = new Date();
+            ref.hash = commit.hash;
+          }
+        } else {
+          this.head.setName(this.options.defaultBranchName ?? 'Main');
+          this.head.hash = commit.hash;
+          ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
+          this.references.push(ref);
+        }
+
+        this.commitObservable$.next({ commitHash: commit.hash, action: 'created'});
+
+        // update .snow/refs/XYZ
+        return this.repoOdb.writeReference(ref);
+      })
+      .then(() => {
         // update .snow/HEAD
         return this.repoOdb.writeHeadReference(this.head);
       })
-      .then(() =>
-        // update .snow/refs/XYZ
-        this.repoOdb.writeReference(this.head))
       .then(() => this.repoLog.writeLog(`commit: ${message}`))
       .then(() => commit);
   }
