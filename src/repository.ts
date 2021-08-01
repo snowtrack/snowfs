@@ -802,9 +802,16 @@ export class Repository {
     if (!commitToDelete.parent || commitToDelete.parent.length === 0) {
       throw new Error('cannot delete first commit');
     }
+    
+    // If the update wants to remove the checked out commit, we keep the commit
+    // alive and only flag it with 'markForDeletion'. 
 
     if (this.head.hash === commitHash) {
-      throw new Error('cannot delete commit that is checked out');
+      if (!commitToDelete.systemData) {
+        commitToDelete.systemData = {};
+      }
+      commitToDelete.systemData.markForDeletion = true;
+      return this.repoOdb.writeCommit(commitToDelete);
     }
 
     const parentsOfCommitReferencedByOtherCommits = new Set<string>();

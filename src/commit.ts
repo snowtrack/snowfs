@@ -45,6 +45,7 @@ export class Commit {
     this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     this.tags = [];
     this.userData = {};
+    this.systemData = {};
     this.repo = repo;
     this.message = jsonCompliant(message);
     this.date = creationDate;
@@ -63,7 +64,6 @@ export class Commit {
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
     commit.lastModifiedDate = this.lastModifiedDate;
-    commit.systemData = this.systemData;
 
     commit.tags = [];
     if (this.tags != null) {
@@ -71,8 +71,13 @@ export class Commit {
     }
 
     commit.userData = {};
-    if (this.userData != null) {
+    if (this.userData && Object.keys(this.userData).length > 0) {
       commit.userData = { ...this.userData };
+    }
+
+    commit.systemData = {};
+    if (this.systemData && Object.keys(this.systemData).length > 0) {
+      commit.systemData = { ...this.systemData };
     }
 
     return commit;
