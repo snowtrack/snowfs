@@ -48,7 +48,7 @@ export class Commit {
     this.systemData = {};
     this.repo = repo;
     this.message = jsonCompliant(message);
-    this.date = creationDate;
+    this.date = new Date(creationDate.getTime());
     this.root = root;
     this.parent = parent;
   }
@@ -63,7 +63,7 @@ export class Commit {
       this.root,
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
-    commit.lastModifiedDate = this.lastModifiedDate;
+    commit.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
 
     commit.tags = [];
     if (this.tags != null) {
