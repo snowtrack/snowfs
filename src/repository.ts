@@ -805,7 +805,6 @@ export class Repository {
     
     // If the update wants to remove the checked out commit, we keep the commit
     // alive and only flag it with 'markForDeletion'. 
-
     if (this.head.hash === commitHash) {
       if (!commitToDelete.systemData) {
         commitToDelete.systemData = {};
