@@ -1679,7 +1679,19 @@ export class Repository {
       opts.commondir = join(workdir, '.snow');
     }
 
-    return io.ensureDir(workdir)
+    return fse.pathExists(workdir)
+      .then((workdirExists: boolean) => {
+        if (workdirExists) {
+          throw new Error('workdir already exists');
+        }
+        return fse.pathExists(opts.commondir)
+          .then((commondirExists: boolean) => {
+            if (commondirExists) {
+              throw new Error('commondir already exists');
+            }
+            return io.ensureDir(workdir);
+          });
+      })
       .then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;

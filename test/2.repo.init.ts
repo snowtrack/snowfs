@@ -11,19 +11,10 @@ import { Commit } from '../src/commit';
 
 import { Reference } from '../src/reference';
 import { COMMIT_ORDER, Repository } from '../src/repository';
-
-function createRepoPath(): string {
-  while (true) {
-    const name = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-    const repoPath = join(tmpdir(), 'snowtrack-repo', name);
-    if (!fse.pathExistsSync(repoPath)) {
-      return repoPath;
-    }
-  }
-}
+import { getRandomPath } from './helper';
 
 test('repo commondir', async (t) => {
-  const repoPath = createRepoPath();
+  const repoPath = getRandomPath();
   const commondirInside = repoPath;
 
   const error1 = t.throws(() => Repository.initExt(repoPath, { commondir: commondirInside }));
@@ -34,7 +25,7 @@ test('repo commondir', async (t) => {
   t.is(error2.message, 'commondir must be outside repository');
   t.false(fse.pathExistsSync(repoPath), 'repo must not exist yet');
 
-  const commondirOutside = createRepoPath();
+  const commondirOutside = getRandomPath();
   await t.notThrowsAsync(() => Repository.initExt(repoPath, { commondir: commondirOutside }));
   t.true(fse.pathExistsSync(repoPath), 'repo must have been created');
 });
@@ -104,8 +95,8 @@ export function testRepoCommondirInside(t, repo: Repository): Promise<void> {
 }
 
 test('repo init-commondir-outside', async (t) => {
-  const repoPath = createRepoPath();
-  const commondir = createRepoPath();
+  const repoPath = getRandomPath();
+  const commondir = getRandomPath();
 
   let repo: Repository;
   await Repository.initExt(repoPath, { commondir })
@@ -118,7 +109,7 @@ test('repo init-commondir-outside', async (t) => {
 });
 
 test('repo init-commondir-inside', async (t) => {
-  const repoPath = createRepoPath();
+  const repoPath = getRandomPath();
 
   let repo: Repository;
   await Repository.initExt(repoPath)
