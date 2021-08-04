@@ -28,16 +28,6 @@ export function getRandomPath(): string {
   }
 }
 
-export function createRepoPath(): string {
-  while (true) {
-    const name = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
-    const repoPath = join(os.tmpdir(), 'snowtrack-repo', name);
-    if (!fse.pathExistsSync(repoPath)) {
-      return repoPath;
-    }
-  }
-}
-
 export function createRandomString(length: number): string {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
