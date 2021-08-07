@@ -531,7 +531,7 @@ export class Repository {
    * Return an array of all commit clones of the repository. The order is undefined.
    */
   getAllCommits(order: COMMIT_ORDER): Commit[] {
-    const commits = this.commits.map((c: Commit) => c.clone());
+    const commits = Array.from(this.commits);
     switch (order) {
       case COMMIT_ORDER.OLDEST_FIRST:
         commits.sort((a: Commit, b: Commit) => {
@@ -806,9 +806,6 @@ export class Repository {
     // If the update wants to remove the checked out commit, we keep the commit
     // alive and only flag it with 'markForDeletion'. 
     if (this.head.hash === commitHash) {
-      if (!commitToDelete.runtimeData) {
-        commitToDelete.runtimeData = {};
-      }
       commitToDelete.runtimeData.markForDeletion = true;
       return this.repoOdb.writeCommit(commitToDelete);
     }
@@ -1626,7 +1623,7 @@ export class Repository {
 
         for (const commit of commits) {
           const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
-          for (const fileOfCommit of filesOfCommit.values()) {
+          for (const fileOfCommit of Array.from(filesOfCommit.values())) {
             if (fileOfCommit instanceof TreeFile) {
               if (!checkForExistance.has(fileOfCommit.hash)) {
                 checkForExistance.add(fileOfCommit.hash);
@@ -1645,14 +1642,10 @@ export class Repository {
       }).then(() => {
 
         for (const commit of repo.commits) {
-          if (!commit.runtimeData) {
-            commit.runtimeData = {};
-          }
-
           commit.runtimeData.missingObjects = new Set<string>();
 
           const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
-          for (const fileOfCommit of filesOfCommit.values()) {
+          for (const fileOfCommit of Array.from(filesOfCommit.values())) {
             if (fileOfCommit instanceof TreeFile) {
               if (missingObjects.has(fileOfCommit.hash)) {
                 commit.runtimeData.missingObjects.add(fileOfCommit.hash);
