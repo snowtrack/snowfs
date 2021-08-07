@@ -1622,16 +1622,21 @@ export class Repository {
         const promises = [];
         const odb = repo.getOdb();
 
+        const checkForExistance = new Set<string>();
+
         for (const commit of commits) {
           const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
           for (const fileOfCommit of filesOfCommit.values()) {
             if (fileOfCommit instanceof TreeFile) {
-              promises.push(fse.pathExists(odb.getAbsObjectPath(fileOfCommit))
+              if (!checkForExistance.has(fileOfCommit.hash)) {
+                checkForExistance.add(fileOfCommit.hash);
+                promises.push(fse.pathExists(odb.getAbsObjectPath(fileOfCommit))
                 .then((exists: boolean) => {
                   if (!exists) {
                     missingItems.add(fileOfCommit.hash);
                   }
                 }));
+              }
             }
           }
         }
