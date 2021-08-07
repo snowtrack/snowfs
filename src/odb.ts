@@ -257,7 +257,6 @@ export class Odb {
       message: commit.message,
       date: commit.date.getTime(),
       lastModifiedDate: commit.lastModifiedDate?.getTime(),
-      systemData: commit.systemData,
       parent,
       root,
       tags,
