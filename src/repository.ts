@@ -806,10 +806,10 @@ export class Repository {
     // If the update wants to remove the checked out commit, we keep the commit
     // alive and only flag it with 'markForDeletion'. 
     if (this.head.hash === commitHash) {
-      if (!commitToDelete.systemData) {
-        commitToDelete.systemData = {};
+      if (!commitToDelete.runtimeData) {
+        commitToDelete.runtimeData = {};
       }
-      commitToDelete.systemData.markForDeletion = true;
+      commitToDelete.runtimeData.markForDeletion = true;
       return this.repoOdb.writeCommit(commitToDelete);
     }
 
@@ -1131,8 +1131,8 @@ export class Repository {
           let promise: Promise<void>;
           const commits: Commit[] = this.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
           for (const commit of commits) {
-            if (commit.systemData && commit.systemData?.markForDeletion) {
-              delete commit.systemData.markForDeletion; // delete item, now commit can be deleted
+            if (commit.runtimeData && commit.runtimeData?.markForDeletion) {
+              delete commit.runtimeData.markForDeletion; // delete item, now commit can be deleted
               if (promise) {
                 promise.then(() => this.deleteCommit(commit.hash));
               } else {
@@ -1645,17 +1645,17 @@ export class Repository {
       }).then(() => {
 
         for (const commit of repo.commits) {
-          if (!commit.systemData) {
-            commit.systemData = {};
+          if (!commit.runtimeData) {
+            commit.runtimeData = {};
           }
 
-          commit.systemData.missingObjects = new Set<string>();
+          commit.runtimeData.missingObjects = new Set<string>();
 
           const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
           for (const fileOfCommit of filesOfCommit.values()) {
             if (fileOfCommit instanceof TreeFile) {
               if (missingObjects.has(fileOfCommit.hash)) {
-                commit.systemData.missingObjects.add(fileOfCommit.hash);
+                commit.runtimeData.missingObjects.add(fileOfCommit.hash);
               }
             }
           }

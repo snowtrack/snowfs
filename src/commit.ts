@@ -21,7 +21,7 @@ export class Commit {
   userData: any;
 
   /** Custom commit system data. Only for internal use. */
-  systemData: any;
+  runtimeData: any;
 
   /** The repository this commit belongs to. */
   repo: Repository;
@@ -45,7 +45,7 @@ export class Commit {
     this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     this.tags = [];
     this.userData = {};
-    this.systemData = {};
+    this.runtimeData = {};
     this.repo = repo;
     this.message = jsonCompliant(message);
     this.date = new Date(creationDate.getTime());
@@ -75,9 +75,9 @@ export class Commit {
       commit.userData = { ...this.userData };
     }
 
-    commit.systemData = {};
-    if (this.systemData && Object.keys(this.systemData).length > 0) {
-      commit.systemData = { ...this.systemData };
+    commit.runtimeData = {};
+    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
+      commit.runtimeData = { ...this.runtimeData };
     }
 
     return commit;
