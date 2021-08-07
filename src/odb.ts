@@ -133,6 +133,7 @@ export class Odb {
 
           tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
           tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+          tmpCommit.userData = tmpCommit.userData ?? {};
           tmpCommit.runtimeData = {};
           const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
           c.repo = this.repo;
