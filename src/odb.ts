@@ -94,6 +94,10 @@ export class Odb {
             return obj.map((c: any) => visit(c, parent));
           }
 
+          if (!obj.userData) {
+            obj.userData = {};
+          }
+
           if (obj.stats) {
             // backwards compatibility because item was called cTimeMs before
             if (obj.stats.ctimeMs) {
@@ -129,6 +133,7 @@ export class Odb {
 
           tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
           tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+          tmpCommit.runtimeData = {};
           const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
           c.repo = this.repo;
           c.root = visit(c.root, null);
