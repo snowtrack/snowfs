@@ -20,7 +20,7 @@ export class Commit {
   /** Custom commit user data, that was added to [[Repository.createCommit]]. */
   userData: any;
 
-  /** Custom commit system data. Only for internal use. */
+  /** Custom commit runtime data. Only for internal use. */
   runtimeData: any;
 
   /** The repository this commit belongs to. */
