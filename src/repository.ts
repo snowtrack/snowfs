@@ -1565,6 +1565,8 @@ export class Repository {
     let odb: Odb = null;
     let commondirInside: string = null;
     let commondir: string = null;
+    const missingItems = new Set<string>();
+
     return io.pathExists(workdir)
       .then((exists: boolean) => {
         if (!exists) {
@@ -1616,6 +1618,44 @@ export class Repository {
         for (const commit of commits) {
           repo.commitMap.set(commit.hash.toString(), commit);
         }
+
+        const promises = [];
+        const odb = repo.getOdb();
+
+        for (const commit of commits) {
+          const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+          for (const fileOfCommit of filesOfCommit.values()) {
+            if (fileOfCommit instanceof TreeFile) {
+              promises.push(fse.pathExists(odb.getAbsObjectPath(fileOfCommit))
+                .then((exists: boolean) => {
+                  if (!exists) {
+                    missingItems.add(fileOfCommit.hash);
+                  }
+                }));
+            }
+          }
+        }
+
+        return Promise.all(promises);
+      }).then(() => {
+
+        for (const commit of repo.commits) {
+          if (!commit.systemData) {
+            commit.systemData = {};
+          }
+
+          commit.systemData.missingItems = new Set<string>();
+
+          const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+          for (const fileOfCommit of filesOfCommit.values()) {
+            if (fileOfCommit instanceof TreeFile) {
+              if (missingItems.has(fileOfCommit.hash)) {
+                commit.systemData.missingItems.add(fileOfCommit.hash);
+              }
+            }
+          }
+        }
+
         return odb.readReferences();
       })
       .then((references: Reference[]) => {
