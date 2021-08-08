@@ -227,8 +227,7 @@ export class Odb {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
 
     if (ref.isDetached()) {
-      console.warn('Was about to write HEAD ref to disk');
-      return;
+      throw new Error('was about to write HEAD ref to disk');
     }
 
     if (!ref.hash) {

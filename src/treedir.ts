@@ -64,7 +64,7 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
   let size = 0;
 
   // Here we ensure that the hash of the tree entries is not dependend on their order
-  items = sortPaths(items, (item) => item.path, '/');
+  items = sortPaths(items, (item: TreeEntry) => item.path, '/');
 
   for (const r of items) {
     size += r.stats.size;
@@ -202,13 +202,13 @@ export class TreeFile extends TreeEntry {
 export class TreeDir extends TreeEntry {
   static ROOT = undefined;
 
-  hash: string;
+  hash: string | undefined;
 
   children: (TreeEntry)[] = [];
 
   constructor(public path: string,
               public stats: StatsSubset,
-              public parent: TreeDir = null) {
+              public parent: TreeDir | undefined = undefined) {
     super('', path, stats);
   }
 

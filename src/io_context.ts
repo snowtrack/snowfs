@@ -17,7 +17,7 @@ const drivelist = require('drivelist');
 const PromisePool = require('@supercharge/promise-pool');
 
 class StacklessError extends Error {
-  constructor(...args) {
+  constructor(...args: any) {
     super(...args);
     this.name = this.constructor.name;
     delete this.stack;
@@ -73,7 +73,7 @@ export namespace win32 {
    * @throws          Throws an AggregateError with a description of the effected files.
    */
   export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise<void> {
-    const promises = [];
+    const promises: Promise<fse.Stats>[] = [];
 
     for (const absPath of absPaths) {
       promises.push(io.stat(absPath));
@@ -97,7 +97,7 @@ export namespace win32 {
           }, 500);
         });
       }).then(() => {
-        const promises = [];
+        const promises: Promise<fse.Stats>[] = [];
 
         for (const absPath of absPaths) {
           promises.push(io.stat(absPath));
@@ -119,7 +119,7 @@ export namespace win32 {
           // and/or...
           // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
           // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
-          if (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime()) {
+          if (prevStats && (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime())) {
             const msg = `File '${relPaths[i]}' is being written by another process`;
             errors.push(new StacklessError(msg));
           }
@@ -284,7 +284,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
 
 }
 
-function getFilesystem(drive: any, mountpoint: string) {
+function getFilesystem(drive: any, mountpoint: string): Promise<FILESYSTEM> {
   try {
     if (process.platform === 'win32') {
       return new Promise<string | null>((resolve, _reject) => {
@@ -327,14 +327,14 @@ function getFilesystem(drive: any, mountpoint: string) {
     if (process.platform === 'darwin') {
       const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
       if (isApfs) {
-        return FILESYSTEM.APFS;
+        return Promise.resolve(FILESYSTEM.APFS);
       }
     }
   } catch (error) {
-    return FILESYSTEM.OTHER;
+    return Promise.resolve(FILESYSTEM.OTHER);
   }
 
-  return FILESYSTEM.OTHER;
+  return Promise.resolve(FILESYSTEM.OTHER);
 }
 
 type TrashExecutor = string | ((item: string[] | string) => void);
@@ -379,7 +379,7 @@ export class IoContext {
   valid: boolean;
 
   /** Set of all known mountpoints. Set after [[IoContext.init]] is called */
-  mountpoints: Set<string>;
+  mountpoints: Set<string> | undefined;
 
   constructor() {
     this.valid = false;
@@ -454,7 +454,7 @@ export class IoContext {
   }
 
   init(): Promise<void> {
-    const tmpDrives = [];
+    const tmpDrives: [string, string][] = [];
     return drivelist.list().then((drives: any) => {
       this.origDrives = drives;
       this.mountpoints = new Set();
@@ -468,7 +468,7 @@ export class IoContext {
         }
       }
 
-      const promises = [];
+      const promises: Promise<FILESYSTEM>[] = [];
 
       for (const drive of drives) {
         for (const mountpoint of drive.mountpoints) {
@@ -501,7 +501,7 @@ export class IoContext {
     // detect if src and dst are copied onto the same drive
     let i = 0; let
       j = 0;
-    this.mountpoints.forEach((mountpoint: string) => {
+    this.mountpoints!.forEach((mountpoint: string) => {
       if (file0.startsWith(mountpoint)) {
         i++;
       }
@@ -582,10 +582,13 @@ export class IoContext {
     let filesystem = FILESYSTEM.OTHER;
     if (srcAndDstOnSameDrive) {
       // find the mountpoint again to extract filesystem info
-      for (const mountpoint of Array.from(this.mountpoints)) {
+      for (const mountpoint of Array.from(this.mountpoints!)) {
         if (src.startsWith(mountpoint)) {
-          filesystem = this.drives.get(mountpoint).filesystem;
-          break;
+          const obj = this.drives.get(mountpoint);
+          if (obj) {
+            filesystem = obj.filesystem;
+            break;
+          }
         }
       }
     }
@@ -621,7 +624,7 @@ export class IoContext {
    */
   performFileAccessCheck(dir: string, relPaths: string[], testIf: TEST_IF): Promise<void> {
     function checkAccess(absPaths: string[]) {
-      const promises = [];
+      const promises: Promise<void>[] = [];
 
       for (const absPath of absPaths) {
         promises.push(io.access(absPath, testIf === TEST_IF.FILE_CAN_BE_READ_FROM ? fse.constants.R_OK : fse.constants.W_OK));
@@ -658,22 +661,13 @@ export class IoContext {
       const absPaths = relPaths.map((p: string) => join(dir, p));
       return checkAccess(absPaths)
         .then(() => {
-          const promises = [];
-
-          for (const absPath of absPaths) {
-            promises.push(io.stat(absPath));
-          }
-
-          return Promise.all(promises);
-        })
-        .then(() => {
           return unix.whichFilesInDirAreOpen(dir);
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
           const errors: Error[] = [];
 
           for (const relPath of relPaths) {
-            const fhs: unix.FileHandle[] = fileHandles.get(relPath);
+            const fhs: unix.FileHandle[] | undefined = fileHandles.get(relPath);
             if (fhs) {
               for (const fh of fhs) {
                 if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
@@ -744,7 +738,7 @@ export class IoContext {
       return Promise.all([]);
     }
 
-    let trashPath: string;
+    let trashPath: string | undefined;
 
     if (typeof IoContext.trashExecutor === 'string') {
       trashPath = IoContext.trashExecutor;
@@ -808,7 +802,7 @@ export class IoContext {
     // 4096 is a good compromise for macOS and Windows
     const chunks: string[][] = [];
     let currentSize = 0;
-    let currentChunk = [];
+    let currentChunk: string[] = [];
     chunks.push(currentChunk);
     for (const absPath of absPaths) {
       if (currentSize + absPath.length + 1 > 4096) {
@@ -821,13 +815,17 @@ export class IoContext {
       currentChunk.push(absPath);
     }
 
+    if (!trashPath) {
+      throw new Error('no trash executable set');
+    }
+
     return PromisePool
       .withConcurrency(8)
       .for(chunks)
       .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
       .process((path: string[]) => {
         return new Promise<void>((resolve, reject) => {
-          const proc = spawn(trashPath, path);
+          const proc: cp.ChildProcessWithoutNullStreams = spawn(trashPath!, path);
 
           proc.on('exit', (code: number) => {
             if (code === 0) {

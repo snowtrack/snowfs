@@ -37,17 +37,17 @@ export class Index {
   /**
    * The repository this instance belongs to.
    */
-  repo: Repository;
+  repo: Repository | null;
 
   /**
    * The object database. Same as [[Repository.getOdb]].
    */
-  odb: Odb;
+  odb: Odb | null;
 
   /**
    * Unique id for the index, used in the filename of the index
    */
-  id: string;
+  id: string | null;
 
   /** Hash map of added files that were written to the odb. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
@@ -75,20 +75,23 @@ export class Index {
    * or can be useful to discard any added or deleted files from the index object.
    */
   invalidate(): Promise<void> {
-    if (this.repo) {
+    const repo = this.repo;
+    if (repo) {
       // check if index exists, this can be false if the commit has no files (--allowEmpty)
       return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
         if (exists) { return fse.unlink(this.getAbsPath()); }
       }).then(() => {
-        this.repo.removeIndex(this);
+        repo.removeIndex(this);
 
         this.addRelPaths = new Set();
         this.deleteRelPaths = new Set();
         this.processedAdded.clear();
-        this.id = undefined;
+        this.id = null;
         this.repo = null;
         this.odb = null;
       });
+    } else {
+      return Promise.resolve();
     }
   }
 
@@ -102,6 +105,10 @@ export class Index {
     if (!this.id && this.id !== '') { // an empty string is allowed for the main index
       // this happens if an index object got commited, it will be deleted and cleared
       throw new Error('index object is invalid');
+    } else if (!this.odb) {
+      throw new Error('no odb set');
+    } else if (!this.repo) {
+      throw new Error('no repo set');
     }
   }
 
@@ -121,7 +128,9 @@ export class Index {
    * @returns       Absolute path to the index file.
    */
   getAbsPath(): string {
-    const indexPath: string = join(Index.getAbsDir(this.repo), this.id ? `index.${this.id}` : 'index');
+    this.throwIfNotValid();
+
+    const indexPath: string = join(Index.getAbsDir(this.repo!), this.id ? `index.${this.id}` : 'index');
     return indexPath;
   }
 
@@ -130,6 +139,8 @@ export class Index {
    */
   private save(): Promise<void> {
     this.throwIfNotValid();
+
+    const repo = this.repo!;
 
     const processed = Array.from(this.processedAdded.entries()).map((res: [string, FileInfo]) => {
       const size: number = res[1].stat.size;
@@ -145,9 +156,9 @@ export class Index {
       deletes: Array.from(this.deleteRelPaths),
       processed,
     });
-    return fse.ensureDir(Index.getAbsDir(this.repo))
+    return fse.ensureDir(Index.getAbsDir(repo))
       .then(() => fss.writeSafeFile(this.getAbsPath(), userData))
-      .then(() => this.repo.modified());
+      .then(() => repo.modified());
   }
 
   /**
@@ -156,7 +167,7 @@ export class Index {
    */
   static loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
     return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
-      const readIndexes = [];
+      const readIndexes: Promise<[string, Buffer]>[] = [];
       for (const dirItem of dirItems) {
         const indexName = basename(dirItem.absPath);
         if (indexName.startsWith('index') || indexName === 'index') {
@@ -165,7 +176,7 @@ export class Index {
       }
       return Promise.all(readIndexes);
     }).then((promises: [string, Buffer][]) => {
-      const parseIndexes = [];
+      const parseIndexes: Index[] = [];
       for (const parseIndex of promises) {
         const indexName = basename(parseIndex[0]); // 'index.abc123'
         const isMainIndex = indexName === 'index';
@@ -201,7 +212,7 @@ export class Index {
 
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
-      const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
+      const relPath: string = isAbsolute(filepath) ? relative(this.repo!.workdir(), filepath) : filepath;
 
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
@@ -220,7 +231,7 @@ export class Index {
 
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
-      const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
+      const relPath: string = isAbsolute(filepath) ? relative(this.repo!.workdir(), filepath) : filepath;
 
       if (!this.processedAdded.has(relPath)) {
         this.deleteRelPaths.add(relPath);
@@ -258,15 +269,15 @@ export class Index {
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
         }
-        return ioContext.performFileAccessCheck(this.repo.workdir(), unprocessedRelItems, TEST_IF.FILE_CAN_BE_READ_FROM);
+        return ioContext.performFileAccessCheck(this.repo!.workdir(), unprocessedRelItems, TEST_IF.FILE_CAN_BE_READ_FROM);
       }).then(() => {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)
           .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
-            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
-            return this.odb.writeObject(filepathAbs, ioContext);
+            const filepathAbs: string = join(this.repo!.repoWorkDir, relFilePath);
+            return this.odb!.writeObject(filepathAbs, ioContext);
           });
       })
       .then((res: {results: {file: string, fileinfo: FileInfo}[]}) => {

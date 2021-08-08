@@ -217,10 +217,10 @@ export interface StatusItemOptionsCustom {
  */
 export class StatusEntry {
   /** Relative path of the item to the workdir root. */
-  path?: string;
+  path: string;
 
   /** Flags, which define the attributes of the item. */
-  status?: STATUS;
+  status: STATUS;
 
   isdir: boolean;
 
