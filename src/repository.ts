@@ -424,7 +424,16 @@ export class Repository {
   /** See [[Repository.commondir]] */
   repoCommonDir: string;
 
+  repoRemote: string | undefined;
+
   commitObservable$ = new Subject<{commitHash: string, action: 'created' | 'deleted' | 'changed'}>();
+
+  /**
+   * Get the url to the snow:// remote
+  */
+  remote(): string | undefined {
+    return this.repoRemote;
+  }
 
   /**
    * Path to the repositories commondir, also known as the `.snow` directory.
@@ -1143,7 +1152,7 @@ export class Repository {
       .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
-          moveTo = target.getName();
+          moveTo = `${target.getName()} (${targetCommit.hash})`;
         } else if (target instanceof Commit) {
           moveTo = target.hash;
         } else {
@@ -1601,7 +1610,9 @@ export class Repository {
         repo.options = new RepositoryInitOptions(commondir);
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
-
+        return fse.readJson(join(commondir, 'config'));
+      }).then((configData: any) => {
+        repo.repoRemote = configData.remote;
         return Odb.open(repo);
       })
       .then((odbResult: Odb) => {
@@ -1736,6 +1747,7 @@ export class Repository {
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
+        repo.repoRemote = undefined;
         repo.repoIndexes = [];
 
         if (commondirOutside) {
