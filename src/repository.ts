@@ -407,9 +407,6 @@ export class Repository {
   /** HEAD reference to the currently checked out commit */
   readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: undefined, start: null });
 
-  /** Array of all commits of the repository. The order is undefined. */
-  commits: Commit[] = [];
-
   /** Hash Map of all commits of the repository. The commit hash is the key, and the Commit object is the value. */
   commitMap = new Map<string, Commit>();
 
@@ -540,7 +537,7 @@ export class Repository {
    * Return an array of all commit clones of the repository. The order is undefined.
    */
   getAllCommits(order: COMMIT_ORDER): Commit[] {
-    const commits = Array.from(this.commits);
+    const commits = Array.from(this.commitMap.values());
     switch (order) {
       case COMMIT_ORDER.OLDEST_FIRST:
         commits.sort((a: Commit, b: Commit) => {
@@ -896,10 +893,6 @@ export class Repository {
 
         this.commitObservable$.next({commitHash, action:'deleted'});
         this.commitMap.delete(commitHash);
-        const index = this.commits.findIndex((c) => c.hash === commitHash);
-        if (index > -1) {
-          this.commits.splice(index, 1);
-        }
       });
   }
 
@@ -1528,7 +1521,6 @@ export class Repository {
       return this.repoOdb.writeCommit(commit);
     })
       .then(() => {
-        this.commits.push(commit);
         this.commitMap.set(commit.hash.toString(), commit);
   
         let ref: Reference;
@@ -1622,7 +1614,6 @@ export class Repository {
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
-        repo.commits = commits;
         for (const commit of commits) {
           repo.commitMap.set(commit.hash.toString(), commit);
         }
@@ -1652,7 +1643,7 @@ export class Repository {
         return Promise.all(promises);
       }).then(() => {
 
-        for (const commit of repo.commits) {
+        for (const commit of Array.from(repo.commitMap.values())) {
           commit.runtimeData.missingObjects = new Set<string>();
 
           const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
