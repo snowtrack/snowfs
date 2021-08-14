@@ -36,6 +36,7 @@
       "test/5.repo.commit.ts",
       "test/6.repo.checkout.ts",
       "test/7.repo.diff.ts",
+      "test/7.repo.misc.ts",
       "test/8.ignore.ts",
       "test/9.iocontext.ts",
       "test/10.cli.ts"
