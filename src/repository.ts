@@ -2,7 +2,7 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { Subject } from 'rxjs';
+import { from, Subject } from 'rxjs';
 import * as io from './io';
 import {
   resolve, join, dirname, extname,
@@ -799,8 +799,8 @@ export class Repository {
     });
   }
 
-  async deleteCommit(commitHash: string) {
-    const commitToDelete: Commit = this.findCommitByHash(commitHash);
+  deleteCommit(commitIdent: string): Promise<void> {
+    const commitToDelete: Commit = this.findCommitByHash(commitIdent);
     if (!commitToDelete) {
       throw new Error('cannot find commit');
     }
@@ -811,7 +811,7 @@ export class Repository {
 
     // If the update wants to remove the checked out commit, we keep the commit
     // alive and only flag it with 'markForDeletion'.
-    if (this.head.hash === commitHash) {
+    if (this.head.hash === commitToDelete.hash) {
       commitToDelete.runtimeData.markForDeletion = true;
       return this.repoOdb.writeCommit(commitToDelete);
     }
@@ -822,13 +822,13 @@ export class Repository {
     let promise: Promise<unknown> = Promise.resolve();
 
     this.commitMap.forEach((c: Commit) => {
-      if (c.hash === commitHash || !c.parent || c.parent.length === 0) {
+      if (c.hash === commitToDelete.hash || !c.parent || c.parent.length === 0) {
         return;
       }
 
       // every commit that is a child commit (direct descendant) of the
       // deleted commit must be updated
-      if (c.parent.includes(commitHash)) {
+      if (c.parent.includes(commitToDelete.hash)) {
         c.lastModifiedDate = new Date();
         c.parent = parentsOfDeletedCommit;
         promise = promise.then(() => {
@@ -847,7 +847,7 @@ export class Repository {
     });
 
     // We need to update every branch that points to the commit
-    const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitHash);
+    const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitToDelete.hash);
     if (branchesPointingToDeletedCommit.length > 0) {
       // If all parents of the deleted commit are indirectly referenced by other branches and commits,
       // we can safely delete the branch ...
@@ -891,8 +891,8 @@ export class Repository {
       }).then(() => {
         // we now delete the commit from the commit map and the commit array
 
-        this.commitObservable$.next({ commitHash, action: 'deleted' });
-        this.commitMap.delete(commitHash);
+        this.commitObservable$.next({ commitHash: commitToDelete.hash, action: 'deleted' });
+        this.commitMap.delete(commitToDelete.hash);
       });
   }
 
@@ -1758,5 +1758,86 @@ export class Repository {
       .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
       .then(() => repo.createCommit(repo.getFirstIndex(), repo.options.defaultCommitMessage ?? 'Created Project', { allowEmpty: true }))
       .then(() => repo);
+  }
+
+  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
+    const localCommits: Map<string, Commit> = localRepo.commitMap;
+    const remoteCommits: Map<string, Commit> = remoteRepo.commitMap;
+
+    let firstLocalCommit: Commit | undefined;
+
+    // find the first commit of the local repo
+    for (const localCommit of Array.from(localCommits.values())) {
+      if (!localCommit?.parent?.length) {
+        firstLocalCommit = localCommit;
+        break;
+      }
+    }
+
+    if (!firstLocalCommit) {
+      throw new Error('unable to find first commit');
+    }
+
+    if (!remoteCommits.has(firstLocalCommit.hash)) {
+      throw new Error('refusing to merge unrelated histories');
+    }
+
+    const commits = new Map(localCommits);
+
+    // Merge commit stage
+    for (const remoteCommit of Array.from(remoteCommits.values())) {
+      const localCommit = commits.get(remoteCommit.hash);
+      if (localCommit) {
+        // if the firebase version is newer, we replace it with the current one on disk
+        const timeOfRemoteCommit = remoteCommit.lastModifiedDate ?? remoteCommit.date;
+        const timeOfVersionInFirebase = localCommit.lastModifiedDate ?? localCommit.date;
+        if (timeOfRemoteCommit > timeOfVersionInFirebase) {
+          commits.set(remoteCommit.hash, remoteCommit);
+        } else {
+          commits.set(localCommit.hash, remoteCommit);
+        }
+      } else {
+        commits.set(remoteCommit.hash, remoteCommit);
+      }
+    }
+
+    // Find all end commits so we can create the references to them
+
+    const commitEndings: Map<string, Commit> = new Map(commits);
+
+    for (const commit of Array.from(commits.values())) {
+      if (commit.parent && commit.parent.length > 0) {
+        for (const parent of commit.parent) {
+          commitEndings.delete(parent);
+        }
+      }
+    }
+
+    // commitEndings now contains all commits that will need a Reference to point to
+
+    const refs = new Map<string, Reference>();
+    let foundRef = false;
+
+    for (const commit of Array.from(commits.values())) {
+      for (const ref of remoteRepo.getAllReferences()) {
+        if (ref.hash === commit.hash) {
+          refs.set(ref.hash, ref);
+          foundRef = true;
+          break;
+        }
+      }
+
+      if (!foundRef) {
+        for (const ref of localRepo.getAllReferences()) {
+          if (ref.hash === commit.hash) {
+            refs.set(ref.hash, ref);
+            foundRef = true;
+            break;
+          }
+        }
+      }
+    }
+
+    return { commits, refs };
   }
 }

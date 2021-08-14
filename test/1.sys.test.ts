@@ -16,7 +16,7 @@ import {
   calculateFileHash,
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
-import { createRandomString } from './helper';
+import { createRandomString, shuffleArray } from './helper';
 import {
   calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
@@ -1542,24 +1542,6 @@ test('TreeDir.remove 4', async (t) => {
   t.is((root0.children[0] as TreeDir).children[0].path, 'xyz/123');
 });
 
-function shuffle(arr) {
-  let len = arr.length;
-  const d = len;
-  const array = [];
-  let k; let
-    i;
-  for (i = 0; i < d; i++) {
-    k = Math.floor(Math.random() * len);
-    array.push(arr[k]);
-    arr.splice(k, 1);
-    len = arr.length;
-  }
-  for (i = 0; i < d; i++) {
-    arr[i] = array[i];
-  }
-  return arr;
-}
-
 test('TreeDir hash stability 1', (t) => {
   /*
   Python verification:
@@ -1586,7 +1568,7 @@ test('TreeDir hash stability 1', (t) => {
   t.log(`All files must have the following hash: ${hash}`);
 
   for (let i = 0; i < 20; ++i) {
-    const shuffledArray = shuffle([tree1, tree2, tree3, tree4]);
+    const shuffledArray = shuffleArray([tree1, tree2, tree3, tree4]);
     const res = calculateSizeAndHash(shuffledArray);
 
     // Here we ensure that the hash of the tree entries is not dependend on their order
