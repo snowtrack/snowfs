@@ -2,8 +2,8 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import * as io from './io';
 import { Subject } from 'rxjs';
+import * as io from './io';
 import {
   resolve, join, dirname, extname,
 } from './path';
@@ -794,7 +794,7 @@ export class Repository {
     return this.repoOdb.writeCommit(commitCopy).then(() => {
       // move copy back to the original commit object
       Object.assign(commit, commitCopy);
-      this.commitObservable$.next({commitHash: commit.hash, action:'changed'});
+      this.commitObservable$.next({ commitHash: commit.hash, action: 'changed' });
       return this.modified();
     });
   }
@@ -808,9 +808,9 @@ export class Repository {
     if (!commitToDelete.parent || commitToDelete.parent.length === 0) {
       throw new Error('cannot delete first commit');
     }
-    
+
     // If the update wants to remove the checked out commit, we keep the commit
-    // alive and only flag it with 'markForDeletion'. 
+    // alive and only flag it with 'markForDeletion'.
     if (this.head.hash === commitHash) {
       commitToDelete.runtimeData.markForDeletion = true;
       return this.repoOdb.writeCommit(commitToDelete);
@@ -834,8 +834,8 @@ export class Repository {
         promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
         }).then(() => {
-          this.commitObservable$.next({commitHash: c.hash, action:'changed'});
-        })
+          this.commitObservable$.next({ commitHash: c.hash, action: 'changed' });
+        });
       }
 
       // Fill 'parentsOfCommitReferencedByOtherCommits' with all the commits
@@ -891,7 +891,7 @@ export class Repository {
       }).then(() => {
         // we now delete the commit from the commit map and the commit array
 
-        this.commitObservable$.next({commitHash, action:'deleted'});
+        this.commitObservable$.next({ commitHash, action: 'deleted' });
         this.commitMap.delete(commitHash);
       });
   }
@@ -1522,7 +1522,7 @@ export class Repository {
     })
       .then(() => {
         this.commitMap.set(commit.hash.toString(), commit);
-  
+
         let ref: Reference;
         if (this.head.hash) {
           this.head.hash = commit.hash;
@@ -1539,7 +1539,7 @@ export class Repository {
           this.references.push(ref);
         }
 
-        this.commitObservable$.next({ commitHash: commit.hash, action: 'created'});
+        this.commitObservable$.next({ commitHash: commit.hash, action: 'created' });
 
         // update .snow/refs/XYZ
         return this.repoOdb.writeReference(ref);
@@ -1603,7 +1603,8 @@ export class Repository {
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
         return fse.readJson(join(commondir, 'config'));
-      }).then((configData: any) => {
+      })
+      .then((configData: any) => {
         repo.repoRemote = configData.remote;
         return Odb.open(repo);
       })
@@ -1630,19 +1631,19 @@ export class Repository {
               if (!checkForExistance.has(fileOfCommit.hash)) {
                 checkForExistance.add(fileOfCommit.hash);
                 promises.push(fse.pathExists(odb.getAbsObjectPath(fileOfCommit))
-                .then((exists: boolean) => {
-                  if (!exists) {
-                    missingObjects.add(fileOfCommit.hash);
-                  }
-                }));
+                  .then((exists: boolean) => {
+                    if (!exists) {
+                      missingObjects.add(fileOfCommit.hash);
+                    }
+                  }));
               }
             }
           }
         }
 
         return Promise.all(promises);
-      }).then(() => {
-
+      })
+      .then(() => {
         for (const commit of Array.from(repo.commitMap.values())) {
           commit.runtimeData.missingObjects = new Set<string>();
 
@@ -1746,7 +1747,8 @@ export class Repository {
             .then(() => hideItem(snowtrackFile));
         }
         return hideItem(opts.commondir);
-      }).then(() => {
+      })
+      .then(() => {
         return fse.writeFile(join(opts.commondir, 'IMPORTANT.txt'), warningMessage);
       })
       .then(() => {
