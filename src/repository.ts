@@ -1960,7 +1960,7 @@ export class Repository {
     for (const commit of Array.from(leafCommits.values())) {
       for (const ref of remoteRepo.getAllReferences()) {
         if (ref.hash === commit.hash) {
-          refs.set(ref.hash, ref);
+          refs.set(ref.getName(), ref);
           foundRef = true;
           break;
         }
@@ -1969,7 +1969,7 @@ export class Repository {
       if (!foundRef) {
         for (const ref of localRepo.getAllReferences()) {
           if (ref.hash === commit.hash) {
-            refs.set(ref.hash, ref);
+            refs.set(ref.getName(), ref);
             foundRef = true;
             break;
           }
