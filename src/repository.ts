@@ -1827,65 +1827,137 @@ export class Repository {
     return repo;
   }
 
-  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
-    const localCommits: Map<string, Commit> = localRepo.commitMap;
-    const remoteCommits: Map<string, Commit> = remoteRepo.commitMap;
-
+  static getRootCommit(repo: Repository): Commit | undefined {
     let firstLocalCommit: Commit | undefined;
 
     // find the first commit of the local repo
-    for (const localCommit of Array.from(localCommits.values())) {
+    for (const localCommit of Array.from(repo.commitMap.values())) {
       if (!localCommit?.parent?.length) {
         firstLocalCommit = localCommit;
         break;
       }
     }
 
-    if (!firstLocalCommit) {
-      throw new Error('unable to find first commit');
-    }
+    return firstLocalCommit;
+  }
 
-    if (!remoteCommits.has(firstLocalCommit.hash)) {
-      throw new Error('refusing to merge unrelated histories');
-    }
+  static getRefsAndCommits(repos: Repository[]): Map<string, Map<string, Commit>> {
+    const refsAndCommits = new Map<string, Map<string, Commit>>();
 
-    const commits = new Map(localCommits);
-
-    // Merge commit stage
-    for (const remoteCommit of Array.from(remoteCommits.values())) {
-      const localCommit = commits.get(remoteCommit.hash);
-      if (localCommit) {
-        // if the firebase version is newer, we replace it with the current one on disk
-        const timeOfRemoteCommit = remoteCommit.lastModifiedDate ?? remoteCommit.date;
-        const timeOfVersionInFirebase = localCommit.lastModifiedDate ?? localCommit.date;
-        if (timeOfRemoteCommit > timeOfVersionInFirebase) {
-          commits.set(remoteCommit.hash, remoteCommit);
-        } else {
-          commits.set(localCommit.hash, remoteCommit);
+    for (const repo of repos) {
+      for (const ref of repo.getAllReferences()) {
+        let storedCommits: Map<string, Commit> | undefined = refsAndCommits.get(ref.getName());
+        if (!storedCommits) {
+          storedCommits = new Map<string, Commit>();
+          refsAndCommits.set(ref.getName(), storedCommits);
         }
-      } else {
-        commits.set(remoteCommit.hash, remoteCommit);
+
+        let commit = repo.findCommitByReference(ref);
+        while (commit) {
+          const localCommit = storedCommits.get(commit.hash);
+          if (localCommit) {
+            // if the firebase version is newer, we replace it with the current one on disk
+            const timeOfRemoteCommit = commit.lastModifiedDate ?? commit.date;
+            const timeOfVersionInFirebase = localCommit.lastModifiedDate ?? localCommit.date;
+            if (timeOfRemoteCommit > timeOfVersionInFirebase) {
+              storedCommits.set(commit.hash, commit);
+            } else {
+              storedCommits.set(localCommit.hash, commit);
+            }
+          } else {
+            storedCommits.set(commit.hash, commit);
+          }
+
+          commit = (commit.parent && commit.parent.length > 0) ? repo.findCommitByHash(commit.parent[0]) : null;
+        }
       }
     }
 
-    // Find all end commits so we can create the references to them
+    return refsAndCommits;
+  }
 
-    const commitEndings: Map<string, Commit> = new Map(commits);
+  static sortCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Map<string, Commit>> {
+    const res = new Map<string, Map<string, Commit>>();
+    for (const [refTarget, commitsPerRef] of refsAndCommits) {
+      const sortedCommits = Array.from(commitsPerRef.values()).sort((a: Commit, b: Commit) => {
+        const timeOfRemoteCommit = a.lastModifiedDate ?? a.date;
+        const timeOfVersionInFirebase = b.lastModifiedDate ?? b.date;
+        return timeOfRemoteCommit > timeOfVersionInFirebase ? 1 : -1;
+      });
+
+      res.set(refTarget, new Map(sortedCommits.map((value: Commit) => [value.hash, value])));
+    }
+    return res;
+  }
+
+  static mergeCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Commit> {
+    const mergedCommits = new Map<string, Commit>();
+
+    for (const commitsPerRef of Array.from(refsAndCommits.values())) {
+      for (const commit of Array.from(commitsPerRef.values())) {
+        mergedCommits.set(commit.hash, commit);
+      }
+    }
+    return mergedCommits;
+  }
+
+  static findLeafCommits(commits: Map<string, Commit>): Map<string, Commit> {
+    const leafCommits: Map<string, Commit> = new Map(commits);
 
     for (const commit of Array.from(commits.values())) {
       if (commit.parent && commit.parent.length > 0) {
         for (const parent of commit.parent) {
-          commitEndings.delete(parent);
+          leafCommits.delete(parent);
         }
       }
     }
+    return leafCommits;
+  }
 
-    // commitEndings now contains all commits that will need a Reference to point to
+  static updateParents(commits: Map<string, Commit>): void {
+    let lastCommit: Commit;
+
+    for (const commit of Array.from(commits.values()).reverse()) {
+      if (lastCommit) {
+        lastCommit.parent = [commit.hash];
+      }
+
+      lastCommit = commit;
+      commit.parent = [commit.hash];
+    }
+
+    lastCommit.parent = null;
+  }
+
+  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
+    const localRootCommit: Commit | undefined = this.getRootCommit(localRepo);
+    const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo);
+
+    if (!localRootCommit || !remoteRootCommit) {
+      throw new Error('unable to find first commit');
+    }
+
+    if (localRootCommit.hash !== remoteRootCommit.hash) {
+      throw new Error('refusing to merge unrelated histories');
+    }
+
+    const refsAndCommits: Map<string, Map<string, Commit>> = Repository.getRefsAndCommits([localRepo, remoteRepo]);
+
+    const sortedRefsAndCommits: Map<string, Map<string, Commit>> = Repository.sortCommits(refsAndCommits);
+
+    for (const commitsInRef of Array.from(sortedRefsAndCommits.values())) {
+      Repository.updateParents(commitsInRef);
+    }
+
+    const newCommitMap: Map<string, Commit> = Repository.mergeCommits(sortedRefsAndCommits);
+
+    const leafCommits: Map<string, Commit> = Repository.findLeafCommits(newCommitMap);
 
     const refs = new Map<string, Reference>();
+
     let foundRef = false;
 
-    for (const commit of Array.from(commits.values())) {
+    for (const commit of Array.from(leafCommits.values())) {
       for (const ref of remoteRepo.getAllReferences()) {
         if (ref.hash === commit.hash) {
           refs.set(ref.hash, ref);
@@ -1905,6 +1977,6 @@ export class Repository {
       }
     }
 
-    return { commits, refs };
+    return { commits: newCommitMap, refs };
   }
 }
