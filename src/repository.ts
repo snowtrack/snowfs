@@ -41,6 +41,45 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
+const visit = (obj: any[]|any, parent: TreeDir) => {
+  if (Array.isArray(obj)) {
+    return obj.map((c: any) => visit(c, parent));
+  }
+
+  if (!obj.userData) {
+    obj.userData = {};
+  }
+
+  if (obj.stats) {
+    // backwards compatibility because item was called cTimeMs before
+    if (obj.stats.ctimeMs) {
+      obj.stats.ctime = obj.stats.cTimeMs;
+    }
+
+    // backwards compatibility because item was called mtimeMs before
+    if (obj.stats.mtimeMs) {
+      obj.stats.mtime = obj.stats.mtimeMs;
+    }
+
+    obj.stats.mtime = new Date(obj.stats.mtime);
+    obj.stats.ctime = new Date(obj.stats.ctime);
+  }
+
+  if (obj.children) {
+    const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
+    o.children = obj.children.map((t: any) => visit(t, o));
+    o.parent = parent;
+    return o;
+  }
+
+  const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
+  o.parent = parent;
+  if (obj.hash) {
+    o.hash = obj.hash;
+  }
+  return o;
+};
+
 const warningMessage = `Attention: Modifications to the content of this directory without the proper knowledge might result in data loss.
 
 Only proceed if you know exactly what you are doing!`;
@@ -1758,6 +1797,34 @@ export class Repository {
       .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
       .then(() => repo.createCommit(repo.getFirstIndex(), repo.options.defaultCommitMessage ?? 'Created Project', { allowEmpty: true }))
       .then(() => repo);
+  }
+
+  static create(commits: Map<string, any>, refs: Map<string, any>): Repository {
+    const repo = new Repository();
+
+    for (const commit of Array.from(commits.values())) {      
+      const tmpCommit: any = commit;
+
+      tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+      tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+      tmpCommit.userData = tmpCommit.userData ?? {};
+      tmpCommit.runtimeData = {};
+      tmpCommit.runtimeData.missingObjects = new Set<string>();
+
+      const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
+      c.repo = repo;
+      c.root = visit(c.root, null);
+      repo.commitMap.set(tmpCommit.hash, c);
+    }
+
+    for (const ref of Array.from(refs.entries())) {   
+      const tmpRef: any = ref;
+
+      const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start})
+      repo.references.push(r);
+    }
+
+    return repo;
   }
 
   static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
