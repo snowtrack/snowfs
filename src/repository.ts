@@ -1802,7 +1802,7 @@ export class Repository {
   static create(commits: Map<string, any>, refs: Map<string, any>): Repository {
     const repo = new Repository();
 
-    for (const commit of Array.from(commits.values())) {      
+    for (const commit of Array.from(commits.values())) {
       const tmpCommit: any = commit;
 
       tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
@@ -1817,10 +1817,10 @@ export class Repository {
       repo.commitMap.set(tmpCommit.hash, c);
     }
 
-    for (const ref of Array.from(refs.entries())) {   
+    for (const ref of Array.from(refs.entries())) {
       const tmpRef: any = ref;
 
-      const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start})
+      const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
       repo.references.push(r);
     }
 
