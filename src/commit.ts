@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import { Repository } from './repository';
 import { TreeDir } from './treedir';
 import { jsonCompliant } from './common';
+import { join } from './path';
 
 /**
  * A class that represents the commits of a repository.
@@ -125,5 +126,23 @@ export class Commit {
    */
   owner(): Repository {
     return this.repo;
+  }
+
+  toJson(): any {
+    const parent = this.parent ? this.parent : null;
+    const root = this.root.toJson();
+    const tags = this.tags?.length > 0 ? this.tags : undefined;
+    const userData = this.userData && Object.keys(this.userData).length > 0 ? this.userData : undefined;
+
+    return {
+      hash: this.hash,
+      message: this.message,
+      date: this.date.getTime(),
+      parent,
+      root,
+      ...(tags? {lastModifiedDate: this.lastModifiedDate?.getTime()}: {}),
+      ...(tags? {tags}: {}),
+      ...(userData? {userData}: {}),
+    };
   }
 }
