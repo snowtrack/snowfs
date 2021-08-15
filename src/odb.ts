@@ -246,34 +246,10 @@ export class Odb {
   }
 
   writeCommit(commit: Commit): Promise<void> {
-    const objectsDir: string = join(this.repo.options.commondir, 'versions');
-    const commitSha256: string = commit.hash;
-    const dstFile: string = join(objectsDir, commitSha256);
-
-    // json content
-    const parent = commit.parent ? commit.parent : null;
-    const root = commit.root.toJsonObject(true);
-    const tags = commit.tags?.length > 0 ? commit.tags : undefined;
-    const userData = commit.userData && Object.keys(commit.userData).length > 0 ? commit.userData : undefined;
-
-    const stream = fse.createWriteStream(dstFile, { flags: 'w' });
-    const content = JSON.stringify({
-      hash: commit.hash,
-      message: commit.message,
-      date: commit.date.getTime(),
-      lastModifiedDate: commit.lastModifiedDate?.getTime(),
-      parent,
-      root,
-      tags,
-      userData,
-    }, null, '\t');
-    stream.write(content);
-
-    return new Promise((resolve, reject) => {
-      stream.on('finish', resolve);
-      stream.on('error', reject);
-      stream.end();
-    }).then(() => this.repo.modified());
+    const json = commit.toJson();
+    return fse.writeJson(join(this.repo.options.commondir, 'versions',  commit.hash),
+            json, { spaces: '\t'})
+      .then(() => this.repo.modified());
   }
 
   writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
