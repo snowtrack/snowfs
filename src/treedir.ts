@@ -125,7 +125,7 @@ export class TreeFile extends TreeEntry {
       this.path, StatsSubset.clone(this.stats), this.ext, parent);
   }
 
-  toJsonObject(): any {
+  toJson(): any {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && !this.path) {
@@ -259,7 +259,7 @@ export class TreeDir extends TreeEntry {
     return privateMerge(source, target.clone()) as TreeDir;
   }
 
-  toJsonObject(includeChildren?: boolean): any {
+  toJson(): any {
     if (!this.parent && this.path) {
       throw new Error('parent has no path');
     } else if (this.parent && (!this.path || this.path.length === 0)) {
@@ -267,7 +267,7 @@ export class TreeDir extends TreeEntry {
       throw new Error('item must have path');
     }
 
-    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toJsonObject(includeChildren));
+    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toJson());
 
     const stats: any = {
       size: this.stats.size,
