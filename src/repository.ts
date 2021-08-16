@@ -452,7 +452,7 @@ export class Repository {
   /** Array of all references in the repository. The order is undefined.
    * The array does not contain the HEAD reference
    */
-  references: Reference[] = [];
+  references = new Map<string, Reference>();
 
   /** See [[Repository.workdir]] */
   repoWorkDir: string;
@@ -616,23 +616,26 @@ export class Repository {
    * The reference names can be acquired by [[Repository.getAllReferences]].
    * `name` can also be `HEAD`.
    */
-  findCommitByReferenceName(type: REFERENCE_TYPE, refName: string): Commit|null {
-    let ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
-    if (!ref) {
-      ref = (refName === 'HEAD') ? this.head : null;
+  findCommitByReferenceName(type: REFERENCE_TYPE, refName: string): Commit | null {
+    let ref: Reference | undefined;
+    if (refName === 'HEAD') {
+      ref = this.head;
+    } else {
+      ref = this.references.get(refName);
     }
-    if (!ref) {
-      return null;
+    if (ref && ref.type === type) {
+      return this.commitMap.get(ref.hash.toString()) || null;
+    } else {
+      return undefined;
     }
-    return this.commitMap.get(ref.hash.toString());
   }
 
   /**
    * Find and return the commit object by a given reference.
    * The references can be acquired by [[Repository.getAllReferences]].
    */
-  findCommitByReference(ref: Reference): Commit {
-    return this.commitMap.get(ref.hash.toString());
+  findCommitByReference(ref: Reference): Commit | null {
+    return this.commitMap.get(ref.hash.toString()) || null;
   }
 
   /**
@@ -640,8 +643,13 @@ export class Repository {
    * The reference names can be acquired by [[Repository.getAllReferences]].
    */
   findReferenceByName(type: REFERENCE_TYPE, refName: string): Reference|null {
-    const ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
-    return ref?.clone();
+    let ref: Reference | null = null;
+    if (refName === 'HEAD') {
+      ref = this.head;
+    } else {
+      ref = this.references.get(refName);
+    }
+    return ref ? ref.clone() : null;
   }
 
   /**
@@ -665,7 +673,7 @@ export class Repository {
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
   getAllReferences(): Reference[] {
-    return Object.assign([], this.references);
+    return Array.from(this.references.values());
   }
 
   /**
@@ -673,7 +681,7 @@ export class Repository {
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
   getAllReferenceNames(): string[] {
-    return this.references.map((ref: Reference) => ref.getName());
+    return Array.from(this.references.values()).map((ref: Reference) => ref.getName());
   }
 
   /**
@@ -696,8 +704,8 @@ export class Repository {
       for (const idx of hash.split('~')) {
         if (idx === 'HEAD') {
           commit = this.commitMap.get(this.getHead().hash);
-        } else if (this.references.map((r: Reference) => r.getName()).includes(idx)) {
-          const ref = this.references.find((r: Reference) => r.getName() === idx);
+        } else if (this.references.has(idx)) {
+          const ref = this.references.get(idx);
           commit = this.commitMap.get(ref.target());
         } else if (commit) {
           const iteration: number = parseInt(idx, 10);
@@ -726,28 +734,29 @@ export class Repository {
    * is not part of the returned array and must be acquired seperately by [[Repository.getHead]].
    */
   filterReferenceByHash(hash: string): Reference[] {
-    return this.references.filter((ref: Reference) => ref.hash === hash);
+    return Array.from(this.references.values()).filter((ref: Reference) => ref.hash === hash);
   }
 
   filterReferencesByHead(): Reference[] {
-    return this.references.filter((ref: Reference) => this.head.hash === ref.hash);
+    return Array.from(this.references.values()).filter((ref: Reference) => this.head.hash === ref.hash);
   }
 
   /**
    * Deletes the passed reference. If the passed Reference is the HEAD reference, it is ignored.
    */
-  deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
+  deleteReference(branchName: string): Promise<string | null> {
     if (this.getHead().getName() === branchName) {
       throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
     }
 
-    let ref: Reference = null;
-    const index = this.references.findIndex((r: Reference) => r.getName() === branchName && r.getType() === type);
-    if (index > -1) {
-      ref = this.references[index];
-      this.references.splice(index, 1);
+    const ref: Reference | undefined = this.references.get(branchName);
+    if (!ref) {
+      throw new Error('no such reference');
     }
-    return this.repoOdb.deleteReference(ref).then(() =>
+
+    this.references.delete(branchName);
+
+    return this.repoOdb.deleteReference(branchName).then(() =>
       // delete the sha the reference was pointing to
       (ref ? ref.target() : null)).catch(() =>
       // delete the sha the reference was pointing to
@@ -768,7 +777,7 @@ export class Repository {
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
   createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: any): Promise<Reference> {
-    const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
+    const existingRef: Reference = this.references.get(name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
         throw new Error(`A branch named '${name}' already exists.`);
@@ -786,7 +795,7 @@ export class Repository {
 
     const newRef: Reference = new Reference(type, name, this, { hash: startPoint, start: startPoint, userData });
 
-    this.references.push(newRef);
+    this.references.set(newRef.getName(), newRef);
     return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${startPoint}`)).then(() => newRef);
   }
 
@@ -797,7 +806,7 @@ export class Repository {
    * @param name    Name of the reference.
    */
   setHead(name: string): void {
-    if (!this.references.find((v: Reference) => v.getName() === name)) {
+    if (!this.references.has(name)) {
       throw new Error(`unknown reference name ${name}`);
     }
     this.head.setName(name);
@@ -894,11 +903,11 @@ export class Repository {
         for (const b of branchesPointingToDeletedCommit) {
           promise = promise.then((): Promise<unknown> => {
             // ensure we dont delete the last reference
-            if (this.references.length <= 1) {
+            if (this.references.size <= 1) {
               return Promise.resolve();
             }
 
-            return this.deleteReference(REFERENCE_TYPE.BRANCH, b.getName());
+            return this.deleteReference(b.getName());
           });
         }
       } else { // ... otherwise it means the commit is not an orphan and we need to update all branches that pointed to it
@@ -1566,7 +1575,7 @@ export class Repository {
         if (this.head.hash) {
           this.head.hash = commit.hash;
           // update the hash of the current head reference as well
-          ref = this.references.find((r: Reference) => r.getName() === this.head.getName());
+          ref = this.references.get(this.head.getName());
           if (ref) {
             ref.lastModifiedDate = new Date();
             ref.hash = commit.hash;
@@ -1575,7 +1584,7 @@ export class Repository {
           this.head.setName(this.options.defaultBranchName ?? 'Main');
           this.head.hash = commit.hash;
           ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
-          this.references.push(ref);
+          this.references.set(ref.getName(), ref);
         }
 
         this.commitObservable$.next({ commitHash: commit.hash, action: 'created' });
@@ -1699,13 +1708,13 @@ export class Repository {
         return odb.readReferences();
       })
       .then((references: Reference[]) => {
-        repo.references = references;
+        repo.references = new Map(references.map((r) => [r.getName(), r]));
         return odb.readHeadReference();
       })
       .then((hashOrRefNameResult: string|null) => {
         let hashOrRefName = hashOrRefNameResult;
         if (!hashOrRefName) {
-          if (repo.references.length > 0) {
+          if (repo.references.size > 0) {
             hashOrRefName = repo.references[0].getName();
           } else {
             // TODO (Seb): What shall we do if no reaf nor HEAD is available?
@@ -1716,7 +1725,7 @@ export class Repository {
         let headRef: Reference = null;
         // check if the head is a name
         if (hashOrRefName) {
-          headRef = repo.references.find((ref: Reference) => ref.getName() === hashOrRefName);
+          headRef = repo.references.get(hashOrRefName);
         }
 
         if (!headRef) {
@@ -1821,7 +1830,7 @@ export class Repository {
       const tmpRef: any = ref;
 
       const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
-      repo.references.push(r);
+      repo.references.set(r.getName(), r);
     }
 
     return repo;
@@ -1878,14 +1887,14 @@ export class Repository {
 
   static sortCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Map<string, Commit>> {
     const res = new Map<string, Map<string, Commit>>();
-    for (const [refTarget, commitsPerRef] of refsAndCommits) {
+    for (const [refTarget, commitsPerRef] of Array.from(refsAndCommits.entries())) {
       const sortedCommits = Array.from(commitsPerRef.values()).sort((a: Commit, b: Commit) => {
         const timeOfRemoteCommit = a.lastModifiedDate ?? a.date;
         const timeOfVersionInFirebase = b.lastModifiedDate ?? b.date;
         return timeOfRemoteCommit > timeOfVersionInFirebase ? 1 : -1;
       });
 
-      res.set(refTarget, new Map(sortedCommits.map((value: Commit) => [value.hash, value])));
+      res.set(refTarget[0], new Map(sortedCommits.map((value: Commit) => [value.hash, value])));
     }
     return res;
   }

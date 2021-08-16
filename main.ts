@@ -247,7 +247,7 @@ program
           throw new Error('start-point must be empty');
         }
 
-        const oldTarget = await repo.deleteReference(REFERENCE_TYPE.BRANCH, branchName);
+        const oldTarget = await repo.deleteReference(branchName);
         console.log(`Deleted branch '${branchName}' (was ${oldTarget})`);
       } else {
         let data = {};
