@@ -257,3 +257,30 @@ test('Repository.merge3', async (t) => {
   merge1(t, repo1, repo2);
   merge2(t, repo1, repo2);
 });
+
+
+test('Repository.merge4', async (t) => {
+  // Create two repos with the same branch but with different starting points of the references
+  // The goal is to ensure that one of the references will get a numeric suffix as they are non-mergable
+
+  const repoPath = getRandomPath();
+  const repo1: Repository = await Repository.initExt(repoPath, { defaultBranchName: 'Red Track' });
+
+  const repo2path = getRandomPath();
+  fse.copySync(repo1.workdir(), repo2path, { recursive: true });
+
+  const yellowTrack1: Reference = await repo1.createNewReference(REFERENCE_TYPE.BRANCH, 'Yellow Track', null);
+  await repo1.checkout(yellowTrack1, RESET.DEFAULT);
+  await repo1.createCommit(null, 'commit 1 (repo1)', { allowEmpty: true });
+
+  const repo2: Repository = await Repository.open(repo2path);
+
+  await repo2.createCommit(null, 'commit 1 (repo2)', { allowEmpty: true });
+  const yellowTrack2: Reference = await repo2.createNewReference(REFERENCE_TYPE.BRANCH, 'Yellow Track', null);
+  await repo2.checkout(yellowTrack2, RESET.DEFAULT);
+  await repo2.createCommit(null, 'commit 2 (repo2)', { allowEmpty: true });
+
+  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+  t.is(merge1.refs.size, 3);
+  t.is(merge1.commits.size, 4);
+});

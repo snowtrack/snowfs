@@ -41,6 +41,9 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
+type RefName = string;
+type CommitHash = string;
+
 const visit = (obj: any[]|any, parent: TreeDir) => {
   if (Array.isArray(obj)) {
     return obj.map((c: any) => visit(c, parent));
@@ -1848,15 +1851,29 @@ export class Repository {
     return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
   }
 
-  static getRefsAndCommits(repos: Repository[]): Map<string, Map<string, Commit>> {
-    const refsAndCommits = new Map<string, Map<string, Commit>>();
+  static getRefsAndCommits(repos: Repository[]): [Map<RefName, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
+
+    const processedRefs = new Map<RefName, Reference>();
+    const refsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
 
     for (const repo of repos) {
       for (const ref of repo.getAllReferences()) {
-        let storedCommits: Map<string, Commit> | undefined = refsAndCommits.get(ref.getName());
+        let refName = ref.getName();
+
+        const originalRef: Reference = processedRefs.get(refName);
+        if (originalRef) {
+          if (originalRef.start() !== ref.start()) {
+            refName += ' (2)';
+            processedRefs.set(refName, ref);
+          }
+        } else {
+          processedRefs.set(refName, ref);
+        }
+
+        let storedCommits: Map<CommitHash, Commit> | undefined = refsAndCommits.get(refName);
         if (!storedCommits) {
-          storedCommits = new Map<string, Commit>();
-          refsAndCommits.set(ref.getName(), storedCommits);
+          storedCommits = new Map<CommitHash, Commit>();
+          refsAndCommits.set(refName, storedCommits);
         }
 
         let commit = repo.findCommitByReference(ref);
@@ -1880,7 +1897,7 @@ export class Repository {
       }
     }
 
-    return refsAndCommits;
+    return [processedRefs, refsAndCommits];
   }
 
   static sortCommits(commits: Map<string, Commit>): Map<string, Commit> {
@@ -1931,7 +1948,7 @@ export class Repository {
     lastCommit.parent = null;
   }
 
-  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
+  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
     const localRootCommit: Commit | undefined = this.getRootCommit(localRepo.commitMap);
     const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo.commitMap);
 
@@ -1943,9 +1960,7 @@ export class Repository {
       throw new Error('refusing to merge unrelated histories');
     }
 
-    type RefName = string;
-    type CommitHash = string;
-    const refsAndCommits: Map<RefName, Map<CommitHash, Commit>> = Repository.getRefsAndCommits([localRepo, remoteRepo]);
+    const [newRefs, refsAndCommits] = Repository.getRefsAndCommits([localRepo, remoteRepo]);
 
     const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
     refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
@@ -1958,33 +1973,6 @@ export class Repository {
 
     const newCommitMap: Map<string, Commit> = Repository.mergeCommits(sortedRefsAndCommits);
 
-    const leafCommits: Map<string, Commit> = Repository.findLeafCommits(newCommitMap);
-
-    const refs = new Map<string, Reference>();
-
-    for (const commit of Array.from(leafCommits.values())) {
-
-      let foundRef = false;
-
-      for (const ref of remoteRepo.getAllReferences()) {
-        if (ref.hash === commit.hash) {
-          refs.set(ref.getName(), ref);
-          foundRef = true;
-          break;
-        }
-      }
-
-      if (!foundRef) {
-        for (const ref of localRepo.getAllReferences()) {
-          if (ref.hash === commit.hash) {
-            refs.set(ref.getName(), ref);
-            foundRef = true;
-            break;
-          }
-        }
-      }
-    }
-
-    return { commits: newCommitMap, refs };
+    return { commits: newCommitMap, refs: newRefs };
   }
 }
