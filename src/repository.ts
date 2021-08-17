@@ -776,7 +776,7 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: any): Promise<Reference> {
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string | null, userData?: any): Promise<Reference> {
     const existingRef: Reference = this.references.get(name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
@@ -1428,7 +1428,7 @@ export class Repository {
    * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns        New commit object.
    */
-  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
+  async createCommit(index: Index | null, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
     let tree: TreeDir = null;
     let commit: Commit = null;
     if (opts?.allowEmpty) {
@@ -1589,8 +1589,15 @@ export class Repository {
 
         this.commitObservable$.next({ commitHash: commit.hash, action: 'created' });
 
-        // update .snow/refs/XYZ
-        return this.repoOdb.writeReference(ref);
+        // If 'ref' is null, we are in a detached HEAD and make a commit.
+        // We don't throw an exception in this case as it is the responsibility
+        // by the caller to guarantee to not leave behind a detached HEAD after the commit.
+        if (ref) {
+          // update .snow/refs/XYZ
+          return this.repoOdb.writeReference(ref);
+        } else {
+          return Promise.resolve();
+        }
       })
       .then(() => {
         // update .snow/HEAD
@@ -1955,9 +1962,10 @@ export class Repository {
 
     const refs = new Map<string, Reference>();
 
-    let foundRef = false;
-
     for (const commit of Array.from(leafCommits.values())) {
+
+      let foundRef = false;
+
       for (const ref of remoteRepo.getAllReferences()) {
         if (ref.hash === commit.hash) {
           refs.set(ref.getName(), ref);
