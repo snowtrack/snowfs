@@ -1836,18 +1836,9 @@ export class Repository {
     return repo;
   }
 
-  static getRootCommit(repo: Repository): Commit | undefined {
-    let firstLocalCommit: Commit | undefined;
-
-    // find the first commit of the local repo
-    for (const localCommit of Array.from(repo.commitMap.values())) {
-      if (!localCommit?.parent?.length) {
-        firstLocalCommit = localCommit;
-        break;
-      }
-    }
-
-    return firstLocalCommit;
+  static getRootCommit(commits: Map<string, Commit>): Commit | undefined {
+    // The first commit that has no parent is considered to be the root commit
+    return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
   }
 
   static getRefsAndCommits(repos: Repository[]): Map<string, Map<string, Commit>> {
@@ -1885,18 +1876,13 @@ export class Repository {
     return refsAndCommits;
   }
 
-  static sortCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Map<string, Commit>> {
-    const res = new Map<string, Map<string, Commit>>();
-    for (const [refTarget, commitsPerRef] of Array.from(refsAndCommits.entries())) {
-      const sortedCommits = Array.from(commitsPerRef.values()).sort((a: Commit, b: Commit) => {
-        const timeOfRemoteCommit = a.lastModifiedDate ?? a.date;
-        const timeOfVersionInFirebase = b.lastModifiedDate ?? b.date;
-        return timeOfRemoteCommit > timeOfVersionInFirebase ? 1 : -1;
-      });
-
-      res.set(refTarget[0], new Map(sortedCommits.map((value: Commit) => [value.hash, value])));
-    }
-    return res;
+  static sortCommits(commits: Map<string, Commit>): Map<string, Commit> {
+    const sortedCommits = Array.from(commits.values()).sort((a: Commit, b: Commit) => {
+      const aTime = a.lastModifiedDate ?? a.date;
+      const bTime = b.lastModifiedDate ?? b.date;
+      return aTime > bTime ? 1 : -1;
+    });
+    return new Map((sortedCommits.map((commit: Commit) => [commit.hash, commit])));
   }
 
   static mergeCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Commit> {
@@ -1939,8 +1925,8 @@ export class Repository {
   }
 
   static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<string, Commit>, refs: Map<string, Reference> } {
-    const localRootCommit: Commit | undefined = this.getRootCommit(localRepo);
-    const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo);
+    const localRootCommit: Commit | undefined = this.getRootCommit(localRepo.commitMap);
+    const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo.commitMap);
 
     if (!localRootCommit || !remoteRootCommit) {
       throw new Error('unable to find first commit');
@@ -1950,9 +1936,14 @@ export class Repository {
       throw new Error('refusing to merge unrelated histories');
     }
 
-    const refsAndCommits: Map<string, Map<string, Commit>> = Repository.getRefsAndCommits([localRepo, remoteRepo]);
+    type RefName = string;
+    type CommitHash = string;
+    const refsAndCommits: Map<RefName, Map<CommitHash, Commit>> = Repository.getRefsAndCommits([localRepo, remoteRepo]);
 
-    const sortedRefsAndCommits: Map<string, Map<string, Commit>> = Repository.sortCommits(refsAndCommits);
+    const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
+    refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
+      sortedRefsAndCommits.set(refName, Repository.sortCommits(commitsInRef));
+    });
 
     for (const commitsInRef of Array.from(sortedRefsAndCommits.values())) {
       Repository.updateParents(commitsInRef);

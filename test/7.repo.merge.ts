@@ -1,4 +1,5 @@
 import test from 'ava';
+import { assert } from 'console';
 import * as fse from 'fs-extra';
 import { Index } from '../src';
 import { Commit } from '../src/commit';
@@ -61,15 +62,6 @@ function createRepo1(): Promise<Repository> {
     });
 }
 
-test('Repository.baisc.fail', async (t) => {
-  // Making merging to unrelated repos fail
-  t.plan(2);
-  const repo1: Repository = await createRepo1();
-  const repo2: Repository = await createRepo1();
-  const error = t.throws(() => Repository.merge(repo1, repo2));
-  t.is(error.message, 'refusing to merge unrelated histories');
-});
-
 function shuffleRepoMembers(repo: Repository): void {
   // shuffle members in commit map
   const commitArray = Array.from(repo.commitMap.values());
@@ -78,7 +70,77 @@ function shuffleRepoMembers(repo: Repository): void {
   repo.references = shuffleArray(repo.references);
 }
 
-test.only('Repository.basic1', async (t) => {
+test('Repository.getRootCommit', async (t) => {
+  t.plan(11);
+
+  const repo: Repository = await createRepo1();
+  
+  for (let i = 0; i < 10; ++i) {
+    shuffleRepoMembers(repo);
+
+    const firstCommit = Repository.getRootCommit(repo.commitMap);
+    t.is(firstCommit.message, 'Created Project');
+  }
+
+  const ret = Repository.getRootCommit(new Map());
+  t.is(ret, undefined);
+});
+
+test('Repository.sortCommits', async (t) => {
+  t.plan(90);
+
+  const repo: Repository = await createRepo1();
+  
+  for (let i = 0; i < 10; ++i) {
+    shuffleRepoMembers(repo);
+
+    const sortedCommits = Repository.sortCommits(repo.commitMap);
+    const commits: Commit[] = Array.from(sortedCommits.values());
+
+    t.is(sortedCommits.size, 8);
+    t.is(commits[0].message, 'Created Project');
+    t.is(commits[1].message, 'commit 1');
+    t.is(commits[2].message, 'commit 2');
+    t.is(commits[3].message, 'commit 3');
+    t.is(commits[4].message, 'commit 4');
+    t.is(commits[5].message, 'commit 5');
+    t.is(commits[6].message, 'commit 6');
+    t.is(commits[7].message, 'commit 7');
+  }
+});
+
+test('Repository.findLeafCommits', async (t) => {
+  t.plan(40);
+
+  const repo: Repository = await createRepo1();
+  
+  for (let i = 0; i < 10; ++i) {
+    shuffleRepoMembers(repo);
+
+    const leafCommits = Repository.findLeafCommits(repo.commitMap);
+    const commits: Commit[] = Array.from(leafCommits.values())
+      .sort((a: Commit, b: Commit) => a.message > b.message ? 1 : -1);
+
+    t.is(leafCommits.size, 3);
+
+    t.is(commits[0].message, 'commit 4');
+    t.is(commits[1].message, 'commit 5');
+    t.is(commits[2].message, 'commit 7');
+  }
+});
+
+test('Repository.basic.fail', async (t) => {
+  // Making merging to unrelated repos fail
+  t.plan(2);
+  const repo1: Repository = await createRepo1();
+  const repo2: Repository = await createRepo1();
+  const error = t.throws(() => Repository.merge(repo1, repo2));
+  t.is(error.message, 'refusing to merge unrelated histories');
+});
+
+test('Repository.merge1', async (t) => {
+  t.plan(21);
+
   // Create a simple linear repo, clone it, delete a commit, and finally merge
   // On top, we shuffle the commits inside the commit map to ensure the output
   // of Repository.merge is always deterministic
@@ -96,7 +158,6 @@ test.only('Repository.basic1', async (t) => {
     const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
     t.is(merge1.commits.size, 8);
 
-    console.log(join(repo1.commondir(), 'objects').replace(/\//g, '\\'));
     fse.rmdirSync(join(repo1.commondir(), 'versions'), { recursive: true });
     fse.rmdirSync(join(repo1.commondir(), 'refs'), { recursive: true });
     fse.ensureDirSync(join(repo1.commondir(), 'versions'));
