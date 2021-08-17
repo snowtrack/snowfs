@@ -132,7 +132,7 @@ test('Repository.basic.fail', async (t) => {
 });
 
 test('Repository.merge1', async (t) => {
-  t.plan(21);
+  t.plan(20);
 
   // Create a simple linear repo, clone it, delete a commit, and finally merge
   // On top, we shuffle the commits inside the commit map to ensure the output
