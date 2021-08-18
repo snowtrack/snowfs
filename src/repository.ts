@@ -1847,7 +1847,7 @@ export class Repository {
     return count;
   }
 
-  static getRefsAndCommits(repos: Repository[]): [Map<RefName, Reference>, Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
+  static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
 
     const refCommitCount = new Map<RefName, number>();
     const refNameMap = new Map<RefName, Reference>();
@@ -1864,9 +1864,11 @@ export class Repository {
         if (storedCommitCount !== undefined) {
           if (commitCount > storedCommitCount) {
             refStartMap.set(ref.hash, ref);
+            refCommitCount.set(refName, commitCount);
           }
         } else {
           refStartMap.set(ref.hash, ref);
+          refCommitCount.set(refName, commitCount);
         }
 
         const originalRef: Reference = refNameMap.get(refName);
@@ -1912,7 +1914,7 @@ export class Repository {
       }
     }
 
-    return [refNameMap, refStartMap, refsAndCommits];
+    return [refStartMap, refsAndCommits];
   }
 
   static sortCommits(commits: Map<string, Commit>): Map<string, Commit> {
@@ -1975,7 +1977,7 @@ export class Repository {
       throw new Error('refusing to merge unrelated histories');
     }
 
-    const [refNames, refHashes, refsAndCommits] = Repository.getRefsAndCommits([localRepo, remoteRepo]);
+    const [refHashes, refsAndCommits] = Repository.getRefsAndCommits([localRepo, remoteRepo]);
 
     const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
     refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
