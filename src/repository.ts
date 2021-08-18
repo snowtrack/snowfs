@@ -1852,6 +1852,20 @@ export class Repository {
     return count;
   }
 
+  static getRootOfReference(repo: Repository, refCounts: Map<string, number>, ref: Reference): Commit | null {
+    let commit = repo.findCommitByReference(ref);
+
+    while (commit) {
+      const refCount: number | undefined = refCounts.get(commit.hash);
+      if (refCount !== undefined) {
+        if (refCount > 1) { // the first commit that has more than 1 parent is our root
+          break;
+        }
+      }
+      commit = (commit.parent && commit.parent.length > 0) ? repo.findCommitByHash(commit.parent[0]) : null;
+    }
+    return commit;
+  }
   static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
 
     const usedRefNames = new Set<RefName>();
