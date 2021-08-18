@@ -1839,11 +1839,11 @@ export class Repository {
   static getCommitCount(repo: Repository, ref: Reference): number {
     let count = 0;
 
-    let commit: Commit = repo.findCommitByReference(ref);
+    let commit: Commit | null = repo.findCommitByReference(ref);
     while (commit) {
       count++;
 
-      if (commit.parent?.length > 0) {
+      if (commit.parent && commit.parent.length > 0) {
         commit = repo.findCommitByHash(commit.parent[0]);
       } else {
         break;
@@ -1852,20 +1852,25 @@ export class Repository {
     return count;
   }
 
-  static getRootOfReference(repo: Repository, refCounts: Map<string, number>, ref: Reference): Commit | null {
-    let commit = repo.findCommitByReference(ref);
+  static refsAreExtensions(ref1: Reference, ref2: Reference): boolean {
+    let commit: Commit | null;
 
+    let commitHashChain1 = '';
+    commit = ref1.repo.findCommitByReference(ref1);
     while (commit) {
-      const refCount: number | undefined = refCounts.get(commit.hash);
-      if (refCount !== undefined) {
-        if (refCount > 1) { // the first commit that has more than 1 parent is our root
-          break;
-        }
-      }
-      commit = (commit.parent && commit.parent.length > 0) ? repo.findCommitByHash(commit.parent[0]) : null;
+      commitHashChain1 += commit.hash;
+      commit = (commit.parent && commit.parent.length > 0) ? ref1.repo.findCommitByHash(commit.parent[0]) : null;
     }
-    return commit;
+
+    let commitHashChain2 = '';
+    commit = ref2.repo.findCommitByReference(ref2);
+    while (commit) {
+      commitHashChain2 += commit.hash;
+      commit = (commit.parent && commit.parent.length > 0) ? ref2.repo.findCommitByHash(commit.parent[0]) : null;
+    }
+    return commitHashChain1.startsWith(commitHashChain2) || commitHashChain2.startsWith(commitHashChain1);
   }
+
   static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
 
     const usedRefNames = new Set<RefName>();
@@ -1873,25 +1878,26 @@ export class Repository {
     const refTrack = new Map<string, Reference>();
     const refsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
 
+    
     for (const repo of repos) {
       for (let ref of repo.getAllReferences()) {
         let refName = ref.getName();
 
-        const knownRef: Reference | undefined = refTrack.get(refName + ';' + ref.start());
+        const knownRef: Reference | undefined = refTrack.get(refName);
         if (knownRef) {
+          if (Repository.refsAreExtensions(knownRef, ref)) {
             const knownRefCount: number = this.getCommitCount(knownRef.repo, knownRef);
             const currentRefCount: number = this.getCommitCount(repo, ref);
             if (currentRefCount > knownRefCount) {
-              refTrack.set(refName + ';' + ref.start(), ref);
+              refTrack.set(refName, ref);
             }
-        } else {
-          if (usedRefNames.has(refName)) {
+          } else if (usedRefNames.has(refName)) {
             refName += ' (2)';
             ref = ref.clone();
             ref.setName(refName);
           }
-
-          refTrack.set(refName + ';' + ref.start(), ref);
+        } else {
+          refTrack.set(refName, ref);
           usedRefNames.add(refName);
         }
 
@@ -1970,7 +1976,7 @@ export class Repository {
   }
 
   static updateParents(commits: Map<string, Commit>): void {
-    let lastCommit: Commit;
+    let lastCommit: Commit | undefined;
 
     for (const commit of Array.from(commits.values()).reverse()) {
       if (lastCommit) {
