@@ -1840,52 +1840,48 @@ export class Repository {
     let count = 0;
 
     let commit: Commit = repo.findCommitByReference(ref);
-    while (commit && commit.parent?.length > 0) {
+    while (commit) {
       count++;
-      commit = repo.findCommitByHash(commit.parent[0]);
+
+      if (commit.parent?.length > 0) {
+        commit = repo.findCommitByHash(commit.parent[0]);
+      } else {
+        break;
+      }
     }
     return count;
   }
 
   static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
 
-    const refCommitCount = new Map<RefName, number>();
-    const refNameMap = new Map<RefName, Reference>();
-    const refStartMap = new Map<RefHash, Reference>();
+    const usedRefNames = new Set<RefName>();
+    const refs = new Map<RefHash, Reference>();
+    const refTrack = new Map<string, Reference>();
     const refsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
 
     for (const repo of repos) {
-      for (const ref of repo.getAllReferences()) {
-
+      for (let ref of repo.getAllReferences()) {
         let refName = ref.getName();
 
-        const commitCount = Repository.getCommitCount(repo, ref);
-        const storedCommitCount = refCommitCount.get(refName);
-        if (storedCommitCount !== undefined) {
-          if (commitCount > storedCommitCount) {
-            refStartMap.set(ref.hash, ref);
-            refCommitCount.set(refName, commitCount);
-          }
+        const knownRef: Reference | undefined = refTrack.get(refName + ';' + ref.start());
+        if (knownRef) {
+            const knownRefCount: number = this.getCommitCount(knownRef.repo, knownRef);
+            const currentRefCount: number = this.getCommitCount(repo, ref);
+            if (currentRefCount > knownRefCount) {
+              refTrack.set(refName + ';' + ref.start(), ref);
+            }
         } else {
-          refStartMap.set(ref.hash, ref);
-          refCommitCount.set(refName, commitCount);
-        }
-
-        const originalRef: Reference = refNameMap.get(refName);
-        if (originalRef) {
-          if (originalRef.start() !== ref.start()) {
-            const clonedRef = ref.clone();
+          if (usedRefNames.has(refName)) {
             refName += ' (2)';
-            clonedRef.setName(refName);
-            
-            refNameMap.set(refName, clonedRef);
-            // overwrite the start map with the new cloned ref
-            refStartMap.set(clonedRef.hash, clonedRef);
+            ref = ref.clone();
+            ref.setName(refName);
           }
-        } else {
-          refNameMap.set(refName, ref);
+
+          refTrack.set(refName + ';' + ref.start(), ref);
+          usedRefNames.add(refName);
         }
 
+        refs.set(ref.hash, ref);
 
         let storedCommits: Map<CommitHash, Commit> | undefined = refsAndCommits.get(refName);
         if (!storedCommits) {
@@ -1913,8 +1909,7 @@ export class Repository {
         }
       }
     }
-
-    return [refStartMap, refsAndCommits];
+    return [refs, refsAndCommits];
   }
 
   static sortCommits(commits: Map<string, Commit>): Map<string, Commit> {
