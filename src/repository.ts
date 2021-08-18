@@ -1957,7 +1957,9 @@ export class Repository {
       commit.parent = [commit.hash];
     }
 
-    lastCommit.parent = null;
+    if (lastCommit) {
+      lastCommit.parent = null;
+    }
   }
 
   static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
