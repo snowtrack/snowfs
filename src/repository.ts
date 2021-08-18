@@ -1857,20 +1857,20 @@ export class Repository {
 
     let commitHashChain1 = '';
     commit = ref1.repo.findCommitByReference(ref1);
-    while (commit) {
-      commitHashChain1 += commit.hash;
+    while (commit) { 
+      commitHashChain1 += commit.hash + ';';
       commit = (commit.parent && commit.parent.length > 0) ? ref1.repo.findCommitByHash(commit.parent[0]) : null;
     }
 
     let commitHashChain2 = '';
     commit = ref2.repo.findCommitByReference(ref2);
     while (commit) {
-      commitHashChain2 += commit.hash;
+      commitHashChain2 += commit.hash + ';';
       commit = (commit.parent && commit.parent.length > 0) ? ref2.repo.findCommitByHash(commit.parent[0]) : null;
     }
-    if (commitHashChain1.length > commitHashChain2.length && commitHashChain1.startsWith(commitHashChain2)) {
+    if (commitHashChain1.length > commitHashChain2.length && commitHashChain1.endsWith(commitHashChain2)) {
       return ref1;
-    } else if (commitHashChain2.length > commitHashChain1.length && commitHashChain2.startsWith(commitHashChain1)) {
+    } else if (commitHashChain2.length > commitHashChain1.length && commitHashChain2.endsWith(commitHashChain1)) {
       return ref2;
     } else {
       return null;

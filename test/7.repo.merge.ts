@@ -131,7 +131,7 @@ test('Repository.basic.fail', async (t) => {
   t.is(error.message, 'refusing to merge unrelated histories');
 });
 
-test.only('Repository.merge0', async (t) => {
+test('Repository.merge0', async (t) => {
   // t.plan(20);
 
   // Create a simple linear repo, clone it, delete a commit, and finally merge
@@ -153,9 +153,11 @@ test.only('Repository.merge0', async (t) => {
   
   const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
   t.is(merge1.commits.size, 3);
+  t.is(merge1.refs.size, 1);
 
   const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
   t.is(merge2.commits.size, 3);
+  t.is(merge1.refs.size, 1);
 });
 
 test('Repository.merge1', async (t) => {
@@ -183,7 +185,7 @@ test('Repository.merge1', async (t) => {
   }
 });
 
-test('Repository.merge2', async (t) => {
+test.only('Repository.merge2', async (t) => {
   // 1. Create an empty repo
   // 2. Clone it
   // 3. Add a commit to each repo
