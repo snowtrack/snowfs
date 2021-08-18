@@ -79,7 +79,7 @@ test('Repository.getRootCommit', async (t) => {
   t.is(ret, undefined);
 });
 
-test('Repository.sortCommits', async (t) => {
+test('Repository.sortCommitsByDate', async (t) => {
   t.plan(90);
 
   const repo: Repository = await createRepo();
@@ -87,7 +87,7 @@ test('Repository.sortCommits', async (t) => {
   for (let i = 0; i < 10; ++i) {
     shuffleRepoMembers(repo);
 
-    const sortedCommits = Repository.sortCommits(repo.commitMap);
+    const sortedCommits = Repository.sortCommitsByDate(repo.commitMap);
     const commits: Commit[] = Array.from(sortedCommits.values());
 
     t.is(sortedCommits.size, 8);
@@ -283,4 +283,8 @@ test.only('Repository.merge4', async (t) => {
   const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
   t.is(merge1.refs.size, 2);
   t.is(merge1.commits.size, 4);
+
+  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+  t.is(merge2.refs.size, 2);
+  t.is(merge2.commits.size, 4);
 });

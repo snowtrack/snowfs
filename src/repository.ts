@@ -1909,10 +1909,18 @@ export class Repository {
         }
       }
     }
-    return [refs, refsAndCommits];
+
+    // sort values of 'refsAndCommits'
+    const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
+    refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
+      sortedRefsAndCommits.set(refName, Repository.sortCommitsByDate(commitsInRef));
+    });
+
+    // hash refs and the ref commits must be sorted
+    return [new Map([...refs.entries()].sort()), new Map([...sortedRefsAndCommits.entries()].sort())];
   }
 
-  static sortCommits(commits: Map<string, Commit>): Map<string, Commit> {
+  static sortCommitsByDate(commits: Map<string, Commit>): Map<string, Commit> {
     const sortedCommits = Array.from(commits.values()).sort((a: Commit, b: Commit) => {
       const aTime = a.lastModifiedDate ?? a.date;
       const bTime = b.lastModifiedDate ?? b.date;
@@ -1976,16 +1984,11 @@ export class Repository {
 
     const [refHashes, refsAndCommits] = Repository.getRefsAndCommits([localRepo, remoteRepo]);
 
-    const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
-    refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
-      sortedRefsAndCommits.set(refName, Repository.sortCommits(commitsInRef));
-    });0
-
-    for (const commitsInRef of Array.from(sortedRefsAndCommits.values())) {
+    for (const commitsInRef of Array.from(refsAndCommits.values())) {
       Repository.updateParents(commitsInRef);
     }
 
-    const newCommitMap: Map<CommitHash, Commit> = Repository.mergeCommits(sortedRefsAndCommits);
+    const newCommitMap: Map<CommitHash, Commit> = Repository.mergeCommits(refsAndCommits);
 
     const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(newCommitMap);
 
