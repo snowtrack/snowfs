@@ -84,7 +84,7 @@ export class Odb {
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
-          promises.push(fse.readFile(ref.absPath).then((buf: Buffer) => JSON.parse(buf.toString())));
+          promises.push(fse.readJson(ref.absPath));
         }
         return Promise.all(promises);
       })
