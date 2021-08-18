@@ -657,22 +657,6 @@ export class Repository {
   }
 
   /**
-   * Walk the commits back in the history by it's parents. Useful to acquire
-   * all commits only related to the current branch.
-   */
-  walkCommit(commit: Commit, cb: (commit: Commit) => void): void {
-    if (!commit) {
-      throw new Error('commit must be set');
-    }
-
-    while (commit.parent) {
-      for (const parentHash of commit.parent) {
-        this.walkCommit(this.commitMap.get(parentHash.toString()), cb);
-      }
-    }
-  }
-
-  /**
    * Returns all references of the repository. The HEAD reference is not part
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
@@ -1852,8 +1836,20 @@ export class Repository {
     return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
   }
 
+  static getCommitCount(repo: Repository, ref: Reference): number {
+    let count = 0;
+
+    let commit: Commit = repo.findCommitByReference(ref);
+    while (commit && commit.parent?.length > 0) {
+      count++;
+      commit = repo.findCommitByHash(commit.parent[0]);
+    }
+    return count;
+  }
+
   static getRefsAndCommits(repos: Repository[]): [Map<RefName, Reference>, Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
 
+    const refCommitCount = new Map<RefName, number>();
     const refNameMap = new Map<RefName, Reference>();
     const refStartMap = new Map<RefHash, Reference>();
     const refsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
@@ -1863,7 +1859,15 @@ export class Repository {
 
         let refName = ref.getName();
 
-        refStartMap.set(ref.hash, ref);
+        const commitCount = Repository.getCommitCount(repo, ref);
+        const storedCommitCount = refCommitCount.get(refName);
+        if (storedCommitCount !== undefined) {
+          if (commitCount > storedCommitCount) {
+            refStartMap.set(ref.hash, ref);
+          }
+        } else {
+          refStartMap.set(ref.hash, ref);
+        }
 
         const originalRef: Reference = refNameMap.get(refName);
         if (originalRef) {
@@ -1997,6 +2001,6 @@ export class Repository {
       }
     }
 
-    return { commits: newCommitMap, refs: refNames };
+    return { commits: newCommitMap, refs };
   }
 }
