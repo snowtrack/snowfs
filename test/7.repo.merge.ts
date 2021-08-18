@@ -131,10 +131,37 @@ test('Repository.basic.fail', async (t) => {
   t.is(error.message, 'refusing to merge unrelated histories');
 });
 
-test('Repository.merge1', async (t) => {
-  t.plan(20);
+test.only('Repository.merge0', async (t) => {
+  // t.plan(20);
 
   // Create a simple linear repo, clone it, delete a commit, and finally merge
+  // On top, we shuffle the commits inside the commit map to ensure the output
+  // of Repository.merge is always deterministic
+
+  let repo1: Repository;
+  const repoPath = getRandomPath();
+  await Repository.initExt(repoPath, { defaultBranchName: 'Red Track' })
+    .then((repoResult: Repository) => {
+      repo1 = repoResult;
+      return repo1.createCommit(null, 'commit 1', { allowEmpty: true });
+    });
+  
+  const repo2path = getRandomPath();
+  fse.copySync(repo1.workdir(), repo2path, { recursive: true });
+  const repo2: Repository = await Repository.open(repo2path);
+  await repo2.createCommit(null, 'commit2', { allowEmpty: true });
+  
+  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+  t.is(merge1.commits.size, 3);
+
+  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+  t.is(merge2.commits.size, 3);
+});
+
+test('Repository.merge1', async (t) => {
+  // t.plan(20);
+
+  // Create a more complicated repo, clone it, delete a commit, and finally merge
   // On top, we shuffle the commits inside the commit map to ensure the output
   // of Repository.merge is always deterministic
 
@@ -144,27 +171,12 @@ test('Repository.merge1', async (t) => {
   const repo2: Repository = await Repository.open(repo2path);
   await repo2.deleteCommit('HEAD~1'); // delete 'commit 6'
 
-  for (let i = 0; i < 10; ++i) {
+  for (let i = 0; i < 1; ++i) {
     shuffleRepoMembers(repo1);
     shuffleRepoMembers(repo2);
 
     const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
     t.is(merge1.commits.size, 8);
-
-    fse.rmdirSync(join(repo1.commondir(), 'versions'), { recursive: true });
-    fse.rmdirSync(join(repo1.commondir(), 'refs'), { recursive: true });
-    fse.ensureDirSync(join(repo1.commondir(), 'versions'));
-    fse.ensureDirSync(join(repo1.commondir(), 'refs'));
-
-    for (const commit of Array.from(merge1.commits.values())) {
-      // eslint-disable-next-line no-await-in-loop
-      await repo1.getOdb().writeCommit(commit);
-    }
-
-    for (const ref of Array.from(merge1.refs.values())) {
-      // eslint-disable-next-line no-await-in-loop
-      await repo1.getOdb().writeReference(ref);
-    }
 
     const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
     t.is(merge2.commits.size, 8);
@@ -259,7 +271,7 @@ test('Repository.merge3', async (t) => {
 });
 
 
-test.only('Repository.merge4', async (t) => {
+test('Repository.merge4', async (t) => {
   // Create two repos with the same branch but with different starting points of the references
   // The goal is to ensure that one of the references will get a numeric suffix as they are non-mergable
 

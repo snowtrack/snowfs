@@ -1852,7 +1852,7 @@ export class Repository {
     return count;
   }
 
-  static refsAreExtensions(ref1: Reference, ref2: Reference): boolean {
+  static getRefExtension(ref1: Reference, ref2: Reference): Reference | null {
     let commit: Commit | null;
 
     let commitHashChain1 = '';
@@ -1868,7 +1868,13 @@ export class Repository {
       commitHashChain2 += commit.hash;
       commit = (commit.parent && commit.parent.length > 0) ? ref2.repo.findCommitByHash(commit.parent[0]) : null;
     }
-    return commitHashChain1.startsWith(commitHashChain2) || commitHashChain2.startsWith(commitHashChain1);
+    if (commitHashChain1.length > commitHashChain2.length && commitHashChain1.startsWith(commitHashChain2)) {
+      return ref1;
+    } else if (commitHashChain2.length > commitHashChain1.length && commitHashChain2.startsWith(commitHashChain1)) {
+      return ref2;
+    } else {
+      return null;
+    }
   }
 
   static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
@@ -1885,12 +1891,11 @@ export class Repository {
 
         const knownRef: Reference | undefined = refTrack.get(refName);
         if (knownRef) {
-          if (Repository.refsAreExtensions(knownRef, ref)) {
-            const knownRefCount: number = this.getCommitCount(knownRef.repo, knownRef);
-            const currentRefCount: number = this.getCommitCount(repo, ref);
-            if (currentRefCount > knownRefCount) {
-              refTrack.set(refName, ref);
-            }
+          const ext: Reference | null = this.getRefExtension(knownRef, ref);
+          // if the current hash is an extension of the already processed ref,
+          // we use this instead
+          if (ext && ext.hash === ref.hash) {
+            refTrack.set(refName, ext);
           } else if (usedRefNames.has(refName)) {
             refName += ' (2)';
             ref = ref.clone();
@@ -1939,7 +1944,12 @@ export class Repository {
     });
 
     // hash refs and the ref commits must be sorted
-    return [new Map([...refs.entries()].sort()), new Map([...sortedRefsAndCommits.entries()].sort())];
+    return [new Map(Array.from(refs.entries())
+      .sort((entry1: [string, Reference], entry2: [string, Reference]) => entry1[0] > entry2[0] ? 1 : -1)
+      ), new Map(Array.from(sortedRefsAndCommits.entries())
+      .sort((entry1: [string, unknown], entry2: [string, unknown]) => entry1[0] > entry2[0] ? 1 : -1)
+      )
+    ];
   }
 
   static sortCommitsByDate(commits: Map<string, Commit>): Map<string, Commit> {
