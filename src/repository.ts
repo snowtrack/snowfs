@@ -1891,7 +1891,7 @@ export class Repository {
     return leafCommits;
   }
 
-  static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
+  static merge(localRepo: Repository, remoteRepo: Repository, refNamePool: Set<string>): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
     const localRootCommit: Commit | undefined = this.getRootCommit(localRepo.commitMap);
     const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo.commitMap);
 
@@ -1933,12 +1933,15 @@ export class Repository {
     const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => a.hash > b.hash ? 1 : -1).map((r: Reference) => [r.hash, r]));
     const newRefs = new Map<RefHash, Reference>();
 
+    const usedRefNames = new Set<string>(Array.from(allRefs.values()).map((r: Reference) => r.getName()));
     const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(combinedCommits);
     for (const leafCommit of Array.from(leafCommits.values())) {
       const ref: Reference | undefined = allRefs.get(leafCommit.hash);
       if (ref) {
         if (newRefs.has(ref.getName())) {
-          const refName = `${ref.getName()} (2)`;
+          const availableRefNames = new Set([...refNamePool].filter(x => !usedRefNames.has(x)));;
+          const refName = availableRefNames.size > 0 ? availableRefNames.values().next().value : 'Unnamed Track';
+          availableRefNames.add(refName);
           const cloneRef = ref.clone();
           cloneRef.setName(refName);
           newRefs.set(refName, cloneRef);

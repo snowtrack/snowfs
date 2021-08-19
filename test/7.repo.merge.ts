@@ -8,6 +8,16 @@ import { Reference } from '../src/reference';
 import { REFERENCE_TYPE, Repository, RepositoryInitOptions, RESET } from '../src/repository';
 import { getRandomPath, shuffleArray } from './helper';
 
+export function getBranchNames(): Set<string> {
+  return new Set(['Yellow Track',
+    'Blue Track',
+    'Green Track',
+    'Pink Track',
+    'Purple Track',
+    'Mint Track',
+  ]);
+}
+
 function createRepo(): Promise<Repository> {
   let repo: Repository;
   let commit2: Commit;
@@ -104,7 +114,7 @@ test('Repository.basic.fail', async (t) => {
   t.plan(2);
   const repo1: Repository = await createRepo();
   const repo2: Repository = await createRepo();
-  const error = t.throws(() => Repository.merge(repo1, repo2));
+  const error = t.throws(() => Repository.merge(repo1, repo2, getBranchNames()));
   t.is(error.message, 'refusing to merge unrelated histories');
 });
 
@@ -126,11 +136,11 @@ test('Repository.merge0', async (t) => {
   const repo2: Repository = await Repository.open(repo2path);
   await repo2.createCommit(null, 'commit2', { allowEmpty: true });
   
-  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2, getBranchNames());
   t.is(merge1.commits.size, 3);
   t.is(merge1.refs.size, 1);
 
-  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1, getBranchNames());
   t.is(merge2.commits.size, 3);
   t.is(merge1.refs.size, 1);
 });
@@ -152,11 +162,11 @@ test('Repository.merge1', async (t) => {
     shuffleRepoMembers(repo1);
     shuffleRepoMembers(repo2);
 
-    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2, getBranchNames());
     t.is(merge1.commits.size, 8);
     t.is(merge1.refs.size, 3);
 
-    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1, getBranchNames());
     t.is(merge2.commits.size, 8);
     t.is(merge1.refs.size, 3);
   }
@@ -179,20 +189,20 @@ test('Repository.merge2', async (t) => {
   await repo2.createCommit(null, 'commit 1 (repo2)', { allowEmpty: true });
 
   function merge1(t, repo1: Repository, repo2: Repository): void {
-    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2, getBranchNames());
     t.is(merge1.refs.size, 2);
     t.is(Array.from(merge1.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge1.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge1.refs.values())[1].getName(), 'Yellow Track');
     t.is(Array.from(merge1.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge1.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge1.commits.values())[2].message, 'commit 1 (repo2)');
   }
 
   function merge2(t, repo1: Repository, repo2: Repository): void {
-    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1, getBranchNames());
     t.is(merge2.refs.size, 2);
     t.is(Array.from(merge2.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge2.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge2.refs.values())[1].getName(), 'Yellow Track');
     t.is(Array.from(merge2.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge2.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge2.commits.values())[2].message, 'commit 1 (repo2)');
@@ -226,10 +236,10 @@ test('Repository.merge3', async (t) => {
   await repo2.createCommit(null, 'commit 2 (repo2)', { allowEmpty: true });
 
   function merge1(t, repo1: Repository, repo2: Repository): void {
-    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+    const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2, getBranchNames());
     t.is(merge1.refs.size, 3);
     t.is(Array.from(merge1.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge1.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge1.refs.values())[1].getName(), 'Yellow Track');
     t.is(Array.from(merge1.refs.values())[2].getName(), 'Blue Track');
     t.is(Array.from(merge1.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge1.commits.values())[1].message, 'commit 1 (repo1)');
@@ -238,10 +248,10 @@ test('Repository.merge3', async (t) => {
   }
 
   function merge2(t, repo1: Repository, repo2: Repository): void {
-    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+    const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1, getBranchNames());
     t.is(merge2.refs.size, 3);
     t.is(Array.from(merge2.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge2.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge2.refs.values())[1].getName(), 'Yellow Track');
     t.is(Array.from(merge2.refs.values())[2].getName(), 'Blue Track');
     t.is(Array.from(merge2.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge2.commits.values())[1].message, 'commit 1 (repo1)');
@@ -275,11 +285,11 @@ test('Repository.merge4', async (t) => {
   await repo2.checkout(yellowTrack2, RESET.DEFAULT);
   await repo2.createCommit(null, 'commit 2 (repo2)', { allowEmpty: true });
 
-  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
+  const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2, getBranchNames());
   t.is(merge1.refs.size, 2);
   t.is(merge1.commits.size, 4);
 
-  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
+  const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1, getBranchNames());
   t.is(merge2.refs.size, 2);
   t.is(merge2.commits.size, 4);
 });
