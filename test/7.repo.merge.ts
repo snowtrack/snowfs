@@ -79,29 +79,6 @@ test('Repository.getRootCommit', async (t) => {
   t.is(ret, undefined);
 });
 
-test('Repository.sortCommitsByDate', async (t) => {
-  t.plan(90);
-
-  const repo: Repository = await createRepo();
-  
-  for (let i = 0; i < 10; ++i) {
-    shuffleRepoMembers(repo);
-
-    const sortedCommits = Repository.sortCommitsByDate(repo.commitMap);
-    const commits: Commit[] = Array.from(sortedCommits.values());
-
-    t.is(sortedCommits.size, 8);
-    t.is(commits[0].message, 'Created Project');
-    t.is(commits[1].message, 'commit 1');
-    t.is(commits[2].message, 'commit 2');
-    t.is(commits[3].message, 'commit 3');
-    t.is(commits[4].message, 'commit 4');
-    t.is(commits[5].message, 'commit 5');
-    t.is(commits[6].message, 'commit 6');
-    t.is(commits[7].message, 'commit 7');
-  }
-});
-
 test('Repository.findLeafCommits', async (t) => {
   t.plan(40);
 
@@ -134,17 +111,15 @@ test('Repository.basic.fail', async (t) => {
 test('Repository.merge0', async (t) => {
   // t.plan(20);
 
-  // Create a simple linear repo, clone it, delete a commit, and finally merge
-  // On top, we shuffle the commits inside the commit map to ensure the output
-  // of Repository.merge is always deterministic
+  // 1. Create a simple linear repo
+  // 2. Create a new commit
+  // 3. Clone repo
+  // 4. Create a new commit on the clone
+  // 5. Merge
 
-  let repo1: Repository;
   const repoPath = getRandomPath();
-  await Repository.initExt(repoPath, { defaultBranchName: 'Red Track' })
-    .then((repoResult: Repository) => {
-      repo1 = repoResult;
-      return repo1.createCommit(null, 'commit 1', { allowEmpty: true });
-    });
+  const repo1: Repository = await Repository.initExt(repoPath, { defaultBranchName: 'Red Track' });
+  await repo1.createCommit(null, 'commit 1', { allowEmpty: true });
   
   const repo2path = getRandomPath();
   fse.copySync(repo1.workdir(), repo2path, { recursive: true });
@@ -173,19 +148,21 @@ test('Repository.merge1', async (t) => {
   const repo2: Repository = await Repository.open(repo2path);
   await repo2.deleteCommit('HEAD~1'); // delete 'commit 6'
 
-  for (let i = 0; i < 1; ++i) {
+  for (let i = 0; i < 10; ++i) {
     shuffleRepoMembers(repo1);
     shuffleRepoMembers(repo2);
 
     const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
     t.is(merge1.commits.size, 8);
+    t.is(merge1.refs.size, 3);
 
     const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
     t.is(merge2.commits.size, 8);
+    t.is(merge1.refs.size, 3);
   }
 });
 
-test.only('Repository.merge2', async (t) => {
+test('Repository.merge2', async (t) => {
   // 1. Create an empty repo
   // 2. Clone it
   // 3. Add a commit to each repo
@@ -203,8 +180,9 @@ test.only('Repository.merge2', async (t) => {
 
   function merge1(t, repo1: Repository, repo2: Repository): void {
     const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
-    t.is(merge1.refs.size, 1);
+    t.is(merge1.refs.size, 2);
     t.is(Array.from(merge1.refs.values())[0].getName(), 'Red Track');
+    t.is(Array.from(merge1.refs.values())[1].getName(), 'Red Track (2)');
     t.is(Array.from(merge1.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge1.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge1.commits.values())[2].message, 'commit 1 (repo2)');
@@ -212,8 +190,9 @@ test.only('Repository.merge2', async (t) => {
 
   function merge2(t, repo1: Repository, repo2: Repository): void {
     const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
-    t.is(merge2.refs.size, 1);
+    t.is(merge2.refs.size, 2);
     t.is(Array.from(merge2.refs.values())[0].getName(), 'Red Track');
+    t.is(Array.from(merge2.refs.values())[1].getName(), 'Red Track (2)');
     t.is(Array.from(merge2.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge2.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge2.commits.values())[2].message, 'commit 1 (repo2)');
@@ -248,9 +227,10 @@ test('Repository.merge3', async (t) => {
 
   function merge1(t, repo1: Repository, repo2: Repository): void {
     const merge1: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo1, repo2);
-    t.is(merge1.refs.size, 2);
+    t.is(merge1.refs.size, 3);
     t.is(Array.from(merge1.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge1.refs.values())[1].getName(), 'Blue Track');
+    t.is(Array.from(merge1.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge1.refs.values())[2].getName(), 'Blue Track');
     t.is(Array.from(merge1.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge1.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge1.commits.values())[2].message, 'commit 1 (repo2)');
@@ -259,9 +239,10 @@ test('Repository.merge3', async (t) => {
 
   function merge2(t, repo1: Repository, repo2: Repository): void {
     const merge2: { commits: Map<string, Commit>, refs: Map<string, Reference> } = Repository.merge(repo2, repo1);
-    t.is(merge2.refs.size, 2);
+    t.is(merge2.refs.size, 3);
     t.is(Array.from(merge2.refs.values())[0].getName(), 'Red Track');
-    t.is(Array.from(merge2.refs.values())[1].getName(), 'Blue Track');
+    t.is(Array.from(merge2.refs.values())[1].getName(), 'Red Track (2)');
+    t.is(Array.from(merge2.refs.values())[2].getName(), 'Blue Track');
     t.is(Array.from(merge2.commits.values())[0].message, 'Created Project');
     t.is(Array.from(merge2.commits.values())[1].message, 'commit 1 (repo1)');
     t.is(Array.from(merge2.commits.values())[2].message, 'commit 1 (repo2)');

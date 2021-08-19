@@ -24,6 +24,7 @@ import { Reference } from './reference';
 import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
+import { Console } from 'console';
 
 // eslint-disable-next-line import/order
 const PromisePool = require('@supercharge/promise-pool');
@@ -1877,101 +1878,6 @@ export class Repository {
     }
   }
 
-  static getRefsAndCommits(repos: Repository[]): [Map<RefHash, Reference>, Map<RefName, Map<CommitHash, Commit>>] {
-
-    const usedRefNames = new Set<RefName>();
-    const refs = new Map<RefHash, Reference>();
-    const refTrack = new Map<string, Reference>();
-    const refsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
-
-    
-    for (const repo of repos) {
-      for (let ref of repo.getAllReferences()) {
-        let refName = ref.getName();
-
-        const knownRef: Reference | undefined = refTrack.get(refName);
-        if (knownRef) {
-          const ext: Reference | null = this.getRefExtension(knownRef, ref);
-          // if the current hash is an extension of the already processed ref,
-          // we use this instead
-          if (ext && ext.hash === ref.hash) {
-            refTrack.set(refName, ext);
-          } else if (usedRefNames.has(refName)) {
-            refName += ' (2)';
-            ref = ref.clone();
-            ref.setName(refName);
-          }
-        } else {
-          refTrack.set(refName, ref);
-          usedRefNames.add(refName);
-        }
-
-        refs.set(ref.hash, ref);
-
-        let storedCommits: Map<CommitHash, Commit> | undefined = refsAndCommits.get(refName);
-        if (!storedCommits) {
-          storedCommits = new Map<CommitHash, Commit>();
-          refsAndCommits.set(refName, storedCommits);
-        }
-
-        let commit = repo.findCommitByReference(ref);
-        while (commit) {
-          const localCommit = storedCommits.get(commit.hash);
-          if (localCommit) {
-            // if the firebase version is newer, we replace it with the current one on disk
-            const timeOfRemoteCommit = commit.lastModifiedDate ?? commit.date;
-            const timeOfVersionInFirebase = localCommit.lastModifiedDate ?? localCommit.date;
-            if (timeOfRemoteCommit > timeOfVersionInFirebase) {
-              storedCommits.set(commit.hash, commit);
-            } else {
-              storedCommits.set(localCommit.hash, commit);
-            }
-          } else {
-            storedCommits.set(commit.hash, commit);
-          }
-
-          commit = (commit.parent && commit.parent.length > 0) ? repo.findCommitByHash(commit.parent[0]) : null;
-        }
-      }
-    }
-
-    // sort values of 'refsAndCommits'
-    const sortedRefsAndCommits = new Map<RefName, Map<CommitHash, Commit>>();
-    refsAndCommits.forEach((commitsInRef: Map<CommitHash, Commit>, refName: RefName) => {
-      commitsInRef = Repository.sortCommitsByDate(commitsInRef);
-      Repository.updateParents(commitsInRef);
-      sortedRefsAndCommits.set(refName, commitsInRef);
-    });
-
-    // hash refs and the ref commits must be sorted
-    return [new Map(Array.from(refs.entries())
-      .sort((entry1: [string, Reference], entry2: [string, Reference]) => entry1[0] > entry2[0] ? 1 : -1)
-      ), new Map(Array.from(sortedRefsAndCommits.entries())
-      .sort((entry1: [string, unknown], entry2: [string, unknown]) => entry1[0] > entry2[0] ? 1 : -1)
-      )
-    ];
-  }
-
-  static sortCommitsByDate(commits: Map<string, Commit>): Map<string, Commit> {
-    const sortedCommits = Array.from(commits.values()).sort((a: Commit, b: Commit) => {
-      const aTime = a.lastModifiedDate ?? a.date;
-      const bTime = b.lastModifiedDate ?? b.date;
-      return aTime > bTime ? 1 : -1;
-    });
-    return new Map((sortedCommits.map((commit: Commit) => [commit.hash, commit])));
-  }
-
-  static mergeCommits(refsAndCommits: Map<string, Map<string, Commit>>): Map<string, Commit> {
-    const mergedCommits = new Map<string, Commit>();
-
-    for (const commitsPerRef of Array.from(refsAndCommits.values())) {
-      for (const commit of Array.from(commitsPerRef.values())) {
-        mergedCommits.set(commit.hash, commit);
-      }
-    }
-    return mergedCommits;
-  }
-
   static findLeafCommits(commits: Map<string, Commit>): Map<string, Commit> {
     const leafCommits: Map<string, Commit> = new Map(commits);
 
@@ -1983,23 +1889,6 @@ export class Repository {
       }
     }
     return leafCommits;
-  }
-
-  static updateParents(commits: Map<string, Commit>): void {
-    let lastCommit: Commit | undefined;
-
-    for (const commit of Array.from(commits.values()).reverse()) {
-      if (lastCommit) {
-        lastCommit.parent = [commit.hash];
-      }
-
-      lastCommit = commit;
-      commit.parent = [commit.hash];
-    }
-
-    if (lastCommit) {
-      lastCommit.parent = null;
-    }
   }
 
   static merge(localRepo: Repository, remoteRepo: Repository): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
@@ -2014,23 +1903,53 @@ export class Repository {
       throw new Error('refusing to merge unrelated histories');
     }
 
-    const [refHashes, refsAndCommits] = Repository.getRefsAndCommits([localRepo, remoteRepo]);
+    let refList: Reference[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      refList = refList.concat(repo.getAllReferences());
+    });
 
-    const newCommitMap: Map<CommitHash, Commit> = Repository.mergeCommits(refsAndCommits);
+    let commitList: Commit[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      commitList = commitList.concat(repo.getAllCommits(COMMIT_ORDER.UNDEFINED));
+    });
 
-    const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(newCommitMap);
-
-    const refs = new Map<RefName, Reference>();
-
-    for (const leafCommit of Array.from(leafCommits.values())) {
-      const ref = refHashes.get(leafCommit.hash);
-      if (ref) {
-        refs.set(ref.getName(), ref);
+    const sortedCommits = Array.from(commitList.values()).sort((a: Commit, b: Commit) => {
+      const aTime = a.lastModifiedDate ?? a.date;
+      const bTime = b.lastModifiedDate ?? b.date;
+      if (aTime === bTime) {
+        return 0;
+      } else if (aTime > bTime) {
+        return 1;
       } else {
-        console.log('leaf commit without reference pointing to it');
+        return -1;
+      }
+    });
+
+    const combinedCommits = new Map<CommitHash, Commit>();
+    for (const commit of sortedCommits) {
+      combinedCommits.set(commit.hash, commit);
+    }
+
+    const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => a.hash > b.hash ? 1 : -1).map((r: Reference) => [r.hash, r]));
+    const newRefs = new Map<RefHash, Reference>();
+
+    const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(combinedCommits);
+    for (const leafCommit of Array.from(leafCommits.values())) {
+      const ref: Reference | undefined = allRefs.get(leafCommit.hash);
+      if (ref) {
+        if (newRefs.has(ref.getName())) {
+          const refName = `${ref.getName()} (2)`;
+          const cloneRef = ref.clone();
+          cloneRef.setName(refName);
+          newRefs.set(refName, cloneRef);
+        } else {
+          newRefs.set(ref.getName(), ref);
+        }
+      } else {
+        console.log('no reference commit for leaf commit');
       }
     }
 
-    return { commits: newCommitMap, refs };
+    return {commits: combinedCommits, refs: newRefs};
   }
 }
