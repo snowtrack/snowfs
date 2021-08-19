@@ -669,8 +669,8 @@ export class Repository {
    * Returns all reference names of the repository. The HEAD reference name is not part
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
-  getAllReferenceNames(): string[] {
-    return Array.from(this.references.values()).map((ref: Reference) => ref.getName());
+  getAllReferenceNames(): Set<string> {
+    return new Set(Array.from(this.references.values()).map((ref: Reference) => ref.getName()));
   }
 
   /**
