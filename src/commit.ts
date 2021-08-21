@@ -140,7 +140,7 @@ export class Commit {
       date: this.date.getTime(),
       parent,
       root,
-      ...(tags? {lastModifiedDate: this.lastModifiedDate?.getTime()}: {}),
+      ...(this.lastModifiedDate ? {lastModifiedDate: this.lastModifiedDate?.getTime()}: {}),
       ...(tags? {tags}: {}),
       ...(userData? {userData}: {}),
     };
