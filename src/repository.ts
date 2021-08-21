@@ -1827,6 +1827,9 @@ export class Repository {
       const tmpRef: any = ref;
 
       const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
+      if (tmpRef[1].lastModifiedDate) {
+        r.lastModifiedDate = tmpRef[1].lastModifiedDate;
+      }
       repo.references.set(r.getName(), r);
     }
 
@@ -1890,7 +1893,17 @@ export class Repository {
       combinedCommits.set(commit.hash, commit);
     }
 
-    const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => a.hash > b.hash ? 1 : -1).map((r: Reference) => [r.hash, r]));
+    const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => {
+      if (a.lastModifiedDate && b.lastModifiedDate) {
+        return a.lastModifiedDate > b.lastModifiedDate ? -1 : 1;
+      } else if (a.lastModifiedDate) {
+        return -1;
+      } else if (b.lastModifiedDate) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }).map((r: Reference) => [r.hash, r]));
     const newRefs = new Map<RefHash, Reference>();
 
     const usedRefNames = new Set<string>(Array.from(allRefs.values()).map((r: Reference) => r.getName()));
