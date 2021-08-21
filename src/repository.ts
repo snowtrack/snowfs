@@ -815,25 +815,31 @@ export class Repository {
     this.head.setName('HEAD');
   }
 
-  async setCommitMessage(commitHash: string, message: string) {
+  setCommitMessage(commitHash: string, message: string): Promise<Commit> {
     if (!message) {
       throw new Error('commit message cannot be empty');
     }
 
-    const commit: Commit = this.commitMap.get(commitHash);
+    const commit: Commit | undefined = this.commitMap.get(commitHash);
+    if (!commit) {
+      throw new Error('unnknown commit');
+    }
 
     // copy the commit and apply the changes on the commit
     // only after the write commit is succesfull we apply
     // the change to the original commit
     const commitCopy = commit.clone();
     commitCopy.setCommitMessage(message);
+    commitCopy.lastModifiedDate = new Date();
 
     return this.repoOdb.writeCommit(commitCopy).then(() => {
       // move copy back to the original commit object
       Object.assign(commit, commitCopy);
       this.commitObservable$.next({ commitHash: commit.hash, action: 'changed' });
       return this.modified();
-    });
+    }).then(() => {
+      return commit;
+    })
   }
 
   deleteCommit(commitIdent: string): Promise<void> {
