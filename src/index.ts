@@ -157,8 +157,7 @@ export class Index {
       processed,
     });
     return fse.ensureDir(Index.getAbsDir(repo))
-      .then(() => fss.writeSafeFile(this.getAbsPath(), userData))
-      .then(() => repo.modified());
+      .then(() => fss.writeSafeFile(this.getAbsPath(), userData));
   }
 
   /**

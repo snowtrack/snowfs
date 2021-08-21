@@ -183,22 +183,19 @@ export class Odb {
   deleteReference(refName: string): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.unlink(join(refsDir, refName))
-      .then(() => this.repo.modified());
+    return fse.unlink(join(refsDir, refName));
   }
 
   deleteCommit(commit: Commit): Promise<void> {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.unlink(join(objectsDir, commit.hash))
-      .then(() => this.repo.modified());
+    return fse.unlink(join(objectsDir, commit.hash));
   }
 
   writeHeadReference(head: Reference): Promise<void> {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName())
-      .then(() => this.repo.modified());
+    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName());
   }
 
   readHeadReference(): Promise<string | null> {
@@ -242,14 +239,13 @@ export class Odb {
       lastModifiedDate: ref.lastModifiedDate?.getTime(),
       start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
-    })).then(() => this.repo.modified());
+    }));
   }
 
   writeCommit(commit: Commit): Promise<void> {
     const json = commit.toJson();
     return fse.writeJson(join(this.repo.options.commondir, 'versions',  commit.hash),
-            json, { spaces: '\t'})
-      .then(() => this.repo.modified());
+            json, { spaces: '\t'});
   }
 
   writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {

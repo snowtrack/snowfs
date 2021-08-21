@@ -24,7 +24,6 @@ import { Reference } from './reference';
 import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
-import { Console } from 'console';
 
 // eslint-disable-next-line import/order
 const PromisePool = require('@supercharge/promise-pool');
@@ -929,6 +928,7 @@ export class Repository {
       }).then(() => {
         // we now delete the commit from the commit map and the commit array
         this.commitMap.delete(commitToDelete.hash);
+        return this.modified();
       });
   }
 
@@ -1516,7 +1516,8 @@ export class Repository {
         });
     }
 
-    return promise.then((treeResult: TreeDir) => {
+    return promise
+    .then((treeResult: TreeDir) => {
       tree = treeResult;
 
       // Check hash and size for validty
@@ -1539,7 +1540,8 @@ export class Repository {
       });
 
       return index.invalidate();
-    }).then(() => {
+    })
+    .then(() => {
       commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
 
       if (tags && tags.length > 0) {
@@ -1556,41 +1558,42 @@ export class Repository {
 
       return this.repoOdb.writeCommit(commit);
     })
-      .then(() => {
-        this.commitMap.set(commit.hash.toString(), commit);
+    .then(() => {
+      this.commitMap.set(commit.hash.toString(), commit);
 
-        let ref: Reference;
-        if (this.head.hash) {
-          this.head.hash = commit.hash;
-          // update the hash of the current head reference as well
-          ref = this.references.get(this.head.getName());
-          if (ref) {
-            ref.lastModifiedDate = new Date();
-            ref.hash = commit.hash;
-          }
-        } else {
-          this.head.setName(this.options.defaultBranchName ?? 'Main');
-          this.head.hash = commit.hash;
-          ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
-          this.references.set(ref.getName(), ref);
-        }
-
-        // If 'ref' is null, we are in a detached HEAD and make a commit.
-        // We don't throw an exception in this case as it is the responsibility
-        // by the caller to guarantee to not leave behind a detached HEAD after the commit.
+      let ref: Reference;
+      if (this.head.hash) {
+        this.head.hash = commit.hash;
+        // update the hash of the current head reference as well
+        ref = this.references.get(this.head.getName());
         if (ref) {
-          // update .snow/refs/XYZ
-          return this.repoOdb.writeReference(ref);
-        } else {
-          return Promise.resolve();
+          ref.lastModifiedDate = new Date();
+          ref.hash = commit.hash;
         }
-      })
-      .then(() => {
-        // update .snow/HEAD
-        return this.repoOdb.writeHeadReference(this.head);
-      })
-      .then(() => this.repoLog.writeLog(`commit: ${message}`))
-      .then(() => commit);
+      } else {
+        this.head.setName(this.options.defaultBranchName ?? 'Main');
+        this.head.hash = commit.hash;
+        ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
+        this.references.set(ref.getName(), ref);
+      }
+
+      // If 'ref' is null, we are in a detached HEAD and make a commit.
+      // We don't throw an exception in this case as it is the responsibility
+      // by the caller to guarantee to not leave behind a detached HEAD after the commit.
+      if (ref) {
+        // update .snow/refs/XYZ
+        return this.repoOdb.writeReference(ref);
+      } else {
+        return Promise.resolve();
+      }
+    })
+    .then(() => {
+      // update .snow/HEAD
+      return this.repoOdb.writeHeadReference(this.head);
+    })
+    .then(() => this.modified())
+    .then(() => this.repoLog.writeLog(`commit: ${message}`))
+    .then(() => commit);
   }
 
   /**
@@ -1796,8 +1799,9 @@ export class Repository {
         repo.repoLog = new Log(repo);
         return repo.repoLog.init();
       })
-      .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
       .then(() => repo.createCommit(repo.getFirstIndex(), repo.options.defaultCommitMessage ?? 'Created Project', { allowEmpty: true }))
+      .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
+      .then(() => repo.modified())
       .then(() => repo);
   }
 
@@ -1832,47 +1836,6 @@ export class Repository {
   static getRootCommit(commits: Map<string, Commit>): Commit | undefined {
     // The first commit that has no parent is considered to be the root commit
     return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
-  }
-
-  static getCommitCount(repo: Repository, ref: Reference): number {
-    let count = 0;
-
-    let commit: Commit | null = repo.findCommitByReference(ref);
-    while (commit) {
-      count++;
-
-      if (commit.parent && commit.parent.length > 0) {
-        commit = repo.findCommitByHash(commit.parent[0]);
-      } else {
-        break;
-      }
-    }
-    return count;
-  }
-
-  static getRefExtension(ref1: Reference, ref2: Reference): Reference | null {
-    let commit: Commit | null;
-
-    let commitHashChain1 = '';
-    commit = ref1.repo.findCommitByReference(ref1);
-    while (commit) { 
-      commitHashChain1 += commit.hash + ';';
-      commit = (commit.parent && commit.parent.length > 0) ? ref1.repo.findCommitByHash(commit.parent[0]) : null;
-    }
-
-    let commitHashChain2 = '';
-    commit = ref2.repo.findCommitByReference(ref2);
-    while (commit) {
-      commitHashChain2 += commit.hash + ';';
-      commit = (commit.parent && commit.parent.length > 0) ? ref2.repo.findCommitByHash(commit.parent[0]) : null;
-    }
-    if (commitHashChain1.length > commitHashChain2.length && commitHashChain1.endsWith(commitHashChain2)) {
-      return ref1;
-    } else if (commitHashChain2.length > commitHashChain1.length && commitHashChain2.endsWith(commitHashChain1)) {
-      return ref2;
-    } else {
-      return null;
-    }
   }
 
   static findLeafCommits(commits: Map<string, Commit>): Map<string, Commit> {
