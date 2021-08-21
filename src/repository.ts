@@ -467,8 +467,6 @@ export class Repository {
 
   repoRemote: string | undefined;
 
-  commitObservable$ = new Subject<{commitHash: string, action: 'created' | 'deleted' | 'changed'}>();
-
   /**
    * Get the url to the snow:// remote
   */
@@ -835,7 +833,6 @@ export class Repository {
     return this.repoOdb.writeCommit(commitCopy).then(() => {
       // move copy back to the original commit object
       Object.assign(commit, commitCopy);
-      this.commitObservable$.next({ commitHash: commit.hash, action: 'changed' });
       return this.modified();
     }).then(() => {
       return commit;
@@ -876,8 +873,6 @@ export class Repository {
         c.parent = parentsOfDeletedCommit;
         promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
-        }).then(() => {
-          this.commitObservable$.next({ commitHash: c.hash, action: 'changed' });
         });
       }
 
@@ -933,8 +928,6 @@ export class Repository {
         return this.repoOdb.deleteCommit(commitToDelete);
       }).then(() => {
         // we now delete the commit from the commit map and the commit array
-
-        this.commitObservable$.next({ commitHash: commitToDelete.hash, action: 'deleted' });
         this.commitMap.delete(commitToDelete.hash);
       });
   }
@@ -1581,8 +1574,6 @@ export class Repository {
           ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
           this.references.set(ref.getName(), ref);
         }
-
-        this.commitObservable$.next({ commitHash: commit.hash, action: 'created' });
 
         // If 'ref' is null, we are in a detached HEAD and make a commit.
         // We don't throw an exception in this case as it is the responsibility
