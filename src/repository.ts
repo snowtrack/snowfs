@@ -102,6 +102,8 @@ export class RepositoryInitOptions {
 
   additionalConfig?: any;
 
+  remote?: string;
+
   /**
    * @param commondir Path outside the repository where the versions are stored
    * @param compress true or false if the repository shall be compressed. Still needs work.

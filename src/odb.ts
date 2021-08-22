@@ -70,7 +70,10 @@ export class Odb {
 
         let config = { ...defaultConfig };
         if (options.additionalConfig) {
-          config = Object.assign(config, { additionalConfig: options.additionalConfig });
+          config.additionalConfig = options.additionalConfig;
+        }
+        if (options.remote) {
+          config.remote = options.remote;
         }
 
         return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(config));
