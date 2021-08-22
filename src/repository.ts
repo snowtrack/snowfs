@@ -1828,7 +1828,7 @@ export class Repository {
 
       const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
       if (tmpRef[1].lastModifiedDate) {
-        r.lastModifiedDate = tmpRef[1].lastModifiedDate;
+        r.lastModifiedDate = new Date(tmpRef[1].lastModifiedDate);
       }
       repo.references.set(r.getName(), r);
     }
