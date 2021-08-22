@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import { from, Subject } from 'rxjs';
 import * as io from './io';
 import {
-  resolve, join, dirname, extname,
+  resolve, join, dirname, extname, denormalize,
 } from './path';
 
 import { Log } from './log';
@@ -498,7 +498,7 @@ export class Repository {
    */
   modified<T>(res?: T): Promise<T> {
     const state = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
-    return fse.writeFile(join(this.commondir(), 'state'), state)
+    return fse.writeFile(denormalize(join(this.commondir(), 'state')), state)
       .then(() => res)
       .catch(() => res); // ignore any errors since it is not crucial for the repo to run
   }

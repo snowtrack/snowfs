@@ -7,7 +7,7 @@ import test from 'ava';
 
 import { differenceBy } from 'lodash';
 import {
-  join, dirname, normalize, normalizeExt, sep, basename,
+  join, dirname, normalize, sep, basename,
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -505,7 +505,7 @@ function testGitZip(t, zipname: string): Promise<string> {
       t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: normalizeExt(tmpDir).replace('/', sep), concurrency: 5 }))
+    .then((d) => d.extract({ path: normalize(tmpDir), concurrency: 5 }))
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.
