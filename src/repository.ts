@@ -1895,11 +1895,11 @@ export class Repository {
 
     const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => {
       if (a.lastModifiedDate && b.lastModifiedDate) {
-        return a.lastModifiedDate > b.lastModifiedDate ? -1 : 1;
+        return a.lastModifiedDate > b.lastModifiedDate ? 1 : -1;
       } else if (a.lastModifiedDate) {
-        return -1;
-      } else if (b.lastModifiedDate) {
         return 1;
+      } else if (b.lastModifiedDate) {
+        return -1;
       } else {
         return 0;
       }
@@ -1912,7 +1912,7 @@ export class Repository {
       const ref: Reference | undefined = allRefs.get(leafCommit.hash);
       if (ref) {
         if (newRefs.has(ref.getName())) {
-          const availableRefNames = new Set([...refNamePool].filter(x => !usedRefNames.has(x)));;
+          const availableRefNames = new Set([...refNamePool].filter(x => !usedRefNames.has(x)));
           const refName = availableRefNames.size > 0 ? availableRefNames.values().next().value : 'Unnamed Track';
           availableRefNames.add(refName);
           const cloneRef = ref.clone();
