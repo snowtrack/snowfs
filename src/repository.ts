@@ -45,9 +45,9 @@ type RefName = string;
 type RefHash = string;
 type CommitHash = string;
 
-const visit = (obj: any[]|any, parent: TreeDir) => {
+export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
   if (Array.isArray(obj)) {
-    return obj.map((c: any) => visit(c, parent));
+    return obj.map((c: any) => buildRootFromJson(c, parent));
   }
 
   if (!obj.userData) {
@@ -71,7 +71,7 @@ const visit = (obj: any[]|any, parent: TreeDir) => {
 
   if (obj.children) {
     const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
-    o.children = obj.children.map((t: any) => visit(t, o));
+    o.children = obj.children.map((t: any) => buildRootFromJson(t, o));
     o.parent = parent;
     return o;
   }
@@ -1821,7 +1821,7 @@ export class Repository {
 
       const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
       c.repo = repo;
-      c.root = visit(c.root, null);
+      c.root = buildRootFromJson(c.root, null);
       repo.commitMap.set(tmpCommit.hash, c);
     }
 
