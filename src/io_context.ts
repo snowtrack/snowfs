@@ -9,12 +9,10 @@ import {
 import { MB1 } from './common';
 import * as io from './io';
 
-const trash = require('trash');
-const AggregateError = require('es-aggregate-error');
-const drivelist = require('drivelist');
-
-// eslint-disable-next-line import/order
-const PromisePool = require('@supercharge/promise-pool');
+import trash = require('trash');
+import AggregateError = require('es-aggregate-error');
+import drivelist = require('drivelist');
+import PromisePool = require('@supercharge/promise-pool');
 
 class StacklessError extends Error {
   constructor(...args: any) {
@@ -53,7 +51,7 @@ export enum TEST_IF {
 /**
  * Convert a passed string to an utf-16 le string.
  */
-function strEncodeUTF16(str: string) {
+function strEncodeUTF16(str: string) : Uint8Array {
   const buf = new ArrayBuffer(str.length * 2);
   const bufView = new Uint16Array(buf);
   for (let i = 0, strLen = str.length; i < strLen; i++) {
@@ -155,8 +153,8 @@ export namespace win32 {
 
       p0.stdin.write(pathsArray);
       p0.stdin.end();
-      p0.stdout.on('data', (data) => {
-        std += data.toString();
+      p0.stdout.on('data', (data: any) => {
+        std += data;
       });
 
       p0.on('exit', (code) => {
@@ -221,7 +219,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
         stdout += data.toString();
       });
 
-      function parseStdout(stdout: string) {
+      function parseStdout(stdout: string): void {
         let lsofEntry: FileHandle = new FileHandle();
         for (const pline of stdout.split(/\n/)) {
           if (pline.startsWith('p')) { // PID of process which acquired the file handle
@@ -287,9 +285,9 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
 function getFilesystem(drive: any, mountpoint: string): Promise<FILESYSTEM> {
   try {
     if (process.platform === 'win32') {
-      return new Promise<string | null>((resolve, _reject) => {
+      return new Promise<string | null>((resolve) => {
         const driveLetter = mountpoint.endsWith('\\') ? mountpoint.substring(0, mountpoint.length - 1) : mountpoint;
-        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout, _stderr) => {
+        exec(`fsutil fsinfo volumeinfo ${driveLetter}`, (error, stdout) => {
           if (error) {
             return resolve(null); // if we can't extract the volume info, we simply skip the ReFS detection
           }
@@ -501,7 +499,7 @@ export class IoContext {
     // detect if src and dst are copied onto the same drive
     let i = 0; let
       j = 0;
-    this.mountpoints!.forEach((mountpoint: string) => {
+    this.mountpoints.forEach((mountpoint: string) => {
       if (file0.startsWith(mountpoint)) {
         i++;
       }
@@ -582,7 +580,7 @@ export class IoContext {
     let filesystem = FILESYSTEM.OTHER;
     if (srcAndDstOnSameDrive) {
       // find the mountpoint again to extract filesystem info
-      for (const mountpoint of Array.from(this.mountpoints!)) {
+      for (const mountpoint of Array.from(this.mountpoints)) {
         if (src.startsWith(mountpoint)) {
           const obj = this.drives.get(mountpoint);
           if (obj) {
@@ -594,16 +592,19 @@ export class IoContext {
     }
 
     switch (process.platform) {
+      // @ts-ignore
+      // fall through
       case 'darwin':
         if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.APFS) {
           return this.copyFileApfs(src, dst);
         }
-        /* falls through */
+      // @ts-ignore
+      // fall through
       case 'win32':
         if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.REFS) {
           return this.copyFileRefs(src, dst);
         }
-        /* falls through */
+        // fall through
       case 'linux':
         // The copy operation will attempt to create a copy-on-write reflink.
         // If the platform does not support copy-on-write, then a fallback copy mechanism is used.
@@ -623,7 +624,7 @@ export class IoContext {
    * @throws {AggregateError} Aggregated error of StacklessError
    */
   performFileAccessCheck(dir: string, relPaths: string[], testIf: TEST_IF): Promise<void> {
-    function checkAccess(absPaths: string[]) {
+    function checkAccess(absPaths: string[]): Promise<void[]> {
       const promises: Promise<void>[] = [];
 
       for (const absPath of absPaths) {
@@ -703,13 +704,13 @@ export class IoContext {
    *
    * @param absPaths    The file(s) or directory to move to the trash.
   */
-  static putToTrash(absPaths: string[] | string): Promise<void[]> {
+  static putToTrash(absPaths: string[] | string): Promise<void> {
     if (typeof absPaths === 'string') {
       absPaths = [absPaths];
     }
 
     if (!Array.isArray(absPaths)) { // assertion absPath is an array
-      return Promise.all([]);
+      return Promise.resolve();
     }
 
     // just to be on the safe side
@@ -735,7 +736,7 @@ export class IoContext {
 
     if (IoContext.trashExecutor && typeof IoContext.trashExecutor !== 'string') {
       IoContext.trashExecutor(absPaths);
-      return Promise.all([]);
+      return Promise.resolve();
     }
 
     let trashPath: string | undefined;
@@ -825,7 +826,7 @@ export class IoContext {
       .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
       .process((path: string[]) => {
         return new Promise<void>((resolve, reject) => {
-          const proc: cp.ChildProcessWithoutNullStreams = spawn(trashPath!, path);
+          const proc: cp.ChildProcessWithoutNullStreams = spawn(trashPath, path);
 
           proc.on('exit', (code: number) => {
             if (code === 0) {
@@ -840,6 +841,6 @@ export class IoContext {
             }
           });
         });
-      });
+      }).then(() => {/* */});
   }
 }

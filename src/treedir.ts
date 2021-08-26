@@ -2,18 +2,15 @@
 /* eslint-disable no-useless-constructor */
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { unionWith } from 'lodash';
 import * as io from './io';
 
-import {
-  join, relative, normalize, extname, dirname, basename,
-} from './path';
+import { join, relative, normalize, extname } from './path';
 import { Repository } from './repository';
 import {
   getPartHash, HashBlock, MB20, StatsSubset,
 } from './common';
 
-const sortPaths = require('sort-paths');
+import sortPaths = require('sort-paths');
 
 export const enum FILEMODE {
   UNREADABLE = 0,
@@ -162,18 +159,19 @@ export class TreeFile extends TreeEntry {
       // considered equal.
       if (Math.abs(+this.stats.mtime - (+newStats.mtime)) >= 1.0) {
         switch (detectionMode) {
+          // @ts-ignore
+          // fall through
           case DETECTIONMODE.DEFAULT: {
             const ext = extname(filepath);
             // Text files are more prone to mtime changes than other files,
             // so by default text files are checked for content changes than rather relying only on mtime.
             if (!textFileExtensions.has(ext)) {
               // If not a text file, use same heuristics as ONLY_SIZE_AND_MKTIME
-              return { file: this, modified: true, newStats };
+              return { file: this, modified: true, newStats }
             }
-            // If a text file, fall through to SIZE_AND_HASH_FOR_SMALL_FILES
-            /* falls through */
           }
-          // eslint-disable-next-line no-fallthrough
+          // @ts-ignore
+          // fall through
           case DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES:
             // A file bigger than 20 MB is considered as changed if the mtime is different ...
             if (this.stats.size >= MB20) {
@@ -227,7 +225,7 @@ export class TreeDir extends TreeEntry {
    * the element is already located in 'source.
    */
   static merge(source: TreeEntry, target: TreeEntry): TreeDir {
-    function privateMerge(source: TreeEntry, target: TreeEntry) {
+    function privateMerge(source: TreeEntry, target: TreeEntry): TreeEntry {
       // walk source nodes...
       if (source instanceof TreeDir && target instanceof TreeDir) {
         const newItems = new Map<string, TreeEntry>();
@@ -281,10 +279,12 @@ export class TreeDir extends TreeEntry {
   }
 
   getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
-    const visit = (obj: TreeEntry[] | TreeEntry, map: Map<string, TreeEntry>) => {
+    const visit = (obj: TreeEntry[] | TreeEntry, map: Map<string, TreeEntry>): void => {
       if (Array.isArray(obj)) {
-        return obj.forEach((c: any) => visit(c, map));
+        obj.forEach((c: any) => visit(c, map));
+        return;
       }
+
       if (obj instanceof TreeDir) {
         if (opt.includeDirs) {
           map.set(obj.path, obj);
@@ -390,18 +390,20 @@ export function constructTree(
         const absPath = `${dirPath}/${entry}`;
         const relPath = relative(root, absPath);
         promises.push(
-          io.stat(absPath).then((stat: fse.Stats) => {
-            if (stat.isDirectory()) {
-              // hash is later added to subtree (see next promise task)
-              const subtree: TreeDir = new TreeDir(relative(root, absPath), StatsSubset.clone(stat), tree);
+          io.stat(absPath)
+            .then(async (stat: fse.Stats) => {
+              if (stat.isDirectory()) {
+                // hash is later added to subtree (see next promise task)
+                const subtree: TreeDir = new TreeDir(relative(root, absPath), StatsSubset.clone(stat), tree);
 
-              tree.children.push(subtree);
-              return constructTree(absPath, subtree, root);
-            }
+                tree.children.push(subtree);
+                await constructTree(absPath, subtree, root);
+                return Promise.resolve();
+              }
 
-            const entry: TreeFile = new TreeFile('', relPath, StatsSubset.clone(stat), extname(relPath), tree);
-            tree.children.push(entry);
-          }),
+              const entry: TreeFile = new TreeFile('', relPath, StatsSubset.clone(stat), extname(relPath), tree);
+              tree.children.push(entry);
+            }),
         );
       }
 

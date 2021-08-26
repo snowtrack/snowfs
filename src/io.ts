@@ -13,7 +13,6 @@ export { PathLike, Stats } from 'fs-extra';
 let useOriginalFs = false;
 let fs: any;
 if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
-  // eslint-disable-next-line global-require, import/no-unresolved
   fs = require('original-fs');
   useOriginalFs = true;
 } else {
@@ -23,7 +22,6 @@ if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
 
 let winattr: any;
 if (process.platform === 'win32') {
-  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
 }
 
@@ -96,6 +94,8 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
   return promise.then(() => {
     if (opts.deleteSrc) {
       return fse.remove(src);
+    } else {
+      return Promise.resolve();
     }
   });
 }
@@ -132,7 +132,7 @@ function checkPath(pth): void {
   }
 }
 
-const getMode = (options) => {
+const getMode = (options): string | number => {
   const defaults = { mode: 0o777 };
   if (typeof options === 'number') return options;
   return ({ ...defaults, ...options }).mode;

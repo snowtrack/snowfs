@@ -2,7 +2,6 @@
 
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
-import { from, Subject } from 'rxjs';
 import * as io from './io';
 import {
   resolve, join, dirname, extname, denormalize,
@@ -25,8 +24,7 @@ import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
-// eslint-disable-next-line import/order
-const PromisePool = require('@supercharge/promise-pool');
+import PromisePool = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
@@ -82,7 +80,7 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
     o.hash = obj.hash;
   }
   return o;
-};
+}
 
 const warningMessage = `Attention: Modifications to the content of this directory without the proper knowledge might result in data loss.
 
@@ -764,7 +762,7 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string | null, userData?: any): Promise<Reference> {
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string | null, userData?: Record<string, unknown>): Promise<Reference> {
     const existingRef: Reference = this.references.get(name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
@@ -814,7 +812,7 @@ export class Repository {
     this.head.setName('HEAD');
   }
 
-  setCommitMessage(commitHash: string, message: string): Promise<Commit> {
+  setCommitMessage(commitHash: string, message: string): Promise<void> {
     if (!message) {
       throw new Error('commit message cannot be empty');
     }
@@ -835,9 +833,7 @@ export class Repository {
       // move copy back to the original commit object
       Object.assign(commit, commitCopy);
       return this.modified();
-    }).then(() => {
-      return commit;
-    })
+    });
   }
 
   deleteCommit(commitIdent: string): Promise<void> {
@@ -980,15 +976,6 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
-    let detectionMode = DETECTIONMODE.DEFAULT; // default
-    if (reset & RESET.DETECTIONMODE_ONLY_SIZE_AND_MKTIME) {
-      detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME;
-    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
-      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
-    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
-      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
-    }
-
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
@@ -1000,7 +987,7 @@ export class Repository {
 
     // IoTask is a callback helper, used by the promise pool to ensure that no more async operations
     // of this type are executed than set/limited by PromisePool.withConcurrency(..)
-    type IoTask = () => Promise<unknown>;
+    type IoTask = () => Promise<void>;
 
     // Array of async functions that are executed by the promise pool
     const tasks: IoTask[] = [];
@@ -1091,6 +1078,8 @@ export class Repository {
                     // need to treat it as a delete candidate
                     if (putToTrashImmediately.length > 0) {
                       return IoContext.putToTrash(putToTrashImmediately);
+                    } else {
+                      return Promise.resolve();
                     }
                   }).then(() => {
                     return this.repoOdb.readObject(tfile, dst, ioContext);
@@ -1158,6 +1147,8 @@ export class Repository {
       .then(() => {
         if (putToTrash.length > 0) {
           return IoContext.putToTrash(putToTrash);
+        } else {
+          return Promise.resolve();
         }
       })
       .then(() => {
@@ -1165,7 +1156,7 @@ export class Repository {
           // if we switch to another commit, we browse through all commits
           // and delete each one that was marked for deletion
 
-          let promise: Promise<void>;
+          let promise: Promise<void> = Promise.resolve();
           const commits: Commit[] = this.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
           for (const commit of commits) {
             if (commit.runtimeData && commit.runtimeData?.markForDeletion) {
@@ -1178,6 +1169,8 @@ export class Repository {
             }
           }
           return Promise.resolve(promise);
+        } else {
+          return Promise.resolve();
         }
       })
       .then(() => {
@@ -1189,7 +1182,7 @@ export class Repository {
         } else {
           moveTo = target;
         }
-        return this.repoLog.writeLog(`checkout: move from '${oldHeadHash}' to ${targetCommit.hash} with ${reset}`);
+        return this.repoLog.writeLog(`checkout: move from '${oldHeadHash}' to ${moveTo} with ${reset}`);
       });
   }
 
@@ -1213,7 +1206,7 @@ export class Repository {
     }
 
     // For each deleted status item, we flag its parent directory as modified.
-    function markParentsAsModified(itemPath: string) {
+    function markParentsAsModified(itemPath: string): void {
       // Create the parent strings from the status path and call flagDirAsModified
       // E.g. for hello/foo/bar/texture.psd we flag hello, hello/foo/ hello/foo/bar
       const parents = [];
@@ -1235,6 +1228,8 @@ export class Repository {
       .then((exists: boolean) => {
         if (exists) {
           return ignore.loadFile(snowtrackIgnoreDefault);
+        } else {
+          return Promise.resolve();
         }
       })
       .then(() => {
@@ -1418,7 +1413,7 @@ export class Repository {
    * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns        New commit object.
    */
-  async createCommit(index: Index | null, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
+  async createCommit(index: Index | null, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: Record<string, unknown>): Promise<Commit> {
     let tree: TreeDir = null;
     let commit: Commit = null;
     if (opts?.allowEmpty) {
@@ -1536,7 +1531,7 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
         }
 
-        if (!item.hash.match(/[0-9a-f]{64}/i)) {
+        if (!(/[0-9a-f]{64}/i.exec(item.hash))) {
           throw new Error(`Item '${item.path}' has no valid hash: ${item.hash}`);
         }
       });
@@ -1914,8 +1909,8 @@ export class Repository {
       const ref: Reference | undefined = allRefs.get(leafCommit.hash);
       if (ref) {
         if (newRefs.has(ref.getName())) {
-          const availableRefNames = new Set([...refNamePool].filter(x => !usedRefNames.has(x)));
-          const refName = availableRefNames.size > 0 ? availableRefNames.values().next().value : 'Unnamed Track';
+          const availableRefNames = new Set<string>([...refNamePool].filter(x => !usedRefNames.has(x)));
+          const refName: string = availableRefNames.size > 0 ? Array.from(availableRefNames.keys())[0] : 'Unnamed Track';
           availableRefNames.add(refName);
           const cloneRef = ref.clone();
           cloneRef.setName(refName);

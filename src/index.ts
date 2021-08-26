@@ -12,8 +12,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-// eslint-disable-next-line import/order
 import PromisePool = require('@supercharge/promise-pool');
+
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
  * when files are written to disk.
@@ -78,18 +78,24 @@ export class Index {
     const repo = this.repo;
     if (repo) {
       // check if index exists, this can be false if the commit has no files (--allowEmpty)
-      return io.pathExists(this.getAbsPath()).then((exists: boolean) => {
-        if (exists) { return fse.unlink(this.getAbsPath()); }
-      }).then(() => {
-        repo.removeIndex(this);
+      return io.pathExists(this.getAbsPath())
+        .then((exists: boolean) => {
+          if (exists) {
+            return fse.unlink(this.getAbsPath());
+          } else {
+            return Promise.resolve();
+          }
+        })
+        .then(() => {
+          repo.removeIndex(this);
 
-        this.addRelPaths = new Set();
-        this.deleteRelPaths = new Set();
-        this.processedAdded.clear();
-        this.id = null;
-        this.repo = null;
-        this.odb = null;
-      });
+          this.addRelPaths = new Set();
+          this.deleteRelPaths = new Set();
+          this.processedAdded.clear();
+          this.id = null;
+          this.repo = null;
+          this.odb = null;
+        });
     } else {
       return Promise.resolve();
     }
@@ -130,7 +136,7 @@ export class Index {
   getAbsPath(): string {
     this.throwIfNotValid();
 
-    const indexPath: string = join(Index.getAbsDir(this.repo!), this.id ? `index.${this.id}` : 'index');
+    const indexPath: string = join(Index.getAbsDir(this.repo), this.id ? `index.${this.id}` : 'index');
     return indexPath;
   }
 
@@ -139,8 +145,6 @@ export class Index {
    */
   private save(): Promise<void> {
     this.throwIfNotValid();
-
-    const repo = this.repo!;
 
     const processed = Array.from(this.processedAdded.entries()).map((res: [string, FileInfo]) => {
       const size: number = res[1].stat.size;
@@ -156,7 +160,7 @@ export class Index {
       deletes: Array.from(this.deleteRelPaths),
       processed,
     });
-    return fse.ensureDir(Index.getAbsDir(repo))
+    return fse.ensureDir(Index.getAbsDir(this.repo))
       .then(() => fss.writeSafeFile(this.getAbsPath(), userData));
   }
 
@@ -211,7 +215,7 @@ export class Index {
 
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
-      const relPath: string = isAbsolute(filepath) ? relative(this.repo!.workdir(), filepath) : filepath;
+      const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
 
       // if the file has already been processed from a previous 'index add .',
       // we don't need to do it again
@@ -230,7 +234,7 @@ export class Index {
 
     // filepaths can be absolute or relative to workdir
     for (const filepath of filepaths) {
-      const relPath: string = isAbsolute(filepath) ? relative(this.repo!.workdir(), filepath) : filepath;
+      const relPath: string = isAbsolute(filepath) ? relative(this.repo.workdir(), filepath) : filepath;
 
       if (!this.processedAdded.has(relPath)) {
         this.deleteRelPaths.add(relPath);
@@ -268,15 +272,15 @@ export class Index {
         if (flags & WRITE.SKIP_FILELOCK_CHECKS) {
           return Promise.resolve();
         }
-        return ioContext.performFileAccessCheck(this.repo!.workdir(), unprocessedRelItems, TEST_IF.FILE_CAN_BE_READ_FROM);
+        return ioContext.performFileAccessCheck(this.repo.workdir(), unprocessedRelItems, TEST_IF.FILE_CAN_BE_READ_FROM);
       }).then(() => {
         return PromisePool
           .withConcurrency(32)
           .for(unprocessedRelItems)
           .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
-            const filepathAbs: string = join(this.repo!.repoWorkDir, relFilePath);
-            return this.odb!.writeObject(filepathAbs, ioContext);
+            const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
+            return this.odb.writeObject(filepathAbs, ioContext);
           });
       })
       .then((res: {results: {file: string, fileinfo: FileInfo}[]}) => {
