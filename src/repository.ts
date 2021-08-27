@@ -1,5 +1,3 @@
-/* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
-
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
@@ -1161,11 +1159,7 @@ export class Repository {
           for (const commit of commits) {
             if (commit.runtimeData && commit.runtimeData?.markForDeletion) {
               delete commit.runtimeData.markForDeletion; // delete item, now commit can be deleted
-              if (promise) {
-                promise.then(() => this.deleteCommit(commit.hash));
-              } else {
-                promise = this.deleteCommit(commit.hash);
-              }
+              promise = promise.then(() => this.deleteCommit(commit.hash));
             }
           }
           return Promise.resolve(promise);
