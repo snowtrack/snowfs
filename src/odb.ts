@@ -214,7 +214,7 @@ export class Odb {
 
     // json content
     const parent = commit.parent ? commit.parent : null;
-    const root = commit.root.toJsonObject(true);
+    const root = commit.root.toJson();
     const tags = commit.tags?.length > 0 ? commit.tags : undefined;
     const userData = commit.userData && Object.keys(commit.userData).length > 0 ? commit.userData : undefined;
 
