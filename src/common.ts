@@ -31,6 +31,12 @@ export class StatsSubset {
   }
 }
 
+export interface RepoDetails {
+  state : LOADING_STATE;
+  workdir : string | null;
+  commondir : string | null;
+}
+
 /**
  * A commonly used class which contains a hash and
  * file stats of a given file
@@ -190,7 +196,7 @@ export function calculateFileHash(filepath: string): Promise<{filehash : string,
  * @param repoPath      The directory in question
  * @returns             Information about the directory. See [[LOADING_STATE]] for more information
  */
-export function getRepoDetails(repoPath: string): Promise<{state : LOADING_STATE; workdir : string | null; commondir : string | null;}> {
+export function getRepoDetails(repoPath: string): Promise<RepoDetails> {
   return io.stat(repoPath)
     .then((stat: fse.Stats) => {
       // if the repo path is a file we treat the directory it is in as the repo path

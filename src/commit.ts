@@ -20,6 +20,9 @@ export class Commit {
   /** Custom commit user data, that was added to [[Repository.createCommit]]. */
   userData: any;
 
+  /** Custom commit runtime data. Only for internal use. */
+  runtimeData: any;
+
   /** The repository this commit belongs to. */
   repo: Repository;
 
@@ -28,6 +31,9 @@ export class Commit {
 
   /** Creation date of the commit. */
   date: Date;
+
+  /** Last modified date of commit. If null, it never got modified after being created*/
+  lastModifiedDate: Date | null;
 
   /** The root represents the directory of the worktree when the commit was created. */
   root: TreeDir;
@@ -39,9 +45,10 @@ export class Commit {
     this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
     this.tags = [];
     this.userData = {};
+    this.runtimeData = {};
     this.repo = repo;
     this.message = jsonCompliant(message);
-    this.date = creationDate;
+    this.date = new Date(creationDate.getTime());
     this.root = root;
     this.parent = parent;
   }
@@ -56,6 +63,7 @@ export class Commit {
       this.root,
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
+    commit.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
 
     commit.tags = [];
     if (this.tags != null) {
@@ -63,11 +71,24 @@ export class Commit {
     }
 
     commit.userData = {};
-    if (this.userData != null) {
+    if (this.userData && Object.keys(this.userData).length > 0) {
       commit.userData = { ...this.userData };
     }
 
+    commit.runtimeData = {};
+    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
+      commit.runtimeData = { ...this.runtimeData };
+    }
+
     return commit;
+  }
+
+  /**
+   * Update the commit message.
+   */
+  setCommitMessage(message: string): void {
+    this.message = message;
+    this.lastModifiedDate = new Date();
   }
 
   /**
@@ -75,6 +96,7 @@ export class Commit {
    */
   addData(key: string, value: any): void {
     this.userData[key] = value;
+    this.lastModifiedDate = new Date();
   }
 
   /**
@@ -95,6 +117,7 @@ export class Commit {
 
     tag = jsonCompliant(tag);
     this.tags.push(tag);
+    this.lastModifiedDate = new Date();
   }
 
   /**
@@ -102,5 +125,23 @@ export class Commit {
    */
   owner(): Repository {
     return this.repo;
+  }
+
+  toJson(): any {
+    const parent = this.parent ? this.parent : null;
+    const root = this.root.toJson();
+    const tags = this.tags?.length > 0 ? this.tags : undefined;
+    const userData = this.userData && Object.keys(this.userData).length > 0 ? this.userData : undefined;
+
+    return {
+      hash: this.hash,
+      message: this.message,
+      date: this.date.getTime(),
+      parent,
+      root,
+      ...(this.lastModifiedDate ? {lastModifiedDate: this.lastModifiedDate?.getTime()}: {}),
+      ...(tags? {tags}: {}),
+      ...(userData? {userData}: {}),
+    };
   }
 }

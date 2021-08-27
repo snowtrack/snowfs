@@ -26,7 +26,7 @@ export class Diff {
   /**
    * Generator function. Return added items between the base and target commit.
    */
-  * added() {
+  * added(): Generator<TreeEntry, void, unknown> {
     const filenames: string[] = difference(Array.from(this.target.keys()), Array.from(this.base.keys()));
     for (const filename of filenames) {
       yield this.target.get(filename);
@@ -36,7 +36,7 @@ export class Diff {
   /**
    * Generator function. Return deleted items between the base and target commit.
    */
-  * deleted() {
+  * deleted(): Generator<TreeEntry, void, unknown> {
     const filenames: string[] = difference(Array.from(this.base.keys()), Array.from(this.target.keys()));
     for (const filename of filenames) {
       yield this.base.get(filename);
@@ -46,7 +46,7 @@ export class Diff {
   /**
    * Generator function. Return modified items between the base and target commit.
    */
-  * modified() {
+  * modified(): Generator<TreeEntry, void, unknown> {
     const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
     for (const filename of filenames) {
@@ -61,7 +61,7 @@ export class Diff {
   /**
    * Generator function. Return non-modified items between the base and target commit.
    */
-  * nonModified() {
+  * nonModified(): Generator<TreeEntry, void, unknown> {
     const filenames: string[] = intersection(Array.from(this.target.keys()), Array.from(this.base.keys()));
 
     for (const filename of filenames) {

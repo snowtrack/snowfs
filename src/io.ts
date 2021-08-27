@@ -11,9 +11,8 @@ export { PathLike, Stats } from 'fs-extra';
 // filesystem onboard called 'original-fs'. For more information see
 // https://github.com/Snowtrack/SnowFS/issues/173
 let useOriginalFs = false;
-let fs;
+let fs: any;
 if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
-  // eslint-disable-next-line global-require, import/no-unresolved
   fs = require('original-fs');
   useOriginalFs = true;
 } else {
@@ -21,9 +20,8 @@ if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
   fs = require('fs');
 }
 
-let winattr;
+let winattr: any;
 if (process.platform === 'win32') {
-  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
 }
 
@@ -96,6 +94,8 @@ export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): P
   return promise.then(() => {
     if (opts.deleteSrc) {
       return fse.remove(src);
+    } else {
+      return Promise.resolve();
     }
   });
 }
@@ -132,7 +132,7 @@ function checkPath(pth): void {
   }
 }
 
-const getMode = (options) => {
+const getMode = (options): string | number => {
   const defaults = { mode: 0o777 };
   if (typeof options === 'number') return options;
   return ({ ...defaults, ...options }).mode;
@@ -153,7 +153,7 @@ export function ensureDir(dir: string, options?: number | any): Promise<void> {
       fs.mkdir(dir, {
         mode: getMode(options),
         recursive: true,
-      }, (error) => {
+      }, (error: Error) => {
         if (error) {
           reject(error);
         } else {
@@ -176,7 +176,7 @@ export function ensureDir(dir: string, options?: number | any): Promise<void> {
 export function access(path: PathLike, mode: number | undefined): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      fs.access(path, mode, (error) => {
+      fs.access(path, mode, (error: Error) => {
         if (error) {
           reject(error);
         } else {
@@ -199,7 +199,7 @@ export function access(path: PathLike, mode: number | undefined): Promise<void> 
 export function pathExists(path: PathLike): Promise<boolean> {
   return new Promise((resolve, reject) => {
     try {
-      fs.exists(path, (exists) => {
+      fs.exists(path, (exists: boolean) => {
         resolve(exists);
       });
     } catch (error) {
@@ -342,7 +342,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
       dirPath = dirPath.substr(0, dirPath.length - 1);
     }
 
-    const dirItems = [];
+    const dirItems: DirItem[] = [];
     return new Promise<string[]>((resolve, reject) => {
       readdir(dirPath, (error, entries: string[]) => {
         if (error) {
@@ -362,7 +362,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
       });
     })
       .then((items: string[]) => {
-        const promises = [];
+        const promises: Promise<DirItem | null>[] = [];
 
         for (const item of items) {
           if (item === '.DS_Store' || item === 'thumbs.db') {
@@ -388,7 +388,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
 
         return Promise.all(promises);
       }).then((itemStatArray: DirItem[]) => {
-        const promises = [];
+        const promises: Promise<DirItem[]>[] = [];
 
         for (const dirItem of itemStatArray.filter((x) => x)) {
           if ((dirItem.stats.isDirectory() && returnDirs) || (!dirItem.stats.isDirectory() && returnFiles)) {
@@ -406,7 +406,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
 
         return Promise.all(promises);
       })
-      .then((dirItemResults: DirItem[]) => dirItems.concat(...dirItemResults));
+      .then((dirItemResults: DirItem[][]) => dirItems.concat(...dirItemResults));
   }
 
   return internalOsWalk(dirPath, request, '');

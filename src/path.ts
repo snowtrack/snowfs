@@ -31,19 +31,6 @@ export function normalize(p: string): string {
   return p;
 }
 
-export function normalizeExt(p: string): string {
-// empty path stays an empty path, otherwise would return '.'
-  if (p === '' || p === '.') {
-    return '';
-  }
-
-  p = path.normalize(p);
-  if (p.endsWith('/')) {
-    p = p.substr(0, p.length - 1);
-  }
-  return p.replace('/', path.sep);
-}
-
 /**
  * Denormalizes a path. If on Windows, all forward slashes will be converted to backward slashes
  *
@@ -55,7 +42,7 @@ export function normalizeExt(p: string): string {
  * @param p    Required. A string. The path you want to denormalize.
  * @returns    A String, representing the denormalized path
  */
- export function denormalize(p: string): string {
+export function denormalize(p: string): string {
   if (process.platform === 'win32') {
     return p.replace(/\//g, '\\');
   }

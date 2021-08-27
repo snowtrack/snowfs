@@ -14,14 +14,16 @@ export class Reference {
 
     repo: Repository;
 
-    startHash: string;
+    startHash: string | null;
 
     type: REFERENCE_TYPE;
 
-    constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
+    lastModifiedDate: Date | null;
+
+    constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start?: string | null, userData?: any}) {
       this.hash = c.hash;
       this.userData = c.userData ?? {};
-      this.startHash = c.start;
+      this.startHash = c.start ?? null; // if undefined, it's null
       this.refName = refName;
       this.repo = repo;
       this.type = type;
@@ -51,7 +53,7 @@ export class Reference {
       return this.hash;
     }
 
-    start(): string {
+    start(): string | null {
       return this.startHash;
     }
 
@@ -59,9 +61,10 @@ export class Reference {
       const ref = new Reference(this.type, this.refName, this.repo,
         {
           hash: this.hash,
-          start: this.startHash,
+          start: this.startHash || null,
         });
 
+      ref.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
       ref.userData = {};
       if (this.userData != null) {
         ref.userData = { ...this.userData };

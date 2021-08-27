@@ -12,8 +12,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-// eslint-disable-next-line import/order
 import PromisePool = require('@supercharge/promise-pool');
+
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
  * when files are written to disk.
@@ -37,17 +37,17 @@ export class Index {
   /**
    * The repository this instance belongs to.
    */
-  repo: Repository;
+  repo: Repository | null;
 
   /**
    * The object database. Same as [[Repository.getOdb]].
    */
-  odb: Odb;
+  odb: Odb | null;
 
   /**
    * Unique id for the index, used in the filename of the index
    */
-  id: string;
+  id: string | null;
 
   /** Hash map of added files that were written to the odb. Empty by default, and filled
    * after [[Index.writeFiles]] has been called and the hashes of the files have been calculated.
@@ -102,6 +102,10 @@ export class Index {
     if (!this.id && this.id !== '') { // an empty string is allowed for the main index
       // this happens if an index object got commited, it will be deleted and cleared
       throw new Error('index object is invalid');
+    } else if (!this.odb) {
+      throw new Error('no odb set');
+    } else if (!this.repo) {
+      throw new Error('no repo set');
     }
   }
 
@@ -121,6 +125,8 @@ export class Index {
    * @returns       Absolute path to the index file.
    */
   getAbsPath(): string {
+    this.throwIfNotValid();
+
     const indexPath: string = join(Index.getAbsDir(this.repo), this.id ? `index.${this.id}` : 'index');
     return indexPath;
   }
@@ -146,8 +152,7 @@ export class Index {
       processed,
     });
     return fse.ensureDir(Index.getAbsDir(this.repo))
-      .then(() => fss.writeSafeFile(this.getAbsPath(), userData))
-      .then(() => this.repo.modified());
+      .then(() => fss.writeSafeFile(this.getAbsPath(), userData));
   }
 
   /**
@@ -156,7 +161,7 @@ export class Index {
    */
   static loadAll(repo: Repository, odb: Odb): Promise<Index[]> {
     return fse.ensureDir(Index.getAbsDir(repo)).then(() => osWalk(Index.getAbsDir(repo), OSWALK.FILES)).then((dirItems: DirItem[]) => {
-      const readIndexes = [];
+      const readIndexes: Promise<[string, Buffer]>[] = [];
       for (const dirItem of dirItems) {
         const indexName = basename(dirItem.absPath);
         if (indexName.startsWith('index') || indexName === 'index') {
@@ -165,7 +170,7 @@ export class Index {
       }
       return Promise.all(readIndexes);
     }).then((promises: [string, Buffer][]) => {
-      const parseIndexes = [];
+      const parseIndexes: Index[] = [];
       for (const parseIndex of promises) {
         const indexName = basename(parseIndex[0]); // 'index.abc123'
         const isMainIndex = indexName === 'index';

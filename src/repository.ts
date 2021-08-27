@@ -1,10 +1,8 @@
-/* eslint import/no-unresolved: [2, { commonjs: true, amd: true }] */
-
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
 import {
-  resolve, join, dirname, extname,
+  resolve, join, dirname, extname, denormalize,
 } from './path';
 
 import { Log } from './log';
@@ -24,8 +22,7 @@ import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
-// eslint-disable-next-line import/order
-const PromisePool = require('@supercharge/promise-pool');
+import PromisePool = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
@@ -38,6 +35,49 @@ export enum COMMIT_ORDER {
  */
 export enum REFERENCE_TYPE {
   BRANCH = 0
+}
+
+type RefName = string;
+type RefHash = string;
+type CommitHash = string;
+
+export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
+  if (Array.isArray(obj)) {
+    return obj.map((c: any) => buildRootFromJson(c, parent));
+  }
+
+  if (!obj.userData) {
+    obj.userData = {};
+  }
+
+  if (obj.stats) {
+    // backwards compatibility because item was called cTimeMs before
+    if (obj.stats.ctimeMs) {
+      obj.stats.ctime = obj.stats.cTimeMs;
+    }
+
+    // backwards compatibility because item was called mtimeMs before
+    if (obj.stats.mtimeMs) {
+      obj.stats.mtime = obj.stats.mtimeMs;
+    }
+
+    obj.stats.mtime = new Date(obj.stats.mtime);
+    obj.stats.ctime = new Date(obj.stats.ctime);
+  }
+
+  if (obj.children) {
+    const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
+    o.children = obj.children.map((t: any) => buildRootFromJson(t, o));
+    o.parent = parent;
+    return o;
+  }
+
+  const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
+  o.parent = parent;
+  if (obj.hash) {
+    o.hash = obj.hash;
+  }
+  return o;
 }
 
 const warningMessage = `Attention: Modifications to the content of this directory without the proper knowledge might result in data loss.
@@ -57,6 +97,8 @@ export class RepositoryInitOptions {
   compress?: boolean;
 
   additionalConfig?: any;
+
+  remote?: string;
 
   /**
    * @param commondir Path outside the repository where the versions are stored
@@ -216,10 +258,10 @@ export interface StatusItemOptionsCustom {
  */
 export class StatusEntry {
   /** Relative path of the item to the workdir root. */
-  path?: string;
+  path: string;
 
   /** Flags, which define the attributes of the item. */
-  status?: STATUS;
+  status: STATUS;
 
   isdir: boolean;
 
@@ -406,22 +448,28 @@ export class Repository {
   /** HEAD reference to the currently checked out commit */
   readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: undefined, start: null });
 
-  /** Array of all commits of the repository. The order is undefined. */
-  commits: Commit[] = [];
-
   /** Hash Map of all commits of the repository. The commit hash is the key, and the Commit object is the value. */
   commitMap = new Map<string, Commit>();
 
   /** Array of all references in the repository. The order is undefined.
    * The array does not contain the HEAD reference
    */
-  references: Reference[] = [];
+  references = new Map<string, Reference>();
 
   /** See [[Repository.workdir]] */
   repoWorkDir: string;
 
   /** See [[Repository.commondir]] */
   repoCommonDir: string;
+
+  repoRemote: string | undefined;
+
+  /**
+   * Get the url to the snow:// remote
+  */
+  remote(): string | undefined {
+    return this.repoRemote;
+  }
 
   /**
    * Path to the repositories commondir, also known as the `.snow` directory.
@@ -446,7 +494,7 @@ export class Repository {
    */
   modified<T>(res?: T): Promise<T> {
     const state = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
-    return fse.writeFile(join(this.commondir(), 'state'), state)
+    return fse.writeFile(denormalize(join(this.commondir(), 'state')), state)
       .then(() => res)
       .catch(() => res); // ignore any errors since it is not crucial for the repo to run
   }
@@ -528,7 +576,7 @@ export class Repository {
    * Return an array of all commit clones of the repository. The order is undefined.
    */
   getAllCommits(order: COMMIT_ORDER): Commit[] {
-    const commits = this.commits.map((c: Commit) => c.clone());
+    const commits = Array.from(this.commitMap.values());
     switch (order) {
       case COMMIT_ORDER.OLDEST_FIRST:
         commits.sort((a: Commit, b: Commit) => {
@@ -568,23 +616,26 @@ export class Repository {
    * The reference names can be acquired by [[Repository.getAllReferences]].
    * `name` can also be `HEAD`.
    */
-  findCommitByReferenceName(type: REFERENCE_TYPE, refName: string): Commit|null {
-    let ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
-    if (!ref) {
-      ref = (refName === 'HEAD') ? this.head : null;
+  findCommitByReferenceName(type: REFERENCE_TYPE, refName: string): Commit | null {
+    let ref: Reference | undefined;
+    if (refName === 'HEAD') {
+      ref = this.head;
+    } else {
+      ref = this.references.get(refName);
     }
-    if (!ref) {
-      return null;
+    if (ref && ref.type === type) {
+      return this.commitMap.get(ref.hash.toString()) || null;
+    } else {
+      return undefined;
     }
-    return this.commitMap.get(ref.hash.toString());
   }
 
   /**
    * Find and return the commit object by a given reference.
    * The references can be acquired by [[Repository.getAllReferences]].
    */
-  findCommitByReference(ref: Reference): Commit {
-    return this.commitMap.get(ref.hash.toString());
+  findCommitByReference(ref: Reference): Commit | null {
+    return this.commitMap.get(ref.hash.toString()) || null;
   }
 
   /**
@@ -592,24 +643,13 @@ export class Repository {
    * The reference names can be acquired by [[Repository.getAllReferences]].
    */
   findReferenceByName(type: REFERENCE_TYPE, refName: string): Reference|null {
-    const ref: Reference = this.references.find((r: Reference) => r.getName() === refName && r.getType() === type);
-    return ref?.clone();
-  }
-
-  /**
-   * Walk the commits back in the history by it's parents. Useful to acquire
-   * all commits only related to the current branch.
-   */
-  walkCommit(commit: Commit, cb: (commit: Commit) => void): void {
-    if (!commit) {
-      throw new Error('commit must be set');
+    let ref: Reference | null = null;
+    if (refName === 'HEAD') {
+      ref = this.head;
+    } else {
+      ref = this.references.get(refName);
     }
-
-    while (commit.parent) {
-      for (const parentHash of commit.parent) {
-        this.walkCommit(this.commitMap.get(parentHash.toString()), cb);
-      }
-    }
+    return ref ? ref.clone() : null;
   }
 
   /**
@@ -617,15 +657,15 @@ export class Repository {
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
   getAllReferences(): Reference[] {
-    return Object.assign([], this.references);
+    return Array.from(this.references.values());
   }
 
   /**
    * Returns all reference names of the repository. The HEAD reference name is not part
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
-  getAllReferenceNames(): string[] {
-    return this.references.map((ref: Reference) => ref.getName());
+  getAllReferenceNames(): Set<string> {
+    return new Set(Array.from(this.references.values()).map((ref: Reference) => ref.getName()));
   }
 
   /**
@@ -648,8 +688,8 @@ export class Repository {
       for (const idx of hash.split('~')) {
         if (idx === 'HEAD') {
           commit = this.commitMap.get(this.getHead().hash);
-        } else if (this.references.map((r: Reference) => r.getName()).includes(idx)) {
-          const ref = this.references.find((r: Reference) => r.getName() === idx);
+        } else if (this.references.has(idx)) {
+          const ref = this.references.get(idx);
           commit = this.commitMap.get(ref.target());
         } else if (commit) {
           const iteration: number = parseInt(idx, 10);
@@ -678,28 +718,29 @@ export class Repository {
    * is not part of the returned array and must be acquired seperately by [[Repository.getHead]].
    */
   filterReferenceByHash(hash: string): Reference[] {
-    return this.references.filter((ref: Reference) => ref.hash === hash);
+    return Array.from(this.references.values()).filter((ref: Reference) => ref.hash === hash);
   }
 
   filterReferencesByHead(): Reference[] {
-    return this.references.filter((ref: Reference) => this.head.hash === ref.hash);
+    return Array.from(this.references.values()).filter((ref: Reference) => this.head.hash === ref.hash);
   }
 
   /**
    * Deletes the passed reference. If the passed Reference is the HEAD reference, it is ignored.
    */
-  deleteReference(type: REFERENCE_TYPE, branchName: string): Promise<string | null> {
+  deleteReference(branchName: string): Promise<string | null> {
     if (this.getHead().getName() === branchName) {
       throw new Error(`Cannot delete branch '${branchName}' checked out at '${this.workdir()}'`);
     }
 
-    let ref: Reference = null;
-    const index = this.references.findIndex((r: Reference) => r.getName() === branchName && r.getType() === type);
-    if (index > -1) {
-      ref = this.references[index];
-      this.references.splice(index, 1);
+    const ref: Reference | undefined = this.references.get(branchName);
+    if (!ref) {
+      throw new Error('no such reference');
     }
-    return this.repoOdb.deleteReference(ref).then(() =>
+
+    this.references.delete(branchName);
+
+    return this.repoOdb.deleteReference(branchName).then(() =>
       // delete the sha the reference was pointing to
       (ref ? ref.target() : null)).catch(() =>
       // delete the sha the reference was pointing to
@@ -719,8 +760,8 @@ export class Repository {
    * @param name  Name of the new reference
    * @param startPoint  Commit hash of the new reference, if null HEAD is used.
    */
-  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string, userData?: any): Promise<Reference> {
-    const existingRef: Reference = this.references.find((ref: Reference) => ref.getName() === name);
+  createNewReference(type: REFERENCE_TYPE, name: string, startPoint: string | null, userData?: Record<string, unknown>): Promise<Reference> {
+    const existingRef: Reference = this.references.get(name);
     if (existingRef) {
       if (type === REFERENCE_TYPE.BRANCH) {
         throw new Error(`A branch named '${name}' already exists.`);
@@ -738,7 +779,7 @@ export class Repository {
 
     const newRef: Reference = new Reference(type, name, this, { hash: startPoint, start: startPoint, userData });
 
-    this.references.push(newRef);
+    this.references.set(newRef.getName(), newRef);
     return this.repoOdb.writeReference(newRef).then(() => this.repoLog.writeLog(`reference: creating ${name} at ${startPoint}`)).then(() => newRef);
   }
 
@@ -749,7 +790,7 @@ export class Repository {
    * @param name    Name of the reference.
    */
   setHead(name: string): void {
-    if (!this.references.find((v: Reference) => v.getName() === name)) {
+    if (!this.references.has(name)) {
       throw new Error(`unknown reference name ${name}`);
     }
     this.head.setName(name);
@@ -769,20 +810,32 @@ export class Repository {
     this.head.setName('HEAD');
   }
 
-  async setCommitMessage(commitHash: string, message: string) {
+  setCommitMessage(commitHash: string, message: string): Promise<void> {
     if (!message) {
       throw new Error('commit message cannot be empty');
     }
 
-    const commit: Commit = this.commitMap.get(commitHash);
-    commit.message = message;
-    return this.repoOdb.writeCommit(commit).then(() => {
+    const commit: Commit | undefined = this.commitMap.get(commitHash);
+    if (!commit) {
+      throw new Error('unnknown commit');
+    }
+
+    // copy the commit and apply the changes on the commit
+    // only after the write commit is succesfull we apply
+    // the change to the original commit
+    const commitCopy = commit.clone();
+    commitCopy.setCommitMessage(message);
+    commitCopy.lastModifiedDate = new Date();
+
+    return this.repoOdb.writeCommit(commitCopy).then(() => {
+      // move copy back to the original commit object
+      Object.assign(commit, commitCopy);
       return this.modified();
     });
   }
 
-  async deleteCommit(commitHash: string) {
-    const commitToDelete: Commit = this.findCommitByHash(commitHash);
+  deleteCommit(commitIdent: string): Promise<void> {
+    const commitToDelete: Commit = this.findCommitByHash(commitIdent);
     if (!commitToDelete) {
       throw new Error('cannot find commit');
     }
@@ -791,8 +844,11 @@ export class Repository {
       throw new Error('cannot delete first commit');
     }
 
-    if (this.head.hash === commitHash) {
-      throw new Error('cannot delete commit that is checked out');
+    // If the update wants to remove the checked out commit, we keep the commit
+    // alive and only flag it with 'markForDeletion'.
+    if (this.head.hash === commitToDelete.hash) {
+      commitToDelete.runtimeData.markForDeletion = true;
+      return this.repoOdb.writeCommit(commitToDelete);
     }
 
     const parentsOfCommitReferencedByOtherCommits = new Set<string>();
@@ -801,13 +857,14 @@ export class Repository {
     let promise: Promise<unknown> = Promise.resolve();
 
     this.commitMap.forEach((c: Commit) => {
-      if (c.hash === commitHash || !c.parent || c.parent.length === 0) {
+      if (c.hash === commitToDelete.hash || !c.parent || c.parent.length === 0) {
         return;
       }
 
       // every commit that is a child commit (direct descendant) of the
       // deleted commit must be updated
-      if (c.parent.includes(commitHash)) {
+      if (c.parent.includes(commitToDelete.hash)) {
+        c.lastModifiedDate = new Date();
         c.parent = parentsOfDeletedCommit;
         promise = promise.then(() => {
           return this.repoOdb.writeCommit(c);
@@ -823,7 +880,7 @@ export class Repository {
     });
 
     // We need to update every branch that points to the commit
-    const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitHash);
+    const branchesPointingToDeletedCommit = this.filterReferenceByHash(commitToDelete.hash);
     if (branchesPointingToDeletedCommit.length > 0) {
       // If all parents of the deleted commit are indirectly referenced by other branches and commits,
       // we can safely delete the branch ...
@@ -831,17 +888,18 @@ export class Repository {
         for (const b of branchesPointingToDeletedCommit) {
           promise = promise.then((): Promise<unknown> => {
             // ensure we dont delete the last reference
-            if (this.references.length <= 1) {
+            if (this.references.size <= 1) {
               return Promise.resolve();
             }
 
-            return this.deleteReference(REFERENCE_TYPE.BRANCH, b.getName());
+            return this.deleteReference(b.getName());
           });
         }
       } else { // ... otherwise it means the commit is not an orphan and we need to update all branches that pointed to it
         let headUpdated = false;
         for (const ref of branchesPointingToDeletedCommit) {
           ref.hash = commitToDelete.parent[0];
+          ref.lastModifiedDate = new Date();
 
           // if we are in a detached head, and we update a branch
           // that now points to the 'detached head', we switch from detached head
@@ -860,16 +918,13 @@ export class Repository {
       }
     }
 
-    // we now delete the commit from the commit map and the commit array
-    this.commitMap.delete(commitHash);
-    const index = this.commits.findIndex((c) => c.hash === commitHash);
-    if (index > -1) {
-      this.commits.splice(index, 1);
-    }
-
     return promise
       .then(() => {
         return this.repoOdb.deleteCommit(commitToDelete);
+      }).then(() => {
+        // we now delete the commit from the commit map and the commit array
+        this.commitMap.delete(commitToDelete.hash);
+        return this.modified();
       });
   }
 
@@ -919,15 +974,6 @@ export class Repository {
       throw new Error('unknown target version');
     }
 
-    let detectionMode = DETECTIONMODE.DEFAULT; // default
-    if (reset & RESET.DETECTIONMODE_ONLY_SIZE_AND_MKTIME) {
-      detectionMode = DETECTIONMODE.ONLY_SIZE_AND_MKTIME;
-    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_ALL_FILES) {
-      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_ALL_FILES;
-    } else if (reset & RESET.DETECTIONMODE_SIZE_AND_HASH_FOR_SMALL_FILES) {
-      detectionMode = DETECTIONMODE.SIZE_AND_HASH_FOR_SMALL_FILES;
-    }
-
     const oldFilesMap: Map<string, TreeEntry> = targetCommit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
 
     let statuses: StatusEntry[] = [];
@@ -939,7 +985,7 @@ export class Repository {
 
     // IoTask is a callback helper, used by the promise pool to ensure that no more async operations
     // of this type are executed than set/limited by PromisePool.withConcurrency(..)
-    type IoTask = () => Promise<unknown>;
+    type IoTask = () => Promise<void>;
 
     // Array of async functions that are executed by the promise pool
     const tasks: IoTask[] = [];
@@ -1030,6 +1076,8 @@ export class Repository {
                     // need to treat it as a delete candidate
                     if (putToTrashImmediately.length > 0) {
                       return IoContext.putToTrash(putToTrashImmediately);
+                    } else {
+                      return Promise.resolve();
                     }
                   }).then(() => {
                     return this.repoOdb.readObject(tfile, dst, ioContext);
@@ -1097,18 +1145,38 @@ export class Repository {
       .then(() => {
         if (putToTrash.length > 0) {
           return IoContext.putToTrash(putToTrash);
+        } else {
+          return Promise.resolve();
+        }
+      })
+      .then(() => {
+        if (commitChange) {
+          // if we switch to another commit, we browse through all commits
+          // and delete each one that was marked for deletion
+
+          let promise: Promise<void> = Promise.resolve();
+          const commits: Commit[] = this.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
+          for (const commit of commits) {
+            if (commit.runtimeData && commit.runtimeData?.markForDeletion) {
+              delete commit.runtimeData.markForDeletion; // delete item, now commit can be deleted
+              promise = promise.then(() => this.deleteCommit(commit.hash));
+            }
+          }
+          return Promise.resolve(promise);
+        } else {
+          return Promise.resolve();
         }
       })
       .then(() => {
         let moveTo = '';
         if (target instanceof Reference) {
-          moveTo = target.getName();
+          moveTo = `${target.getName()} (${targetCommit.hash})`;
         } else if (target instanceof Commit) {
           moveTo = target.hash;
         } else {
           moveTo = target;
         }
-        return this.repoLog.writeLog(`checkout: move from '${oldHeadHash}' to ${targetCommit.hash} with ${reset}`);
+        return this.repoLog.writeLog(`checkout: move from '${oldHeadHash}' to ${moveTo} with ${reset}`);
       });
   }
 
@@ -1132,7 +1200,7 @@ export class Repository {
     }
 
     // For each deleted status item, we flag its parent directory as modified.
-    function markParentsAsModified(itemPath: string) {
+    function markParentsAsModified(itemPath: string): void {
       // Create the parent strings from the status path and call flagDirAsModified
       // E.g. for hello/foo/bar/texture.psd we flag hello, hello/foo/ hello/foo/bar
       const parents = [];
@@ -1154,6 +1222,8 @@ export class Repository {
       .then((exists: boolean) => {
         if (exists) {
           return ignore.loadFile(snowtrackIgnoreDefault);
+        } else {
+          return Promise.resolve();
         }
       })
       .then(() => {
@@ -1337,7 +1407,7 @@ export class Repository {
    * @param userData Custom data that is attached to the commit data. The data must be JSON.stringifyable.
    * @returns        New commit object.
    */
-  async createCommit(index: Index, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: {}): Promise<Commit> {
+  async createCommit(index: Index | null, message: string, opts?: {allowEmpty?: boolean}, tags?: string[], userData?: Record<string, unknown>): Promise<Commit> {
     let tree: TreeDir = null;
     let commit: Commit = null;
     if (opts?.allowEmpty) {
@@ -1437,7 +1507,8 @@ export class Repository {
         });
     }
 
-    return promise.then((treeResult: TreeDir) => {
+    return promise
+    .then((treeResult: TreeDir) => {
       tree = treeResult;
 
       // Check hash and size for validty
@@ -1454,13 +1525,14 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
         }
 
-        if (!item.hash.match(/[0-9a-f]{64}/i)) {
+        if (!(/[0-9a-f]{64}/i.exec(item.hash))) {
           throw new Error(`Item '${item.path}' has no valid hash: ${item.hash}`);
         }
       });
 
       return index.invalidate();
-    }).then(() => {
+    })
+    .then(() => {
       commit = new Commit(this, message, new Date(), tree, this.head?.hash ? [this.head.hash] : null);
 
       if (tags && tags.length > 0) {
@@ -1475,34 +1547,44 @@ export class Repository {
         }
       }
 
-      this.commits.push(commit);
+      return this.repoOdb.writeCommit(commit);
+    })
+    .then(() => {
       this.commitMap.set(commit.hash.toString(), commit);
 
+      let ref: Reference;
       if (this.head.hash) {
         this.head.hash = commit.hash;
         // update the hash of the current head reference as well
-        const curRef = this.references.find((r: Reference) => r.getName() === this.head.getName());
-        if (curRef) {
-          curRef.hash = commit.hash;
+        ref = this.references.get(this.head.getName());
+        if (ref) {
+          ref.lastModifiedDate = new Date();
+          ref.hash = commit.hash;
         }
       } else {
         this.head.setName(this.options.defaultBranchName ?? 'Main');
         this.head.hash = commit.hash;
-        this.references.push(new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash }));
+        ref = new Reference(REFERENCE_TYPE.BRANCH, this.head.getName(), this, { hash: commit.hash, start: commit.hash });
+        this.references.set(ref.getName(), ref);
       }
 
-      return this.repoOdb.writeCommit(commit);
-    })
-      .then(() => {
-        this.head.hash = commit.hash;
-        // update .snow/HEAD
-        return this.repoOdb.writeHeadReference(this.head);
-      })
-      .then(() =>
+      // If 'ref' is null, we are in a detached HEAD and make a commit.
+      // We don't throw an exception in this case as it is the responsibility
+      // by the caller to guarantee to not leave behind a detached HEAD after the commit.
+      if (ref) {
         // update .snow/refs/XYZ
-        this.repoOdb.writeReference(this.head))
-      .then(() => this.repoLog.writeLog(`commit: ${message}`))
-      .then(() => commit);
+        return this.repoOdb.writeReference(ref);
+      } else {
+        return Promise.resolve();
+      }
+    })
+    .then(() => {
+      // update .snow/HEAD
+      return this.repoOdb.writeHeadReference(this.head);
+    })
+    .then(() => this.modified())
+    .then(() => this.repoLog.writeLog(`commit: ${message}`))
+    .then(() => commit);
   }
 
   /**
@@ -1516,6 +1598,8 @@ export class Repository {
     let odb: Odb = null;
     let commondirInside: string = null;
     let commondir: string = null;
+    const missingObjects = new Set<string>();
+
     return io.pathExists(workdir)
       .then((exists: boolean) => {
         if (!exists) {
@@ -1553,7 +1637,10 @@ export class Repository {
         repo.options = new RepositoryInitOptions(commondir);
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
-
+        return fse.readJson(join(commondir, 'config'));
+      })
+      .then((configData: any) => {
+        repo.repoRemote = configData.remote;
         return Odb.open(repo);
       })
       .then((odbResult: Odb) => {
@@ -1563,20 +1650,58 @@ export class Repository {
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
-        repo.commits = commits;
         for (const commit of commits) {
           repo.commitMap.set(commit.hash.toString(), commit);
         }
+
+        const promises = [];
+        const odb = repo.getOdb();
+
+        const checkForExistance = new Set<string>();
+
+        for (const commit of commits) {
+          const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+          for (const fileOfCommit of Array.from(filesOfCommit.values())) {
+            if (fileOfCommit instanceof TreeFile) {
+              if (!checkForExistance.has(fileOfCommit.hash)) {
+                checkForExistance.add(fileOfCommit.hash);
+                promises.push(fse.pathExists(odb.getAbsObjectPath(fileOfCommit))
+                  .then((exists: boolean) => {
+                    if (!exists) {
+                      missingObjects.add(fileOfCommit.hash);
+                    }
+                  }));
+              }
+            }
+          }
+        }
+
+        return Promise.all(promises);
+      })
+      .then(() => {
+        for (const commit of Array.from(repo.commitMap.values())) {
+          commit.runtimeData.missingObjects = new Set<string>();
+
+          const filesOfCommit: Map<string, TreeEntry> = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: false });
+          for (const fileOfCommit of Array.from(filesOfCommit.values())) {
+            if (fileOfCommit instanceof TreeFile) {
+              if (missingObjects.has(fileOfCommit.hash)) {
+                commit.runtimeData.missingObjects.add(fileOfCommit.hash);
+              }
+            }
+          }
+        }
+
         return odb.readReferences();
       })
       .then((references: Reference[]) => {
-        repo.references = references;
+        repo.references = new Map(references.map((r) => [r.getName(), r]));
         return odb.readHeadReference();
       })
       .then((hashOrRefNameResult: string|null) => {
         let hashOrRefName = hashOrRefNameResult;
         if (!hashOrRefName) {
-          if (repo.references.length > 0) {
+          if (repo.references.size > 0) {
             hashOrRefName = repo.references[0].getName();
           } else {
             // TODO (Seb): What shall we do if no reaf nor HEAD is available?
@@ -1587,7 +1712,7 @@ export class Repository {
         let headRef: Reference = null;
         // check if the head is a name
         if (hashOrRefName) {
-          headRef = repo.references.find((ref: Reference) => ref.getName() === hashOrRefName);
+          headRef = repo.references.get(hashOrRefName);
         }
 
         if (!headRef) {
@@ -1648,6 +1773,7 @@ export class Repository {
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
+        repo.repoRemote = undefined;
         repo.repoIndexes = [];
 
         if (commondirOutside) {
@@ -1656,15 +1782,141 @@ export class Repository {
             .then(() => hideItem(snowtrackFile));
         }
         return hideItem(opts.commondir);
-      }).then(() => {
+      })
+      .then(() => {
         return fse.writeFile(join(opts.commondir, 'IMPORTANT.txt'), warningMessage);
       })
       .then(() => {
         repo.repoLog = new Log(repo);
         return repo.repoLog.init();
       })
-      .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
       .then(() => repo.createCommit(repo.getFirstIndex(), repo.options.defaultCommitMessage ?? 'Created Project', { allowEmpty: true }))
+      .then(() => repo.repoLog.writeLog(`init: initialized at ${resolve(workdir)}`))
+      .then(() => repo.modified())
       .then(() => repo);
+  }
+
+  static create(commits: Map<string, any>, refs: Map<string, any>): Repository {
+    const repo = new Repository();
+
+    for (const commit of Array.from(commits.values())) {
+      const tmpCommit: any = commit;
+
+      tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+      tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+      tmpCommit.userData = tmpCommit.userData ?? {};
+      tmpCommit.runtimeData = {};
+      tmpCommit.runtimeData.missingObjects = new Set<string>();
+
+      const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
+      c.repo = repo;
+      c.root = buildRootFromJson(c.root, null);
+      repo.commitMap.set(tmpCommit.hash, c);
+    }
+
+    for (const ref of Array.from(refs.entries())) {
+      const tmpRef: any = ref;
+
+      const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
+      if (tmpRef[1].lastModifiedDate) {
+        r.lastModifiedDate = new Date(tmpRef[1].lastModifiedDate);
+      }
+      repo.references.set(r.getName(), r);
+    }
+
+    return repo;
+  }
+
+  static getRootCommit(commits: Map<string, Commit>): Commit | undefined {
+    // The first commit that has no parent is considered to be the root commit
+    return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
+  }
+
+  static findLeafCommits(commits: Map<string, Commit>): Map<string, Commit> {
+    const leafCommits: Map<string, Commit> = new Map(commits);
+
+    for (const commit of Array.from(commits.values())) {
+      if (commit.parent && commit.parent.length > 0) {
+        for (const parent of commit.parent) {
+          leafCommits.delete(parent);
+        }
+      }
+    }
+    return leafCommits;
+  }
+
+  static merge(localRepo: Repository, remoteRepo: Repository, refNamePool: Set<string>): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
+    const localRootCommit: Commit | undefined = this.getRootCommit(localRepo.commitMap);
+    const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo.commitMap);
+
+    if (!localRootCommit || !remoteRootCommit) {
+      throw new Error('unable to find first commit');
+    }
+
+    if (localRootCommit.hash !== remoteRootCommit.hash) {
+      throw new Error('refusing to merge unrelated histories');
+    }
+
+    let refList: Reference[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      refList = refList.concat(repo.getAllReferences());
+    });
+
+    let commitList: Commit[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      commitList = commitList.concat(repo.getAllCommits(COMMIT_ORDER.UNDEFINED));
+    });
+
+    const sortedCommits = Array.from(commitList.values()).sort((a: Commit, b: Commit) => {
+      const aTime = a.lastModifiedDate ?? a.date;
+      const bTime = b.lastModifiedDate ?? b.date;
+      if (aTime === bTime) {
+        return 0;
+      } else if (aTime > bTime) {
+        return 1;
+      } else {
+        return -1;
+      }
+    });
+
+    const combinedCommits = new Map<CommitHash, Commit>();
+    for (const commit of sortedCommits) {
+      combinedCommits.set(commit.hash, commit);
+    }
+
+    const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => {
+      if (a.lastModifiedDate && b.lastModifiedDate) {
+        return a.lastModifiedDate > b.lastModifiedDate ? 1 : -1;
+      } else if (a.lastModifiedDate) {
+        return 1;
+      } else if (b.lastModifiedDate) {
+        return -1;
+      } else {
+        return 0;
+      }
+    }).map((r: Reference) => [r.hash, r]));
+    const newRefs = new Map<RefHash, Reference>();
+
+    const usedRefNames = new Set<string>(Array.from(allRefs.values()).map((r: Reference) => r.getName()));
+    const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(combinedCommits);
+    for (const leafCommit of Array.from(leafCommits.values())) {
+      const ref: Reference | undefined = allRefs.get(leafCommit.hash);
+      if (ref) {
+        if (newRefs.has(ref.getName())) {
+          const availableRefNames = new Set<string>([...refNamePool].filter(x => !usedRefNames.has(x)));
+          const refName: string = availableRefNames.size > 0 ? Array.from(availableRefNames.keys())[0] : 'Unnamed Track';
+          availableRefNames.add(refName);
+          const cloneRef = ref.clone();
+          cloneRef.setName(refName);
+          newRefs.set(refName, cloneRef);
+        } else {
+          newRefs.set(ref.getName(), ref);
+        }
+      } else {
+        console.log('no reference commit for leaf commit');
+      }
+    }
+
+    return {commits: combinedCommits, refs: newRefs};
   }
 }

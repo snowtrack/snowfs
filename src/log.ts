@@ -7,9 +7,9 @@ import { Repository } from './repository';
  * @param date      Instance of `Date`
  * @returns         E.g. -0500
  */
-function getZOffset(date: Date) {
-  function fill(value: number) {
-    return value < 10 ? `0${value}` : value;
+function getZOffset(date: Date): string {
+  function fill(value: number): string {
+    return value < 10 ? `0${value}` : value.toString();
   }
   const offset = Math.abs(date.getTimezoneOffset());
   const hours = fill(Math.floor(offset / 60));

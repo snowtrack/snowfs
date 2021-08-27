@@ -11,7 +11,7 @@ import {
 import * as io from './io';
 import * as fss from './fs-safe';
 
-import { Repository, RepositoryInitOptions } from './repository';
+import { buildRootFromJson, Repository, RepositoryInitOptions } from './repository';
 import { Commit } from './commit';
 import { Reference } from './reference';
 import {
@@ -70,7 +70,10 @@ export class Odb {
 
         let config = { ...defaultConfig };
         if (options.additionalConfig) {
-          config = Object.assign(config, { additionalConfig: options.additionalConfig });
+          config.additionalConfig = options.additionalConfig;
+        }
+        if (options.remote) {
+          config.remote = options.remote;
         }
 
         return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(config));
@@ -84,53 +87,21 @@ export class Odb {
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
-          promises.push(fse.readFile(ref.absPath).then((buf: Buffer) => JSON.parse(buf.toString())));
+          promises.push(fse.readJson(ref.absPath));
         }
         return Promise.all(promises);
       })
       .then((commits: any) => {
-        const visit = (obj: any[]|any, parent: TreeDir) => {
-          if (Array.isArray(obj)) {
-            return obj.map((c: any) => visit(c, parent));
-          }
-
-          if (obj.stats) {
-            // backwards compatibility because item was called cTimeMs before
-            if (obj.stats.ctimeMs) {
-              obj.stats.ctime = obj.stats.cTimeMs;
-            }
-
-            // backwards compatibility because item was called mtimeMs before
-            if (obj.stats.mtimeMs) {
-              obj.stats.mtime = obj.stats.mtimeMs;
-            }
-
-            obj.stats.mtime = new Date(obj.stats.mtime);
-            obj.stats.ctime = new Date(obj.stats.ctime);
-          }
-
-          if (obj.children) {
-            const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
-            o.children = obj.children.map((t: any) => visit(t, o));
-            o.parent = parent;
-            return o;
-          }
-
-          const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
-          o.parent = parent;
-          if (obj.hash) {
-            o.hash = obj.hash;
-          }
-          return o;
-        };
-
         return commits.map((commit: any) => {
           const tmpCommit = commit;
 
           tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+          tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+          tmpCommit.userData = tmpCommit.userData ?? {};
+          tmpCommit.runtimeData = {};
           const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
           c.repo = this.repo;
-          c.root = visit(c.root, null);
+          c.root = buildRootFromJson(c.root, null);
           return c;
         });
       });
@@ -173,25 +144,22 @@ export class Odb {
       .then((refsResult: Reference[]) => refsResult);
   }
 
-  deleteReference(ref: Reference): Promise<void> {
+  deleteReference(refName: string): Promise<void> {
     const refsDir: string = join(this.repo.options.commondir, 'refs');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.unlink(join(refsDir, ref.getName()))
-      .then(() => this.repo.modified());
+    return fse.unlink(join(refsDir, refName));
   }
 
   deleteCommit(commit: Commit): Promise<void> {
     const objectsDir: string = join(this.repo.options.commondir, 'versions');
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fse.unlink(join(objectsDir, commit.hash))
-      .then(() => this.repo.modified());
+    return fse.unlink(join(objectsDir, commit.hash));
   }
 
   writeHeadReference(head: Reference): Promise<void> {
     const refsDir: string = this.repo.options.commondir;
     // writing a head to disk means that either the name of the ref is stored or the hash in case the HEAD is detached
-    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName())
-      .then(() => this.repo.modified());
+    return fss.writeSafeFile(join(refsDir, 'HEAD'), head.getName() === 'HEAD' ? head.hash : head.getName());
   }
 
   readHeadReference(): Promise<string | null> {
@@ -233,9 +201,10 @@ export class Odb {
     return fss.writeSafeFile(refPath, JSON.stringify({
       hash: ref.hash,
       type: ref.type,
+      lastModifiedDate: ref.lastModifiedDate?.getTime(),
       start: ref.startHash ? ref.startHash : undefined,
       userData: ref.userData ?? {},
-    })).then(() => this.repo.modified());
+    }));
   }
 
   writeCommit(commit: Commit): Promise<void> {
