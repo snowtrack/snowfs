@@ -44,6 +44,24 @@ export function normalizeExt(p: string): string {
   return p.replace('/', path.sep);
 }
 
+/**
+ * Denormalizes a path. If on Windows, all forward slashes will be converted to backward slashes
+ *
+ * Input: '/Users/snowtrack/Desktop/../foo/'
+ * Output: '\Users\snowtrack\foo'
+ * Input: '\'
+ * Output: '\'
+ *
+ * @param p    Required. A string. The path you want to denormalize.
+ * @returns    A String, representing the denormalized path
+ */
+ export function denormalize(p: string): string {
+  if (process.platform === 'win32') {
+    return p.replace(/\//g, '\\');
+  }
+  return p;
+}
+
 export function join(...paths: string[]): string {
   return normalize(path.join(...paths));
 }
