@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import * as fse from 'fs-extra';
 import * as os from 'os';
 import * as unzipper from 'unzipper';
@@ -7,7 +6,7 @@ import test from 'ava';
 
 import { differenceBy } from 'lodash';
 import {
-  join, dirname, normalize, normalizeExt, sep, basename,
+  join, dirname, normalize, sep, basename, denormalize,
 } from '../src/path';
 import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
@@ -16,16 +15,15 @@ import {
   calculateFileHash,
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
-import { createRandomString } from './helper';
+import { createRandomString, shuffleArray } from './helper';
 import {
   calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from '../src/treedir';
 
-const PromisePool = require('@supercharge/promise-pool');
-const AggregateError = require('es-aggregate-error');
-
-const sortPaths = require('sort-paths');
+import PromisePool from '@supercharge/promise-pool';
+import AggregateError from 'es-aggregate-error';
+import sortPaths from 'sort-paths';
 
 const exampleDirs = [
   join('foo', 'a'),
@@ -51,7 +49,7 @@ const exampleFiles = [
 const LOG_DIRECTORY = 'Check getRepoDetails(..) with directory path';
 const LOG_FILE = 'Check getRepoDetails(..) with  filepath:';
 
-async function sleep(delay) {
+async function sleep(delay): Promise<void> {
   return new Promise<void>((resolve) => {
     setTimeout(() => {
       resolve();
@@ -59,7 +57,7 @@ async function sleep(delay) {
   });
 }
 
-async function createDirs(t, tmpDir: string, dirs: string[]) {
+async function createDirs(t, tmpDir: string, dirs: string[]): Promise<void> {
   if (dirs.length === 0) {
     return Promise.resolve();
   }
@@ -505,7 +503,7 @@ function testGitZip(t, zipname: string): Promise<string> {
       t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: normalizeExt(tmpDir).replace('/', sep), concurrency: 5 }))
+    .then((d) => d.extract({ path: denormalize(tmpDir), concurrency: 5 }))
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.
@@ -518,7 +516,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  function runTest(filepath = '', errorMessage?: string) {
+  function runTest(filepath = '', errorMessage?: string): Promise<void> {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -581,7 +579,7 @@ test('getRepoDetails (.git)', async (t) => {
   t.plan(4);
 
   let tmpDir: string;
-  async function runTest(filepath = '') {
+  async function runTest(filepath = ''): Promise<void> {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -627,7 +625,7 @@ test('getRepoDetails (.git and .snow)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  async function runTest(filepath = '') {
+  async function runTest(filepath = ''): Promise<void> {
     if (filepath) t.log(LOG_FILE, filepath);
     else t.log(LOG_DIRECTORY);
 
@@ -791,7 +789,7 @@ test('fss.writeSafeFile test', async (t) => {
   }
 });
 
-async function performWriteLockCheckTest(t, fileCount: number) {
+async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
   if (fileCount === 0) {
     t.plan(1); // in that case t.true(true) is checked nothing is reported
   } else {
@@ -824,7 +822,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
 
   let stop = false;
 
-  function parallelWrite() {
+  function parallelWrite(): void {
     fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
       if (fh instanceof fse.WriteStream) {
         fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
@@ -882,7 +880,7 @@ async function performWriteLockCheckTest(t, fileCount: number) {
   }
 }
 
-async function performReadLockCheckTest(t, fileCount: number) {
+async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
   t.plan(1); // every test results in 1 checked test
 
   const tmp = join(process.cwd(), 'tmp');
@@ -1542,24 +1540,6 @@ test('TreeDir.remove 4', async (t) => {
   t.is((root0.children[0] as TreeDir).children[0].path, 'xyz/123');
 });
 
-function shuffle(arr) {
-  let len = arr.length;
-  const d = len;
-  const array = [];
-  let k; let
-    i;
-  for (i = 0; i < d; i++) {
-    k = Math.floor(Math.random() * len);
-    array.push(arr[k]);
-    arr.splice(k, 1);
-    len = arr.length;
-  }
-  for (i = 0; i < d; i++) {
-    arr[i] = array[i];
-  }
-  return arr;
-}
-
 test('TreeDir hash stability 1', (t) => {
   /*
   Python verification:
@@ -1586,7 +1566,7 @@ test('TreeDir hash stability 1', (t) => {
   t.log(`All files must have the following hash: ${hash}`);
 
   for (let i = 0; i < 20; ++i) {
-    const shuffledArray = shuffle([tree1, tree2, tree3, tree4]);
+    const shuffledArray = shuffleArray([tree1, tree2, tree3, tree4]);
     const res = calculateSizeAndHash(shuffledArray);
 
     // Here we ensure that the hash of the tree entries is not dependend on their order
@@ -1642,7 +1622,7 @@ test('Hash Integrity Test 2', async (t) => {
   t.is(hashOriginal1.filehash, hashOriginal2.filehash);
   t.is(hashOriginal1.filehash, 'd15aa13358a8d5f90faa99d6e4f168f2f58101b2c7db3bdda96ca68694883c07');
 
-  async function test0() {
+  async function test0(): Promise<void> {
     // Copy1 (overwrite byte at position 99999998)
     const copy0 = `${filename}.copy0`;
     t.log('Create copy and overwrite byte at position 99999998');
@@ -1658,7 +1638,7 @@ test('Hash Integrity Test 2', async (t) => {
     fse.removeSync(copy0);
   }
 
-  async function test1() {
+  async function test1(): Promise<void> {
     // Copy1 (overwrite byte at position 99999999)
     const copy1 = `${filename}.copy1`;
     t.log('Create copy and overwrite byte at position 99999999');
@@ -1674,7 +1654,7 @@ test('Hash Integrity Test 2', async (t) => {
     fse.removeSync(copy1);
   }
 
-  async function test2() {
+  async function test2(): Promise<void> {
     // Copy2 (overwrite 2nd byte at position 1)
     const copy2 = `${filename}.copy2`;
     t.log('Create copy and overwrite byte at position 1');
@@ -1690,7 +1670,7 @@ test('Hash Integrity Test 2', async (t) => {
     fse.removeSync(copy2);
   }
 
-  async function test3() {
+  async function test3(): Promise<void> {
     // Copy3 (overwrite 1st byte at position 0)
     const copy3 = `${filename}.copy3`;
     t.log('Create copy and overwrite byte at position 0');
@@ -1706,7 +1686,7 @@ test('Hash Integrity Test 2', async (t) => {
     fse.removeSync(copy3);
   }
 
-  async function test4() {
+  async function test4(): Promise<void> {
     // Copy4 (append a single byte to file)
     t.log('Create copy and append byte');
     const copy4 = `${filename}.copy4`;
