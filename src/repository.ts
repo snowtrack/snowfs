@@ -740,11 +740,14 @@ export class Repository {
 
     this.references.delete(branchName);
 
-    return this.repoOdb.deleteReference(branchName).then(() =>
-      // delete the sha the reference was pointing to
-      (ref ? ref.target() : null)).catch(() =>
-      // delete the sha the reference was pointing to
-      (ref ? ref.target() : null));
+    return this.repoOdb.deleteReference(branchName)
+      .then(() => this.modified())
+      .then(() =>
+        // delete the sha the reference was pointing to
+        (ref ? ref.target() : null))
+      .catch(() =>
+        // delete the sha the reference was pointing to
+        (ref ? ref.target() : null))
   }
 
   /**
@@ -1166,6 +1169,9 @@ export class Repository {
         } else {
           return Promise.resolve();
         }
+      })
+      .then(() => {
+        return this.modified();
       })
       .then(() => {
         let moveTo = '';
