@@ -665,7 +665,7 @@ export class Repository {
    * returned array and must be acquired seperately by [[Repository.getHead]].
    */
   getAllReferenceNames(): Set<string> {
-    return new Set(Array.from(this.references.values()).map((ref: Reference) => ref.getName()));
+    return new Set(Array.from(this.references.keys()));
   }
 
   /**
