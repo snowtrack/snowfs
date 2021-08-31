@@ -150,8 +150,9 @@ export class Index {
       const size: number = res[1].stat.size;
       const ctime: number = res[1].stat.ctime.getTime();
       const mtime: number = res[1].stat.mtime.getTime();
+      const birthtime: number = res[1].stat.birthtime.getTime();
       return {
-        name: res[0], hash: res[1].hash, ext: res[1].ext, stat: { size, ctime, mtime },
+        name: res[0], hash: res[1].hash, ext: res[1].ext, stat: { size, ctime, mtime, birthtime },
       };
     });
 
@@ -194,10 +195,11 @@ export class Index {
           const size: number = item.stat.size;
           const ctime: Date = new Date(item.stat.ctime);
           const mtime: Date = new Date(item.stat.mtime);
+          const birthtime: Date = new Date(item.stat.birthtime);
           return [item.name, {
             hash: item.hash,
             ext: item.ext,
-            stat: { size, ctime, mtime },
+            stat: { size, ctime, mtime, birthtime },
           }];
         }));
         parseIndexes.push(index);

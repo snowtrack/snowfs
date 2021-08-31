@@ -138,6 +138,7 @@ export class TreeFile extends TreeEntry {
         size: this.stats.size,
         ctime: this.stats.ctime.getTime(),
         mtime: this.stats.mtime.getTime(),
+        birthtime: this.stats.birthtime.getTime()
       },
     };
     return output;
@@ -211,7 +212,7 @@ export class TreeDir extends TreeEntry {
   }
 
   static createRootTree(): TreeDir {
-    return new TreeDir('', { size: 0, ctime: new Date(0), mtime: new Date(0) });
+    return new TreeDir('', { size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0) });
   }
 
   clone(parent?: TreeDir): TreeDir {
@@ -271,6 +272,7 @@ export class TreeDir extends TreeEntry {
       size: this.stats.size,
       ctime: this.stats.ctime.getTime(),
       mtime: this.stats.mtime.getTime(),
+      birthtime: this.stats.birthtime.getTime()
     };
 
     return {

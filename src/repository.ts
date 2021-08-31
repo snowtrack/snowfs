@@ -61,8 +61,14 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
       obj.stats.mtime = obj.stats.mtimeMs;
     }
 
+    // backwords compatibility because birthtime didn't exist before
+    if (!obj.stats.birthtime) {
+      obj.stats.birthtime = new Date(0);
+    }
+
     obj.stats.mtime = new Date(obj.stats.mtime);
     obj.stats.ctime = new Date(obj.stats.ctime);
+    obj.stats.birthtime = new Date(obj.stats.birthtime);
   }
 
   if (obj.children) {
@@ -276,6 +282,7 @@ export class StatusEntry {
       this.stats = {
         ctime: data.stats.ctime,
         mtime: data.stats.mtime,
+        birthtime: data.stats.birthtime,
         size: data.stats.size,
       };
     }
@@ -1529,6 +1536,10 @@ export class Repository {
 
         if (!(item.stats.mtime instanceof Date)) {
           throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
+        }
+
+        if (!(item.stats.birthtime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid birthtime: ${item.stats.birthtime}`);
         }
 
         if (!(/[0-9a-f]{64}/i.exec(item.hash))) {
