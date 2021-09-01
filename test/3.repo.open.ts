@@ -3,9 +3,12 @@ import * as fse from 'fs-extra';
 import { join } from '../src/path';
 import { getRandomPath } from './helper';
 
-import { rmdir } from '../src/io';
-import { Repository } from '../src/repository';
+import {
+  DirItem, OSWALK, osWalk, rmdir,
+} from '../src/io';
+import { COMMIT_ORDER, Repository } from '../src/repository';
 import { testRepoCommondirInside, testRepoCommondirOutside } from './2.repo.init';
+import { Commit } from '../src/commit';
 
 test('repo open-commondir-outside', async (t) => {
   const repoPath = getRandomPath();
@@ -118,4 +121,40 @@ test('repo open-repo-workdir-commondir-collision-test', async (t) => {
   commondir = getRandomPath();
   const error3 = await t.throwsAsync(async () => Repository.initExt(workdir, { commondir }));
   t.is(error3.message, 'workdir already exists');
+});
+
+test.only('repo open-repo ignore temp files', async (t) => {
+  // this unit-tests ensures that temp files in 'refs' or 'versions' are ignored upon opening a repo
+  let repo: Repository;
+
+  // create repo
+  const workdir = getRandomPath();
+  repo = await Repository.initExt(workdir);
+
+  const refsDir: string = join(repo.commondir(), 'refs');
+  const versionsDir: string = join(repo.commondir(), 'versions');
+
+  const dirItems: DirItem[] = await osWalk(versionsDir, OSWALK.FILES);
+  t.is(dirItems.length, 1); // expect only the root commit
+
+  t.log("Creating invalid ref name 'Main.tmp' and '.Main'");
+  fse.copyFileSync(join(refsDir, 'Main'), join(refsDir, 'Main.tmp'));
+  fse.copyFileSync(join(refsDir, 'Main'), join(refsDir, '.Main'));
+
+  t.log(`Creating invalid commit ${dirItems[0].relPath}.tmp`);
+  fse.copyFileSync(dirItems[0].absPath, `${dirItems[0].absPath}.tmp`);
+  t.log("Creating invalid commit '.F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B'");
+  fse.copyFileSync(dirItems[0].absPath, join(versionsDir, '.F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B'));
+
+  repo = await Repository.open(workdir);
+
+  t.is(repo.getAllReferences().length, 1);
+  const refNames = repo.getAllReferenceNames()[0];
+  t.log(`Got following ref names (expect 1): ${refNames}`);
+  t.is(refNames, 'Main');
+
+  const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.UNDEFINED);
+  t.is(commits.length, 1);
+  t.log(`Got following commits (expect 1): ${commits.map((x) => x.message)}`);
+  t.is(commits[0].message, 'Created Project');
 });

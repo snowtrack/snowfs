@@ -83,6 +83,9 @@ export class Odb {
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
+          if (ref.relPath.endsWith('.tmp')) {
+            continue;
+          }
           promises.push(fse.readFile(ref.absPath).then((buf: Buffer) => JSON.parse(buf.toString())));
         }
         return Promise.all(promises);
@@ -163,6 +166,9 @@ export class Odb {
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
+          if (ref.relPath.endsWith('.tmp')) {
+            continue;
+          }
           promises.push(this.readReference(ref));
         }
         return Promise.all(promises);
