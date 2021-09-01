@@ -21,7 +21,7 @@ export class StatsSubset {
   ctime: Date;
 
   mtime: Date;
-  
+
   birthtime: Date
 
   static clone(stats: StatsSubset): StatsSubset {
@@ -29,7 +29,7 @@ export class StatsSubset {
       size: stats.size,
       ctime: new Date(stats.ctime),
       mtime: new Date(stats.mtime),
-      birthtime: new Date(stats.birthtime)
+      birthtime: new Date(stats.birthtime),
     };
   }
 }
