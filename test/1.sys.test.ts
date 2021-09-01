@@ -1554,13 +1554,21 @@ test('TreeDir hash stability 1', (t) => {
   */
 
   const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
-    'foo1', { size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0) }, '.ext', null);
+    'foo1', {
+      size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
+    }, '.ext', null);
   const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
-    'foo copy', { size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0) }, '.ext', null);
+    'foo copy', {
+      size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
+    }, '.ext', null);
   const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
-    'foo3/abc', { size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0) }, '.ext', null);
+    'foo3/abc', {
+      size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
+    }, '.ext', null);
   const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
-    'foo4', { size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0) }, '.ext', null);
+    'foo4', {
+      size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
+    }, '.ext', null);
 
   const hash = '75859dac2c7ece838134f7c50b67f119ec0636073a9fd19d0dc5ee0438c212d2';
   t.log(`All files must have the following hash: ${hash}`);

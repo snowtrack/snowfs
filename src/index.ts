@@ -152,7 +152,12 @@ export class Index {
       const mtime: number = res[1].stat.mtime.getTime();
       const birthtime: number = res[1].stat.birthtime.getTime();
       return {
-        name: res[0], hash: res[1].hash, ext: res[1].ext, stat: { size, ctime, mtime, birthtime },
+        name: res[0],
+        hash: res[1].hash,
+        ext: res[1].ext,
+        stat: {
+          size, ctime, mtime, birthtime,
+        },
       };
     });
 
@@ -199,7 +204,9 @@ export class Index {
           return [item.name, {
             hash: item.hash,
             ext: item.ext,
-            stat: { size, ctime, mtime, birthtime },
+            stat: {
+              size, ctime, mtime, birthtime,
+            },
           }];
         }));
         parseIndexes.push(index);
