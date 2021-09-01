@@ -231,6 +231,7 @@ export class StatusEntry {
       this.stats = {
         ctime: data.stats.ctime,
         mtime: data.stats.mtime,
+        birthtime: data.stats.birthtime,
         size: data.stats.size,
       };
     }
@@ -1331,7 +1332,11 @@ export class Repository {
           throw new Error(`Item '${item.path}' has no valid mtime: ${item.stats.mtime}`);
         }
 
-        if (!item.hash.match(/[0-9a-f]{64}/i)) {
+        if (!(item.stats.birthtime instanceof Date)) {
+          throw new Error(`Item '${item.path}' has no valid birthtime: ${item.stats.birthtime}`);
+        }
+
+        if (!(/[0-9a-f]{64}/i.exec(item.hash))) {
           throw new Error(`Item '${item.path}' has no valid hash: ${item.hash}`);
         }
       });

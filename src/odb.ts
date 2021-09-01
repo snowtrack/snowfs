@@ -104,8 +104,14 @@ export class Odb {
               obj.stats.mtime = obj.stats.mtimeMs;
             }
 
+            // backwords compatibility because birthtime didn't exist before
+            if (!obj.stats.birthtime) {
+              obj.stats.birthtime = new Date(0);
+            }
+
             obj.stats.mtime = new Date(obj.stats.mtime);
             obj.stats.ctime = new Date(obj.stats.ctime);
+            obj.stats.birthtime = new Date(obj.stats.birthtime);
           }
 
           if (obj.children) {
