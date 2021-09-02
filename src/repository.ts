@@ -52,17 +52,17 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
 
   if (obj.stats) {
     // backwards compatibility because item was called cTimeMs before
-    if (obj.stats.ctimeMs) {
-      obj.stats.ctime = obj.stats.cTimeMs;
+    if (obj.stats.ctimeMs !== undefined) {
+      obj.stats.ctime = obj.stats.ctimeMs;
     }
 
     // backwards compatibility because item was called mtimeMs before
-    if (obj.stats.mtimeMs) {
+    if (obj.stats.mtimeMs !== undefined) {
       obj.stats.mtime = obj.stats.mtimeMs;
     }
 
     // backwords compatibility because birthtime didn't exist before
-    if (!obj.stats.birthtime) {
+    if (obj.stats.birthtime === undefined) {
       obj.stats.birthtime = new Date(0);
     }
 
