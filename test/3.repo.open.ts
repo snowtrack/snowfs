@@ -149,9 +149,9 @@ test.only('repo open-repo ignore temp files', async (t) => {
   repo = await Repository.open(workdir);
 
   t.is(repo.getAllReferences().length, 1);
-  const refNames = repo.getAllReferenceNames()[0];
+  const refNames: Set<string> = repo.getAllReferenceNames();
   t.log(`Got following ref names (expect 1): ${refNames}`);
-  t.is(refNames, 'Main');
+  t.true(refNames.has('Main'));
 
   const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.UNDEFINED);
   t.is(commits.length, 1);
