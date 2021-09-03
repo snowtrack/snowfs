@@ -68,7 +68,7 @@ export class Odb {
       .then(() => {
         odb.config = { ...defaultConfig };
 
-        let config = { ...defaultConfig };
+        const config = { ...defaultConfig };
         if (options.additionalConfig) {
           config.additionalConfig = options.additionalConfig;
         }
@@ -181,6 +181,11 @@ export class Odb {
   getAbsObjectPath(file: TreeFile): string {
     const objects: string = join(this.repo.options.commondir, 'objects');
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
+  }
+
+  getAbsObjectPathByHash(hash: string, extname: string): string {
+    const objects: string = join(this.repo.options.commondir, 'objects');
+    return join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
   }
 
   getObjectByHash(hash: string, extname: string): Promise<fse.Stats> {
