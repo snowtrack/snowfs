@@ -1,6 +1,5 @@
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
-import * as fs from 'fs';
 
 import {
   basename, join, dirname, relative, extname,
@@ -17,7 +16,7 @@ import { Reference } from './reference';
 import {
   calculateFileHash, FileInfo, HashBlock, StatsSubset,
 } from './common';
-import { TreeDir, TreeFile } from './treedir';
+import { TreeFile } from './treedir';
 import { IoContext } from './io_context';
 
 const defaultConfig: any = {
