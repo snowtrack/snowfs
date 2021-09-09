@@ -1668,7 +1668,7 @@ export class Repository {
       })
       .then((commits: Commit[]) => {
         for (const commit of commits) {
-          repo.commitMap.set(commit.hash.toString(), commit);
+          repo.commitMap.set(commit.hash, commit);
         }
 
         const promises = [];
