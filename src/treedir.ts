@@ -71,11 +71,16 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
 }
 
 export abstract class TreeEntry {
+
+  /** TreeEntry runtime data. Only for internal use. */
+  runtimeData: any;
+
   constructor(
     public hash: string,
     public path: string,
     public stats: StatsSubset,
   ) {
+    this.runtimeData = {};
   }
 
   isDirectory(): boolean {
@@ -118,8 +123,14 @@ export class TreeFile extends TreeEntry {
   }
 
   clone(parent?: TreeDir): TreeFile {
-    return new TreeFile(this.hash,
+    const file = new TreeFile(this.hash,
       this.path, StatsSubset.clone(this.stats), this.ext, parent);
+
+    parent.runtimeData = {};
+    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
+      parent.runtimeData = { ...this.runtimeData };
+    }
+    return file;
   }
 
   toJson(): any {
@@ -219,6 +230,10 @@ export class TreeDir extends TreeEntry {
 
   clone(parent?: TreeDir): TreeDir {
     const newTree = new TreeDir(this.path, StatsSubset.clone(this.stats), parent);
+    newTree.runtimeData = {};
+    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
+      newTree.runtimeData = { ...this.runtimeData };
+    }
     newTree.children = this.children.map((c: TreeEntry) => c.clone(newTree));
     return newTree;
   }
