@@ -50,6 +50,10 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
     obj.userData = {};
   }
 
+  if (!obj.runtimeData) {
+    obj.runtimeData = {};
+  }
+
   if (obj.stats) {
     // backwards compatibility because item was called cTimeMs before
     if (obj.stats.ctimeMs !== undefined) {
@@ -272,6 +276,8 @@ export class StatusEntry {
   isdir: boolean;
 
   stats: StatsSubset | null;
+
+  runtimeData: any = {};
 
   constructor(data: StatusItemOptionsCustom, isdir: boolean) {
     this.path = data.path;
