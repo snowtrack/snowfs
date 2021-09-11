@@ -1,5 +1,6 @@
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
+import { sleep } from './common';
 
 /**
  * Write data to a file and replacing the file if it already exists.
@@ -15,18 +16,22 @@ import * as crypto from 'crypto';
  * @param options   For more information see the [docs](https://nodejs.org/api/fs.html#fs_filehandle_writefile_data_options)
  * @returns
  */
-export function writeSafeFile(path: string, data: any, options?: string | fse.WriteFileOptions): Promise<void> {
+export async function writeSafeFile(path: string, data: any, options?: string | fse.WriteFileOptions): Promise<void> {
   const tmp = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex').substring(0, 6);
   const tmpPath = `${path}.${tmp}.tmp`;
 
-  return fse.writeFile(tmpPath, data, options)
-    .then(() => fse.rename(tmpPath, path))
-    .catch((err) => {
-      try {
-        fse.unlinkSync(tmpPath);
-      } catch (err2) {
-        console.log(err2);
+  await fse.writeFile(tmpPath, data, options)
+
+  for (let i = 0; i < 3; ++i) {
+    try {
+      await fse.rename(tmpPath, path);
+      break;
+    } catch (error) {
+      await sleep(1000);
+      if (i == 2) {
+        await fse.unlink(tmpPath);
       }
-      throw err;
-    });
+      continue;
+    }
+  }
 }

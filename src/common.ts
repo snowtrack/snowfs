@@ -251,3 +251,7 @@ export function jsonCompliant(s : string) : string {
     .replace(/\\b/g, '\\b')
     .replace(/\\f/g, '\\f');
 }
+
+export function sleep(time: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, time));
+}
