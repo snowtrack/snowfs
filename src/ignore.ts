@@ -21,6 +21,7 @@ export class IgnoreManager {
         '**/temp/**',
         '**/cache/**',
         '**/*.lnk',
+        '**/desktop.ini',
         '**/.idea/**',
         '**/.Spotlight-V100',
 
