@@ -16,11 +16,12 @@ export class IgnoreManager {
         '**/*.bkp',
         '**/**/bkp/**',
         '**/*_bak[0-9]*.[A-Za-z0-9]+',
-        '**/**/*.tmp',
+        '**/*.tmp',
         '**/tmp/**',
         '**/temp/**',
         '**/cache/**',
         '**/*.lnk',
+        '**/desktop.ini',
         '**/.idea/**',
         '**/.Spotlight-V100',
 
@@ -33,6 +34,8 @@ export class IgnoreManager {
         '**/*.blend+([0-9])', // Blender auto-saved files
         '**/*.bak*([0-9])', // Cinema 4D Backup files
         '**/backup/**', // Cinema 4D auto-saved
+        '**/*.3dm.rhl', // Rhino tmp files
+        '**/*.3dmbak', // Rhino backup files
       ];
     }
 
