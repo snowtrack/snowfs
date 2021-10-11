@@ -268,6 +268,26 @@ export async function rmdir(dir: string): Promise<void> {
   });
 }
 
+export async function remove(item: string): Promise<void> {
+  if (criticalLocation(dirname(item))) {
+    throw new Error(`refused to delete ${item}`);
+  }
+
+  return new Promise((resolve, reject) => {
+    try {
+      fs.remove(item, { recursive: true }, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    } catch (error) {
+      resolve(error);
+    }
+  });
+}
+
 /**
  * Retrieve the statistics about a directory item. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
  * fastest filesystem module is used inside Electron or inside node.

@@ -395,7 +395,7 @@ function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean,
         if (isDirectory) {
           return io.rmdir(absPath);
         }
-        return fse.remove(absPath);
+        return io.remove(absPath);
       }
 
       let res: Promise<string[]>;
@@ -441,7 +441,7 @@ function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean,
           if (isDirectory) {
             return io.rmdir(absPath);
           }
-          return fse.remove(absPath);
+          return io.remove(absPath);
         });
     });
 }
