@@ -1,7 +1,8 @@
 import * as cp from 'child_process';
 import * as fse from 'fs-extra';
+import * as os from 'os';
 import { PathLike, Stats } from 'fs-extra';
-import { normalize, parse } from './path';
+import { dirname, join, normalize, parse } from './path';
 
 export { PathLike, Stats } from 'fs-extra';
 
@@ -23,6 +24,23 @@ if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
 let winattr: any;
 if (process.platform === 'win32') {
   winattr = require('winattr');
+}
+
+const homedir = os.homedir().replace(/\\/g, '/');
+const documents = join(homedir, 'Documents');
+const desktop = join(homedir, 'Desktop');
+
+export function criticalLocation(item: string): boolean {
+  switch (normalize(item)) {
+    case 'C:':
+    case '/':
+    case '~':
+    case homedir:
+    case documents:
+    case desktop:
+      return true;
+  }
+  return false;
 }
 
 /**
@@ -231,6 +249,10 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
 }
 
 export async function rmdir(dir: string): Promise<void> {
+  if (criticalLocation(dir)) {
+    throw new Error(`refused to delete ${dir}`);
+  }
+
   return new Promise((resolve, reject) => {
     try {
       (fs.rmdir || fs.rm)(dir, { recursive: true }, (error) => {

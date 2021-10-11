@@ -382,6 +382,10 @@ export function getCommondir(workdir: string): Promise<string | null> {
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
 function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean, putToTrash: string[]): Promise<void> {
+  if (io.criticalLocation(absPath)) {
+    throw new Error("refused to delete");
+  }
+
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
