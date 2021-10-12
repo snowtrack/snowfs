@@ -263,7 +263,7 @@ export async function rmdir(dir: string): Promise<void> {
         }
       });
     } catch (error) {
-      resolve(error);
+      reject(error);
     }
   });
 }
@@ -275,7 +275,7 @@ export async function remove(item: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     try {
-      fs.remove(item, { recursive: true }, (error) => {
+      fs.unlink(item, (error) => {
         if (error) {
           reject(error);
         } else {
@@ -283,7 +283,7 @@ export async function remove(item: string): Promise<void> {
         }
       });
     } catch (error) {
-      resolve(error);
+      reject(error);
     }
   });
 }
