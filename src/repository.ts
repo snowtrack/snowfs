@@ -382,7 +382,7 @@ export function getCommondir(workdir: string): Promise<string | null> {
  * Delete an item or move it to the trash/recycle-bin if the file has a shadow copy in the object database.
  */
 function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean, putToTrash: string[]): Promise<void> {
-  if (io.criticalLocation(absPath)) {
+  if (io.protectedLocation(absPath)) {
     throw new Error("refused to delete");
   }
 
@@ -1764,6 +1764,10 @@ export class Repository {
    */
   static initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
     const repo = new Repository();
+
+    if (io.protectedLocation(workdir)) {
+      throw new Error("this location cannot be used as a repository");
+    }
 
     if (!opts) {
       // eslint-disable-next-line no-param-reassign

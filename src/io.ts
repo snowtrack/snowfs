@@ -29,14 +29,16 @@ if (process.platform === 'win32') {
 const homedir = os.homedir().replace(/\\/g, '/');
 const documents = join(homedir, 'Documents');
 const desktop = join(homedir, 'Desktop');
+const downloads = join(homedir, 'Downloads');
 
-export function criticalLocation(item: string): boolean {
+export function protectedLocation(item: string): boolean {
   switch (normalize(item)) {
     case 'C:':
     case '/':
     case '~':
     case homedir:
     case documents:
+    case downloads:
     case desktop:
       return true;
   }
@@ -249,7 +251,7 @@ export function utimes(path: PathLike, atime: Date, mtime: Date): Promise<void> 
 }
 
 export async function rmdir(dir: string): Promise<void> {
-  if (criticalLocation(dir)) {
+  if (protectedLocation(dir)) {
     throw new Error(`refused to delete ${dir}`);
   }
 
@@ -269,7 +271,7 @@ export async function rmdir(dir: string): Promise<void> {
 }
 
 export async function remove(item: string): Promise<void> {
-  if (criticalLocation(dirname(item))) {
+  if (protectedLocation(dirname(item))) {
     throw new Error(`refused to delete ${item}`);
   }
 
