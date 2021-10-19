@@ -209,6 +209,7 @@ export class FileHandle {
 }
 
 export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, FileHandle[]>> {
+  // eslint-disable-next-line no-useless-catch
   try {
     return new Promise<Map<string, FileHandle[]>>((resolve, reject) => {
       const p0 = cp.spawn('lsof', ['-X', '-F', 'pcan', '+D', dirpath]);
@@ -259,7 +260,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
               }
               lsofEntry = new FileHandle();
             } else {
-              console.log(`lsof reported unknown path: ${absPath}`);
+              throw new Error(`lsof reported unknown path: ${absPath}`);
             }
           }
         }
@@ -275,8 +276,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
       });
     });
   } catch (error) {
-    console.log(error);
-    return Promise.resolve(new Map());
+    throw error;
   }
 }
 
@@ -317,8 +317,7 @@ function getFilesystem(drive: any, mountpoint: string): Promise<FILESYSTEM> {
           }
         }
         return FILESYSTEM.OTHER;
-      }).catch((error) => {
-        console.log(error);
+      }).catch(() => {
         return FILESYSTEM.OTHER;
       });
     }
@@ -551,8 +550,6 @@ export class IoContext {
 
       const p0 = cp.spawn('powershell.exe', [cloneFileViaBlockClonePs1, src, dst]);
       return new Promise((resolve, reject) => {
-        p0.stdout.on('data', (data) => console.log(data.toString()));
-        p0.stderr.on('data', (data) => console.log(data.toString()));
         p0.on('exit', (code) => {
           if (code === 0) {
             resolve();

@@ -116,7 +116,6 @@ export class Odb {
         try {
           return { ref, content: JSON.parse(buf.toString()) };
         } catch (error) {
-          console.log('Error');
           return null;
         }
       });
@@ -172,7 +171,6 @@ export class Odb {
     return fse.readFile(join(refsDir, 'HEAD'))
       .then((buf: Buffer) => buf.toString())
       .catch(() => {
-        console.log('No HEAD found');
         return null;
       });
   }

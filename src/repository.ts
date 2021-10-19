@@ -1939,8 +1939,6 @@ export class Repository {
         } else {
           newRefs.set(ref.getName(), ref);
         }
-      } else {
-        console.log('no reference commit for leaf commit');
       }
     }
 
