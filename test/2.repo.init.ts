@@ -1,4 +1,5 @@
 import test from 'ava';
+import os from 'os';
 import * as fse from 'fs-extra';
 
 import {
@@ -116,4 +117,18 @@ test('repo init-commondir-inside', async (t) => {
       return testRepoCommondirInside(t, repo);
     })
     .then(() => rmdir(repo.workdir()));
+});
+
+
+test('repo protected locations', async (t) => {
+  const homedir = os.homedir().replace(/\\/g, '/');
+  const documents = join(homedir, 'Documents');
+  const desktop = join(homedir, 'Desktop');
+  const downloads = join(homedir, 'Downloads');
+
+  for (const path of [homedir, documents, desktop, downloads]) {
+    t.log(`Test to ensure no repo can be created at ${path}`);
+    const error = t.throws(() => Repository.initExt(path));
+    t.is(error.message, 'this location cannot be used as a repository');
+  }
 });
