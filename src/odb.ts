@@ -247,10 +247,6 @@ export class Odb {
           return fse.remove(tmpPath);
         }
 
-        if (this.repo.options.compress) {
-          return zipFile(tmpPath, dstFile, { deleteSrc: true });
-        }
-
         return fse.move(tmpPath, dstFile, { overwrite: false })
           .catch((error) => {
             // the error message below is thrown, especially on Windows if

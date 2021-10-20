@@ -83,43 +83,6 @@ export enum OSWALK {
   NO_RECURSIVE = 16
 }
 
-function darwinZip(src: string, dst: string): Promise<void> {
-  const p0 = cp.spawn('ditto', ['-c', '-k', '--sequesterRsrc', src, dst]);
-  return new Promise((resolve, reject) => {
-    p0.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(code);
-      }
-    });
-  });
-}
-
-export function zipFile(src: string, dst: string, opts: {deleteSrc: boolean}): Promise<void> {
-  if (!dst.endsWith('.zip')) {
-    throw new Error('destination must be a zip');
-  }
-
-  let promise: Promise<void>;
-  switch (process.platform) {
-    case 'darwin':
-      promise = darwinZip(src, dst);
-      break;
-    case 'win32':
-    default:
-      throw new Error('zip not yet implemented');
-  }
-
-  return promise.then(() => {
-    if (opts.deleteSrc) {
-      return fse.remove(src);
-    } else {
-      return Promise.resolve();
-    }
-  });
-}
-
 /**
  * Hides a given directory or file. If the function failed to hide the item,
  * the function doesn't throw an exception.
