@@ -216,8 +216,13 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
       const p = new Map<string, FileHandle[]>();
 
       let stdout = '';
+      let stderr = '';
+
       p0.stdout.on('data', (data) => {
         stdout += data.toString();
+      });
+      p0.stderr.on('data', (data) => {
+        stderr += data.toString();
       });
 
       function parseStdout(stdout: string): void {
@@ -271,7 +276,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
           parseStdout(stdout);
           resolve(p);
         } else {
-          reject(code);
+          reject(new Error(`Error ${code}: ${stderr}`));
         }
       });
     });
@@ -496,8 +501,8 @@ export class IoContext {
     this.checkIfInitialized();
 
     if (process.platform === 'darwin' && file0.startsWith('/Volumes/')) {
-      const root0 = file0.match(/^\/Volumes\/.+/)
-      const root1 = file1.match(/^\/Volumes\/.+/)
+      const root0 = /^\/Volumes\/.+/.exec(file0)
+      const root1 = /^\/Volumes\/.+/.exec(file1)
       if (root0.length === 2 && root1.length === 2) {
         return root0[1] === root1[1];
       }
