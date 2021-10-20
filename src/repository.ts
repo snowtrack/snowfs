@@ -386,6 +386,10 @@ function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean,
     throw new Error("refused to delete");
   }
 
+  if (!absPath.startsWith(repo.workdir())) {
+    throw new Error('path is outside the workdir');
+  }
+
   let isDirectory: boolean;
   return io.stat(absPath)
     .then((stat: fse.Stats) => {
