@@ -5,7 +5,7 @@ import {
   basename, join, dirname, relative, extname,
 } from './path';
 import {
-  DirItem, OSWALK, osWalk, zipFile,
+  DirItem, OSWALK, osWalk,
 } from './io';
 import * as io from './io';
 import * as fss from './fs-safe';
