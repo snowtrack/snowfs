@@ -496,17 +496,25 @@ export class IoContext {
   areFilesOnSameDrive(file0: string, file1: string): boolean {
     this.checkIfInitialized();
 
-    // detect if src and dst are copied onto the same drive
-    let i = 0; let
-      j = 0;
-    this.mountpoints.forEach((mountpoint: string) => {
+    if (process.platform === 'darwin' && file0.startsWith('/Volumes/')) {
+      const root0 = file0.match(/^\/Volumes\/.+/)
+      const root1 = file1.match(/^\/Volumes\/.+/)
+      if (root0.length === 2 && root1.length === 2) {
+        return root0[1] === root1[1];
+      }
+    }
+
+    let i = 0;
+    let j = 0;
+
+    for (const mountpoint of Array.from(this.mountpoints)) {
       if (file0.startsWith(mountpoint)) {
         i++;
       }
       if (file1.startsWith(mountpoint)) {
         j++;
       }
-    });
+    }
 
     return i === j;
   }
@@ -581,7 +589,20 @@ export class IoContext {
     if (srcAndDstOnSameDrive) {
       // find the mountpoint again to extract filesystem info
       for (const mountpoint of Array.from(this.mountpoints)) {
-        if (src.startsWith(mountpoint)) {
+
+        let foundMountpoint = false;
+        if (process.platform === 'darwin') {
+          // if a file is located on a volume, the mountpoint must match that
+          if (src.startsWith('/Volumes/') && mountpoint.startsWith('/Volumes/')) {
+              foundMountpoint = src.startsWith(mountpoint); 
+          } else {
+            foundMountpoint = false;
+          }
+        } else {
+          foundMountpoint = src.startsWith(mountpoint);
+        }
+
+        if (foundMountpoint) {
           const obj = this.drives.get(mountpoint);
           if (obj) {
             filesystem = obj.filesystem;
