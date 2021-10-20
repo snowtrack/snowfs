@@ -534,11 +534,17 @@ export class IoContext {
 
       const p0 = cp.spawn('cp', ['-c', src, dst]);
       return new Promise((resolve, reject) => {
+        let stderr = '';
+
+        p0.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+
         p0.on('exit', (code) => {
           if (code === 0) {
             resolve();
           } else {
-            reject(code);
+            reject(new Error(`Error ${code}: ${stderr}`));
           }
         });
       });
@@ -562,12 +568,19 @@ export class IoContext {
       }
 
       const p0 = cp.spawn('powershell.exe', [cloneFileViaBlockClonePs1, src, dst]);
+      
+      let stderr = '';
+
+      p0.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
       return new Promise((resolve, reject) => {
         p0.on('exit', (code) => {
           if (code === 0) {
             resolve();
           } else {
-            reject(code);
+            reject(new Error(`Error ${code}: ${stderr}`));
           }
         });
       });
