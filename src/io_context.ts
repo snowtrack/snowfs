@@ -457,39 +457,44 @@ export class IoContext {
 
   init(): Promise<void> {
     const tmpDrives: [string, string][] = [];
-    return drivelist.list().then((drives: any) => {
-      this.origDrives = drives;
-      this.mountpoints = new Set();
-      this.drives = new Map();
-
-      for (const drive of drives) {
-        for (const mountpoint of drive.mountpoints) {
-          if (mountpoint && !mountpoint.path.startsWith('/System/')) {
-            this.mountpoints.add(normalize(mountpoint.path));
+    if (process.platform !== 'darwin') {
+      this.valid = true;
+      return Promise.resolve();
+    } else {
+      return drivelist.list().then((drives: any) => {
+        this.origDrives = drives;
+        this.mountpoints = new Set();
+        this.drives = new Map();
+  
+        for (const drive of drives) {
+          for (const mountpoint of drive.mountpoints) {
+            if (mountpoint && !mountpoint.path.startsWith('/System/')) {
+              this.mountpoints.add(normalize(mountpoint.path));
+            }
           }
         }
-      }
-
-      const promises: Promise<FILESYSTEM>[] = [];
-
-      for (const drive of drives) {
-        for (const mountpoint of drive.mountpoints) {
-          promises.push(getFilesystem(drive, normalize(mountpoint.path)));
-          tmpDrives.push([normalize(mountpoint.path), mountpoint.label]);
+  
+        const promises: Promise<FILESYSTEM>[] = [];
+  
+        for (const drive of drives) {
+          for (const mountpoint of drive.mountpoints) {
+            promises.push(getFilesystem(drive, normalize(mountpoint.path)));
+            tmpDrives.push([normalize(mountpoint.path), mountpoint.label]);
+          }
         }
-      }
-      return Promise.all(promises);
-    }).then((res: FILESYSTEM[]) => {
-      let i = 0;
-      res.forEach((filesystem: FILESYSTEM) => {
-        if (!tmpDrives[i][0].startsWith('/System/')) {
-          this.drives.set(tmpDrives[i][0], new Drive(tmpDrives[i][1], filesystem));
-        }
-        i++;
+        return Promise.all(promises);
+      }).then((res: FILESYSTEM[]) => {
+        let i = 0;
+        res.forEach((filesystem: FILESYSTEM) => {
+          if (!tmpDrives[i][0].startsWith('/System/')) {
+            this.drives.set(tmpDrives[i][0], new Drive(tmpDrives[i][1], filesystem));
+          }
+          i++;
+        });
+      }).then(() => {
+        this.valid = true;
       });
-    }).then(() => {
-      this.valid = true;
-    });
+    }
   }
 
   /**
@@ -524,67 +529,32 @@ export class IoContext {
   }
 
   private copyFileApfs(src: string, dst: string): Promise<void> {
-    return io.stat(src).then((stat: fse.Stats) => {
-      // TODO: (Need help)
-      // It seems on APFS copying files smaller than 1MB is faster than using COW.
-      // Could be a local hickup on my system, verification/citation needed
-      if (stat.size < MB1) {
-        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
-      }
+    return io.stat(src)
+      .then((stat: fse.Stats) => {
+        // TODO: (Need help)
+        // It seems on APFS copying files smaller than 1MB is faster than using COW.
+        // Could be a local hickup on my system, verification/citation needed
+        if (stat.size < MB1) {
+          return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
+        }
 
-      const p0 = cp.spawn('cp', ['-c', src, dst]);
-      return new Promise((resolve, reject) => {
-        let stderr = '';
+        const p0 = cp.spawn('cp', ['-c', src, dst]);
+        return new Promise((resolve, reject) => {
+          let stderr = '';
 
-        p0.stderr.on('data', (data) => {
-          stderr += data.toString();
-        });
+          p0.stderr.on('data', (data) => {
+            stderr += data.toString();
+          });
 
-        p0.on('exit', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Error ${code}: ${stderr}`));
-          }
-        });
-      });
-    });
-  }
-
-  private copyFileRefs(src: string, dst: string): Promise<void> {
-    return io.stat(src).then((stat: fse.Stats) => {
-      if (stat.size < MB1) {
-        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
-      }
-
-      let cloneFileViaBlockClonePs1 = 'Clone-FileViaBlockClone.ps1';
-      if (fse.pathExistsSync(join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1))) {
-        cloneFileViaBlockClonePs1 = join(dirname(process.execPath), 'resources', cloneFileViaBlockClonePs1);
-      } else if (fse.pathExistsSync(join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1))) {
-        cloneFileViaBlockClonePs1 = join(__dirname, '..', 'resources', cloneFileViaBlockClonePs1);
-      } else {
-        console.warn(`unable to locate ${cloneFileViaBlockClonePs1}, fallback to fss.copyFile(..)`);
-        return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
-      }
-
-      const p0 = cp.spawn('powershell.exe', [cloneFileViaBlockClonePs1, src, dst]);
-      
-      let stderr = '';
-
-      p0.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      return new Promise((resolve, reject) => {
-        p0.on('exit', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Error ${code}: ${stderr}`));
-          }
+          p0.on('exit', (code) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`Error ${code}: ${stderr}`));
+            }
+          });
         });
       });
-    });
   }
 
   /**
@@ -599,47 +569,33 @@ export class IoContext {
    */
   copyFile(src: string, dst: string): Promise<void> {
     this.checkIfInitialized();
-    const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
-    let filesystem = FILESYSTEM.OTHER;
-    if (srcAndDstOnSameDrive) {
-      // find the mountpoint again to extract filesystem info
-      for (const mountpoint of Array.from(this.mountpoints)) {
-
-        let foundMountpoint = false;
-        if (process.platform === 'darwin') {
-          // if a file is located on a volume, the mountpoint must match that
-          if (src.startsWith('/Volumes/') && mountpoint.startsWith('/Volumes/')) {
-              foundMountpoint = src.startsWith(mountpoint); 
-          } else {
-            foundMountpoint = false;
-          }
-        } else {
-          foundMountpoint = src.startsWith(mountpoint);
-        }
-
-        if (foundMountpoint) {
-          const obj = this.drives.get(mountpoint);
-          if (obj) {
-            filesystem = obj.filesystem;
-            break;
-          }
-        }
-      }
-    }
 
     switch (process.platform) {
       // @ts-ignore
       // fall through
-      case 'darwin':
+      case 'darwin': {
+        const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
+        let filesystem = FILESYSTEM.OTHER;
+        if (srcAndDstOnSameDrive) {
+          // find the mountpoint again to extract filesystem info
+          for (const mountpoint of Array.from(this.mountpoints)) {
+            if (src.startsWith(mountpoint)) {
+              const obj = this.drives.get(mountpoint);
+              if (obj) {
+                filesystem = obj.filesystem;
+                break;
+              }
+            }
+          }
+        }
+
         if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.APFS) {
           return this.copyFileApfs(src, dst);
         }
+      }
       // @ts-ignore
       // fall through
       case 'win32':
-        if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.REFS) {
-          return this.copyFileRefs(src, dst);
-        }
         // fall through
       case 'linux':
         // The copy operation will attempt to create a copy-on-write reflink.
