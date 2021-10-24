@@ -413,9 +413,10 @@ function deleteOrTrash(repo: Repository, absPath: string, alwaysDelete: boolean,
             }
             return Promise.resolve(calculateHash);
           });
+      } else {
+        res = Promise.resolve([absPath]);
       }
 
-      res = Promise.resolve([absPath]);
       return res.then((calculateHashFrom: string[]) => {
         return PromisePool
           .withConcurrency(8)
