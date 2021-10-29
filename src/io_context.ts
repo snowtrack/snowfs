@@ -538,9 +538,9 @@ export class IoContext {
           return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
         }
 
-        const p0 = cp.spawn('cp', ['-c', src, dst]);
-        return new Promise((resolve, reject) => {
-          let stderr = '';
+      const p0 = cp.spawn('cp', [src, dst]);
+      return new Promise((resolve, reject) => {
+        let stderr = '';
 
           p0.stderr.on('data', (data) => {
             stderr += data.toString();
