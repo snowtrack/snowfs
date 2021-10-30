@@ -296,7 +296,7 @@ export class Index {
               try {
                 processFileFunc(relFilePath, true);
               } catch (error) {
-                console.log(error.message || error.toString());
+                //  ignore any error here
               }
             }
             return this.odb.writeObject(filepathAbs, ioContext)
@@ -305,7 +305,7 @@ export class Index {
                   try {
                     processFileFunc(relFilePath, false);
                   } catch (error) {
-                    console.log(error.message || error.toString());
+                    //  ignore any error here
                   }
                 }
               });
