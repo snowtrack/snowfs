@@ -12,6 +12,9 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
+
+export type processFileCallback = (filepath: string, start: boolean) => void;
+
 import PromisePool = require('@supercharge/promise-pool');
 
 /**
@@ -265,7 +268,7 @@ export class Index {
   /**
    * Write files to object database. Needed before a commit can be made.
    */
-  writeFiles(flags: WRITE = WRITE.NONE): Promise<void> {
+  writeFiles(flags: WRITE = WRITE.NONE, processFileFunc?: processFileCallback): Promise<void> {
     this.throwIfNotValid();
 
     const ioContext = new IoContext();
@@ -289,7 +292,23 @@ export class Index {
           .handleError((error) => { throw error; }) // Uncaught errors will immediately stop PromisePool
           .process((relFilePath: string) => {
             const filepathAbs: string = join(this.repo.repoWorkDir, relFilePath);
-            return this.odb.writeObject(filepathAbs, ioContext);
+            if (processFileFunc) {
+              try {
+                processFileFunc(relFilePath, true);
+              } catch (error) {
+                console.log(error.message || error.toString());
+              }
+            }
+            return this.odb.writeObject(filepathAbs, ioContext)
+              .finally(() => {
+                if (processFileFunc) {
+                  try {
+                    processFileFunc(relFilePath, false);
+                  } catch (error) {
+                    console.log(error.message || error.toString());
+                  }
+                }
+              });
           });
       })
       .then((res: {results: {file: string, fileinfo: FileInfo}[]}) => {
