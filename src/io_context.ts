@@ -573,28 +573,9 @@ export class IoContext {
     switch (process.platform) {
       // @ts-ignore
       // fall through
-      case 'darwin': {
-        const srcAndDstOnSameDrive = this.areFilesOnSameDrive(src, dst);
-        let filesystem = FILESYSTEM.OTHER;
-        if (srcAndDstOnSameDrive) {
-          // find the mountpoint again to extract filesystem info
-          for (const mountpoint of Array.from(this.mountpoints)) {
-            if (src.startsWith(mountpoint)) {
-              const obj = this.drives.get(mountpoint);
-              if (obj) {
-                filesystem = obj.filesystem;
-                break;
-              }
-            }
-          }
-        }
-
-        if (srcAndDstOnSameDrive && filesystem === FILESYSTEM.APFS) {
-          return this.copyFileApfs(src, dst);
-        }
-      }
-      // @ts-ignore
-      // fall through
+      case 'darwin':
+        // temporarily disable apfs detection
+        // fall through
       case 'win32':
         // fall through
       case 'linux':
