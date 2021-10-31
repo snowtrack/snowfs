@@ -2,7 +2,7 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
 import {
-  resolve, join, dirname, extname, denormalize,
+  resolve, join, dirname, extname, denormalize, normalize,
 } from './path';
 
 import { Log } from './log';
@@ -1631,6 +1631,8 @@ export class Repository {
     let commondirInside: string = null;
     let commondir: string = null;
     const missingObjects = new Set<string>();
+    
+    workdir = normalize(workdir);
 
     return io.pathExists(workdir)
       .then((exists: boolean) => {
@@ -1770,6 +1772,8 @@ export class Repository {
   static initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
     const repo = new Repository();
 
+    workdir = normalize(workdir);
+
     if (io.protectedLocation(workdir)) {
       throw new Error("this location cannot be used as a repository");
     }
@@ -1781,6 +1785,8 @@ export class Repository {
 
     let commondirOutside: boolean;
     if (opts.commondir) {
+      opts.commondir = normalize(opts.commondir);
+
       if (opts.commondir.startsWith(workdir)) {
         throw new Error('commondir must be outside repository');
       }
