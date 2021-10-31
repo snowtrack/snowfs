@@ -145,6 +145,8 @@ export class TreeFile extends TreeEntry {
       hash: this.hash,
       path: this.path,
       ext: this.ext,
+      // @ts-ignore TreeFile is ducktype as a StatusEntry in main.ts:getState
+      status: this.status,
       stats: {
         size: this.stats.size,
         ctime: this.stats.ctime.getTime(),
