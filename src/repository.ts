@@ -277,7 +277,10 @@ export class StatusEntry {
 
   stats: StatsSubset | null;
 
-  runtimeData: any = {};
+  runtimeData: {
+    stimg?: any,
+    stmeta?: any
+  } = {};
 
   constructor(data: StatusItemOptionsCustom, isdir: boolean) {
     this.path = data.path;

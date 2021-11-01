@@ -73,7 +73,10 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
 export abstract class TreeEntry {
 
   /** TreeEntry runtime data. Only for internal use. */
-  runtimeData: any;
+  runtimeData: {
+    stimg?: any,
+    stmeta?: any
+  } = {};
 
   constructor(
     public hash: string,
