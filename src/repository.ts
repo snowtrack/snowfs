@@ -277,6 +277,8 @@ export class StatusEntry {
 
   stats: StatsSubset | null;
 
+  ext: string;
+
   runtimeData: {
     stimg?: any,
     stmeta?: any
@@ -286,6 +288,7 @@ export class StatusEntry {
     this.path = data.path;
     this.status = data.status;
     this.isdir = isdir;
+    this.ext = extname(this.path);
 
     if (data.stats) {
       this.stats = {

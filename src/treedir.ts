@@ -78,11 +78,14 @@ export abstract class TreeEntry {
     stmeta?: any
   } = {};
 
+  ext: string;
+
   constructor(
     public hash: string,
     public path: string,
     public stats: StatsSubset,
   ) {
+    this.ext = extname(path);
     this.runtimeData = {};
   }
 
@@ -119,7 +122,6 @@ export class TreeFile extends TreeEntry {
     hash: string,
     path: string,
     stats: StatsSubset,
-    public ext: string,
     public parent: TreeDir,
   ) {
     super(hash, path, stats);
@@ -127,7 +129,7 @@ export class TreeFile extends TreeEntry {
 
   clone(parent?: TreeDir): TreeFile {
     const file = new TreeFile(this.hash,
-      this.path, StatsSubset.clone(this.stats), this.ext, parent);
+      this.path, StatsSubset.clone(this.stats), parent);
 
     parent.runtimeData = {};
     if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
@@ -425,7 +427,7 @@ export function constructTree(
                 return Promise.resolve();
               }
 
-              const entry: TreeFile = new TreeFile('', relPath, StatsSubset.clone(stat), extname(relPath), tree);
+              const entry: TreeFile = new TreeFile('', relPath, StatsSubset.clone(stat), tree);
               tree.children.push(entry);
             }),
         );
