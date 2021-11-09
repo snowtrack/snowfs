@@ -2,7 +2,7 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
 import {
-  resolve, join, dirname, extname, denormalize, normalize,
+  resolve, join, dirname, extname, denormalize, normalize, basename,
 } from './path';
 
 import { Log } from './log';
@@ -279,6 +279,8 @@ export class StatusEntry {
 
   ext: string;
 
+  basename: string;
+
   runtimeData: {
     stimg?: any,
     stmeta?: any
@@ -289,6 +291,7 @@ export class StatusEntry {
     this.status = data.status;
     this.isdir = isdir;
     this.ext = extname(this.path);
+    this.basename = basename(this.path);
 
     if (data.stats) {
       this.stats = {

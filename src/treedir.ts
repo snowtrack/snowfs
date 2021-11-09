@@ -4,7 +4,7 @@ import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as io from './io';
 
-import { join, relative, normalize, extname } from './path';
+import { join, relative, normalize, extname, basename } from './path';
 import { Repository } from './repository';
 import {
   getPartHash, HashBlock, MB20, StatsSubset,
@@ -80,12 +80,15 @@ export abstract class TreeEntry {
 
   ext: string;
 
+  basename: string;
+
   constructor(
     public hash: string,
     public path: string,
     public stats: StatsSubset,
   ) {
     this.ext = extname(path);
+    this.basename = basename(this.path);
     this.runtimeData = {};
   }
 
