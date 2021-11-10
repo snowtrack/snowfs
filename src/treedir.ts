@@ -76,6 +76,7 @@ export abstract class TreeEntry {
   runtimeData: {
     stimg?: any,
     stmeta?: any
+    isSnowProject?: boolean
   } = {};
 
   ext: string;

@@ -283,7 +283,8 @@ export class StatusEntry {
 
   runtimeData: {
     stimg?: any,
-    stmeta?: any
+    stmeta?: any,
+    isSnowProject?: boolean
   } = {};
 
   constructor(data: StatusItemOptionsCustom, isdir: boolean) {
