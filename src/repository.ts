@@ -79,10 +79,14 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
     const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
     o.children = obj.children.map((t: any) => buildRootFromJson(t, o));
     o.parent = parent;
+    o.basename = basename(o.path);
+    o.ext = extname(o.path);
     return o;
   }
 
   const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
+  o.basename = basename(o.path);
+  o.ext = extname(o.path);
   o.parent = parent;
   if (obj.hash) {
     o.hash = obj.hash;
