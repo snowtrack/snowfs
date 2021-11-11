@@ -279,24 +279,28 @@ export class StatusEntry {
 
   isdir: boolean;
 
-  stats: StatsSubset | null;
+  stats: StatsSubset;
 
   ext: string;
 
   basename: string;
 
+  absPath: string;
+
   runtimeData: {
     stimg?: any,
     stmeta?: any,
-    isSnowProject?: boolean
+    isSnowProject?: boolean;
+    filetypeName?: string;
+    isPackage?: boolean;
   } = {};
 
-  constructor(data: StatusItemOptionsCustom, isdir: boolean) {
+  constructor(data: StatusItemOptionsCustom, absPath: string) {
     this.path = data.path;
     this.status = data.status;
-    this.isdir = isdir;
     this.ext = extname(this.path);
     this.basename = basename(this.path);
+    this.absPath = absPath;
 
     if (data.stats) {
       this.stats = {
@@ -1294,12 +1298,12 @@ export class Repository {
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.relPath, new StatusEntry({
+              const item = new StatusEntry({
                 path: entry.relPath,
                 status: STATUS.WT_IGNORED,
                 stats: entry.stats,
-              },
-              entry.stats.isDirectory()));
+              }, entry.absPath);
+              statusResult.set(entry.relPath, item);
             }
           }
         }
@@ -1319,7 +1323,7 @@ export class Repository {
               path: item.relPath,
               status: 0,
               stats: item.stats,
-            }, true);
+            }, item.absPath);
             // the status of this directory will later be overwritten in case
             // the directory contains a file that is modified. See 'markParentsAsModified'.
             statusResult.set(item.relPath, dir);
@@ -1353,7 +1357,7 @@ export class Repository {
                 path: entry.relPath,
                 status: STATUS.WT_NEW,
                 stats: entry.stats,
-              }, entry.stats.isDirectory()));
+              }, entry.absPath));
               markParentsAsModified(entry.relPath);
             }
           }
@@ -1372,7 +1376,7 @@ export class Repository {
 
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.isDirectory()));
+              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.absPath));
 
               markParentsAsModified(entry.path);
             }
@@ -1406,7 +1410,7 @@ export class Repository {
                 path: existingItem.file.path,
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, existingItem.file.absPath));
 
             markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
@@ -1415,7 +1419,7 @@ export class Repository {
                 path: existingItem.file.path,
                 status: STATUS.UNMODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, existingItem.file.absPath));
           }
         }
 

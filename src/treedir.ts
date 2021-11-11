@@ -76,12 +76,16 @@ export abstract class TreeEntry {
   runtimeData: {
     stimg?: any,
     stmeta?: any
-    isSnowProject?: boolean
+    isSnowProject?: boolean;
+    filetypeName?: string;
+    isPackage?: boolean;
   } = {};
 
   ext: string;
 
   basename: string;
+
+  absPath: string;
 
   constructor(
     public hash: string,
