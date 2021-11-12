@@ -4,11 +4,11 @@ import * as io from './io';
 import {
   resolve, join, dirname, extname, denormalize, normalize, basename,
 } from './path';
-
+import { BehaviorSubject } from 'rxjs';
 import { Log } from './log';
 import { Commit } from './commit';
 import {
-  calculateFileHash, FileInfo, HashBlock, StatsSubset,
+  calculateFileHash, FileInfo, HashBlock, RuntimeData, StatsSubset,
 } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
@@ -41,17 +41,9 @@ type RefName = string;
 type RefHash = string;
 type CommitHash = string;
 
-export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
+export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: TreeDir): any {
   if (Array.isArray(obj)) {
-    return obj.map((c: any) => buildRootFromJson(c, parent));
-  }
-
-  if (!obj.userData) {
-    obj.userData = {};
-  }
-
-  if (!obj.runtimeData) {
-    obj.runtimeData = {};
+    return obj.map((c: any) => buildRootFromJson(repo, c, parent));
   }
 
   if (obj.stats) {
@@ -77,10 +69,12 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
 
   if (obj.children) {
     const o: TreeDir = Object.setPrototypeOf(obj, TreeDir.prototype);
-    o.children = obj.children.map((t: any) => buildRootFromJson(t, o));
+    o.children = obj.children.map((t: any) => buildRootFromJson(repo, t, o));
     o.parent = parent;
     o.basename = basename(o.path);
     o.ext = extname(o.path);
+    o.runtimeData = new RuntimeData();
+    o.runtimeData.absPath = join(repo.workdir(), o.path);
     return o;
   }
 
@@ -88,9 +82,12 @@ export function buildRootFromJson(obj: any[]|any, parent: TreeDir): any {
   o.basename = basename(o.path);
   o.ext = extname(o.path);
   o.parent = parent;
-  if (obj.hash) {
-    o.hash = obj.hash;
-  }
+  o.hash = obj.hash;
+
+  o.runtimeData = new RuntimeData();
+  o.runtimeData.absPath = join(repo.workdir(), o.path);
+  o.runtimeData.realAbsPath = repo.getOdb().getAbsObjectPath(o);
+
   return o;
 }
 
@@ -287,13 +284,7 @@ export class StatusEntry {
 
   absPath: string;
 
-  runtimeData: {
-    stimg?: any,
-    stmeta?: any,
-    isSnowProject?: boolean;
-    filetypeName?: string;
-    isPackage?: boolean;
-  } = {};
+  runtimeData = new RuntimeData();
 
   constructor(data: StatusItemOptionsCustom, absPath: string) {
     this.path = data.path;
@@ -301,6 +292,7 @@ export class StatusEntry {
     this.ext = extname(this.path);
     this.basename = basename(this.path);
     this.absPath = absPath;
+    this.isdir = data.stats.isDirectory();
 
     if (data.stats) {
       this.stats = {
@@ -310,6 +302,14 @@ export class StatusEntry {
         size: data.stats.size,
       };
     }
+  }
+
+  getAbsPath(): string {
+    return this.absPath;
+  }
+
+  getRealAbsPath(): string {
+    return this.absPath;
   }
 
   /** Return true if the object is new. */
@@ -358,6 +358,22 @@ export class StatusEntry {
     }
     return 'File';
   }
+}
+
+export async function isSnowRepo(dirPath: string): Promise<boolean> {
+  do {
+    if (await fse.pathExists(join(dirPath, '.snow'))) {
+      return true;
+    }
+    
+    const tmp = dirname(dirPath);
+    if (tmp === dirPath) {
+      break;
+    }
+    dirPath = tmp;
+  } while (true);
+
+  return false;
 }
 
 export function getSnowFSRepo(dirpath: string): Promise<string | null> {
@@ -1376,7 +1392,7 @@ export class Repository {
 
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.absPath));
+              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.getAbsPath()));
 
               markParentsAsModified(entry.path);
             }
@@ -1402,7 +1418,7 @@ export class Repository {
         }
         return Promise.all(promises);
       })
-      .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
+      .then((existingItems: {file: TreeFile, modified : boolean, newStats: fse.Stats}[]) => {
         for (const existingItem of existingItems) {
           if (existingItem.modified) {
             statusResult.set(existingItem.file.path,
@@ -1410,7 +1426,7 @@ export class Repository {
                 path: existingItem.file.path,
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
-              }, existingItem.file.absPath));
+              }, existingItem.file.getAbsPath()));
 
             markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
@@ -1419,7 +1435,7 @@ export class Repository {
                 path: existingItem.file.path,
                 status: STATUS.UNMODIFIED,
                 stats: existingItem.newStats,
-              }, existingItem.file.absPath));
+              }, existingItem.file.getAbsPath()));
           }
         }
 
@@ -1870,7 +1886,7 @@ export class Repository {
 
       const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
       c.repo = repo;
-      c.root = buildRootFromJson(c.root, null);
+      c.root = buildRootFromJson(repo, c.root, null);
       repo.commitMap.set(tmpCommit.hash, c);
     }
 

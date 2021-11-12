@@ -66,7 +66,7 @@ export function relative(from: string, to: string): string {
 }
 
 export function extname(p: string): string {
-  return path.extname(p);
+  return path.extname(p).toLowerCase();
 }
 
 export function parse(p: string): path.ParsedPath {

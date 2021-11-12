@@ -8,12 +8,24 @@ import {
 } from './path';
 
 import { Repository } from './repository';
+import { BehaviorSubject } from 'rxjs';
 
 export const MB100 = 100000000;
 export const MB20 = 20000000;
 export const MB10 = 10000000;
 export const MB2 = 2000000;
 export const MB1 = 1000000;
+
+export class RuntimeData {
+  stimg = new BehaviorSubject<string | null>(null);
+  stmeta = new BehaviorSubject<any>(null);
+  filetypeName = '';
+  isPackage = false;
+  isSnowProject = false;
+  isInPackage = false;
+  absPath = '';
+  realAbsPath: string | null = null;
+}
 
 export class StatsSubset {
   size: number;

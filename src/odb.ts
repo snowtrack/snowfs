@@ -103,7 +103,7 @@ export class Odb {
           tmpCommit.runtimeData = {};
           const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
           c.repo = this.repo;
-          c.root = buildRootFromJson(c.root, null);
+          c.root = buildRootFromJson(this.repo, c.root, null);
           return c;
         });
       });
