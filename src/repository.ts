@@ -4,7 +4,6 @@ import * as io from './io';
 import {
   resolve, join, dirname, extname, denormalize, normalize, basename,
 } from './path';
-import { BehaviorSubject } from 'rxjs';
 import { Log } from './log';
 import { Commit } from './commit';
 import {
@@ -360,10 +359,15 @@ export class StatusEntry {
   }
 }
 
-export async function isSnowRepo(dirPath: string): Promise<boolean> {
+/**
+ * If dirPath is inside a snow repository, it returns the absolute workdir path, otherwise false.
+ * @param dirPath       Absolute path.
+ * @returns             Absolute path to the belonging workdir or null.
+ */
+export async function isSnowRepo(dirPath: string): Promise<string> {
   do {
     if (await fse.pathExists(join(dirPath, '.snow'))) {
-      return true;
+      return dirPath;
     }
     
     const tmp = dirname(dirPath);
@@ -373,7 +377,7 @@ export async function isSnowRepo(dirPath: string): Promise<boolean> {
     dirPath = tmp;
   } while (true);
 
-  return false;
+  return null;
 }
 
 export function getSnowFSRepo(dirpath: string): Promise<string | null> {
