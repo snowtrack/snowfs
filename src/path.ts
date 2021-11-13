@@ -25,8 +25,16 @@ export function normalize(p: string): string {
   p = path.normalize(p).replace(/\\/g, '/');
 
   // strip away trailing slashes
-  if (p !== '/' && p.endsWith('/')) {
-    p = p.substr(0, p.length - 1);
+  if (process.platform === 'win32') {
+    // we don't strip trailing slashes on drives
+    if (p.length > 3 && p.endsWith('/')) {
+      p = p.substr(0, p.length - 1);
+    }
+  } else {
+    // we don't strip trailing slashes on root
+    if (p !== '/' && p.endsWith('/')) {
+      p = p.substr(0, p.length - 1);
+    }
   }
   return p;
 }
