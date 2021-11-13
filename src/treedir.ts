@@ -100,10 +100,6 @@ export abstract class TreeEntry {
     return this.runtimeData.absPath;
   }
 
-  getRealAbsPath(): string {
-    return this.runtimeData.realAbsPath;
-  }
-
   abstract clone(parent?: TreeDir): TreeEntry;
 }
 
@@ -132,6 +128,10 @@ export class TreeFile extends TreeEntry {
     public parent: TreeDir,
   ) {
     super(hash, path, stats);
+  }
+
+  getRealAbsPath(): string {
+    return this.runtimeData.realAbsPath;
   }
 
   clone(parent?: TreeDir): TreeFile {
