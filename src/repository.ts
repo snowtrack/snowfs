@@ -361,20 +361,20 @@ export class StatusEntry {
 
 /**
  * If dirPath is inside a snow repository, it returns the absolute workdir path, otherwise false.
- * @param dirPath       Absolute path.
+ * @param path       Absolute path.
  * @returns             Absolute path to the belonging workdir or null.
  */
-export async function isSnowRepo(dirPath: string): Promise<string> {
+export async function isInSnowRepo(path: string): Promise<string | null> {
   do {
-    if (await fse.pathExists(join(dirPath, '.snow'))) {
-      return dirPath;
+    if (await fse.pathExists(join(path, '.snow'))) {
+      return path;
     }
     
-    const tmp = dirname(dirPath);
-    if (tmp === dirPath) {
+    const tmp = dirname(path);
+    if (tmp === path) {
       break;
     }
-    dirPath = tmp;
+    path = tmp;
   } while (true);
 
   return null;
