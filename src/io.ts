@@ -259,6 +259,28 @@ export async function remove(item: string): Promise<void> {
  * For more information check the module import comments above.
  * For more information about the API of [stat] visit https://nodejs.org/api/fs.html#fs_fs_fstat_fd_options_callback
  */
+export function lstat(path: PathLike): Promise<Stats> {
+  return new Promise((resolve, reject) => {
+    try {
+      fs.lstat(path, (error, stats: Stats) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(stats);
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Retrieve the statistics about a directory item. Preferred usage over 'fs' or 'fs-extra' because it ensures always the
+ * fastest filesystem module is used inside Electron or inside node.
+ * For more information check the module import comments above.
+ * For more information about the API of [stat] visit https://nodejs.org/api/fs.html#fs_fs_fstat_fd_options_callback
+ */
 export function stat(path: PathLike): Promise<Stats> {
   return new Promise((resolve, reject) => {
     try {
