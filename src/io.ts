@@ -365,10 +365,14 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
   const browseRepo = request & OSWALK.BROWSE_REPOS;
 
   function internalOsWalk(dirPath: string, request: OSWALK, relPath: string, dirItemRef?: DirItem): Promise<DirItem[]> {
-    if (dirPath.endsWith('/') && (process.platform !== 'win32' || dirPath.length > 3)) {
-      // if directory ends with a trailing slash, we cut it off to ensure
-      // we don't return a path like /foo/directory//file.jpg
-      dirPath = dirPath.substr(0, dirPath.length - 1);
+    // if directory ends with a trailing slash, we cut it off to ensure
+    // we don't return a path like /foo/directory//file.jpg
+    if (dirPath.endsWith('/')) {
+      if (process.platform === 'win32' && dirPath.length > 3) {
+        dirPath = dirPath.substr(0, dirPath.length - 1);
+      } else if (dirPath !== '/') {
+        dirPath = dirPath.substr(0, dirPath.length - 1);
+      }
     }
 
     const dirItems: DirItem[] = [];
