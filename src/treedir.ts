@@ -21,7 +21,7 @@ export const enum FILEMODE {
   COMMIT = 57344,
 }
 
-const textFileExtensions = new Set([
+export const textFileExtensions = new Set([
   '.txt', '.html', '.plist', '.htm', '.css', '.js',
   '.jsx', '.less', '.scss', '.wasm', '.php', '.c',
   '.cc', '.class', '.clj', '.cpp', '.cs', '.cxx',
