@@ -25,6 +25,13 @@ export class RuntimeData {
   isInPackage = false;
   absPath = '';
   realAbsPath: string | null = null;
+  fonyFamily: {
+     name: string;
+     path: string;
+     type: string;
+     weight: number;
+     style: string;
+  } | null = null;
 }
 
 export class StatsSubset {
