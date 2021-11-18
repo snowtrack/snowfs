@@ -25,7 +25,7 @@ export class RuntimeData {
   isInPackage = false;
   absPath = '';
   realAbsPath: string | null = null;
-  font: string | null = null; // font path if available
+  font: unknown | null = null; // font path if available
 }
 
 export class StatsSubset {
