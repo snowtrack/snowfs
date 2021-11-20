@@ -21,7 +21,8 @@ import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
-import PromisePool = require('@supercharge/promise-pool');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { PromisePool } = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
   UNDEFINED = 1,

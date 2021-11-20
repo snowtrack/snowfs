@@ -12,7 +12,8 @@ import * as io from './io';
 import trash = require('trash');
 import AggregateError = require('es-aggregate-error');
 import drivelist = require('drivelist');
-import PromisePool = require('@supercharge/promise-pool');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { PromisePool } = require('@supercharge/promise-pool');
 
 class StacklessError extends Error {
   constructor(...args: any) {

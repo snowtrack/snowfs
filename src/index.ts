@@ -15,7 +15,8 @@ import { FileInfo } from './common';
 
 export type processFileCallback = (filepath: string, start: boolean) => void;
 
-import PromisePool = require('@supercharge/promise-pool');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { PromisePool } = require('@supercharge/promise-pool');
 
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
