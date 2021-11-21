@@ -1403,7 +1403,12 @@ export class Repository {
 
           for (const entry of itemsStep2) {
             if (!entry.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats: null }, entry.getAbsPath()));
+              const stats = new fse.Stats();
+              stats.mtime = entry.stats.mtime;
+              stats.ctime = entry.stats.ctime;
+              stats.birthtime = entry.stats.birthtime;
+              stats.isDirectory = () => entry.isDirectory();
+              statusResult.set(entry.path, new StatusEntry({ path: entry.path, status: STATUS.WT_DELETED, stats }, entry.getAbsPath()));
 
               markParentsAsModified(entry.path);
             }
