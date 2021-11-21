@@ -65,6 +65,12 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     obj.stats.mtime = new Date(obj.stats.mtime);
     obj.stats.ctime = new Date(obj.stats.ctime);
     obj.stats.birthtime = new Date(obj.stats.birthtime);
+  } else {
+    obj.stats = {
+      mtime: new Date(0),
+      ctime: new Date(0),
+      birthtime: new Date(0)
+    }
   }
 
   if (obj.children) {
