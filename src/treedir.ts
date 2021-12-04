@@ -88,11 +88,11 @@ export abstract class TreeEntry {
     this.basename = basename(this.path);
   }
 
-  isDirectory(): boolean {
+  isDirectory(): this is TreeDir {
     return this instanceof TreeDir;
   }
 
-  isFile(): boolean {
+  isFile(): this is TreeFile {
     return this instanceof TreeFile;
   }
 
