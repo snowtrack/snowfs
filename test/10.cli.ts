@@ -749,11 +749,11 @@ test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
   t.log('Test failed as expected');
 });
 
-test('driveinfo test', async (t) => {
+test.only('driveinfo test', async (t) => {
   const snow: string = getSnowexec();
 
   const out1 = await exec(t, snow, ['driveinfo'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
-
+  console.log(out1);
   const parsedObj = JSON.parse(out1);
   if (!Array.isArray(parsedObj) || parsedObj.length === 0) {
     t.fail('expected array with minimum size of 1 element');
