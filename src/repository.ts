@@ -265,9 +265,8 @@ export interface StatusItemOptionsCustom {
 
   /**
    * Stats that represent the status items file/directory statistics.
-   * Null if [[StatusEntry.isDeleted]] is true.
    */
-  stats: fse.Stats | null;
+  stats: fse.Stats;
 }
 
 /**
@@ -299,15 +298,12 @@ export class StatusEntry {
     this.basename = basename(this.path);
     this.absPath = absPath;
     this.isdir = data.stats.isDirectory();
-
-    if (data.stats) {
-      this.stats = {
-        ctime: data.stats.ctime,
-        mtime: data.stats.mtime,
-        birthtime: data.stats.birthtime,
-        size: data.stats.size,
-      };
-    }
+    this.stats = {
+      ctime: data.stats.ctime,
+      mtime: data.stats.mtime,
+      birthtime: data.stats.birthtime,
+      size: data.stats.size,
+    };
   }
 
   getAbsPath(): string {
