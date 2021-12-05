@@ -123,7 +123,7 @@ test('repo open-repo-workdir-commondir-collision-test', async (t) => {
   t.is(error3.message, 'workdir already exists');
 });
 
-test.only('repo open-repo ignore temp files', async (t) => {
+test('repo open-repo ignore temp files', async (t) => {
   // this unit-tests ensures that temp files in 'refs' or 'versions' are ignored upon opening a repo
   let repo: Repository;
 
