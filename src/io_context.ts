@@ -61,74 +61,68 @@ function strEncodeUTF16(str: string) : Uint8Array {
   return new Uint8Array(buf);
 }
 
-export namespace win32 {
+/**
+ * Generic (OS-independent) implementation to check if the passed files are written to by another process.
+ * The paths of `absPaths` must be derived from `relPaths`. The order and length of both arrays must be equal.
+ *
+ * @param absPaths  Absolute paths of files to check.
+ * @param relPaths  Relative paths of files to check.
+ * @throws          Throws an AggregateError with a description of the effected files.
+ */
+export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise<void> {
+  const promises: Promise<fse.Stats>[] = [];
 
-  /**
-   * Check if the passed files are written to by another process. The paths of `absPaths`
-   * must be derived from `relPaths`. The order and length of both arrays must be equal.
-   *
-   * @param absPaths  Absolute paths of files to check.
-   * @param relPaths  Relative paths of files to check.
-   * @throws          Throws an AggregateError with a description of the effected files.
-   */
-  export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise<void> {
-    const promises: Promise<fse.Stats>[] = [];
-
-    for (const absPath of absPaths) {
-      promises.push(io.stat(absPath));
-    }
-
-    const stats1 = new Map<string, fse.Stats>();
-
-    return Promise.all(promises)
-      .then((stats: fse.Stats[]) => {
-        if (stats.length !== relPaths.length) {
-          throw new Error('Internal error: stats != paths');
-        }
-
-        for (let i = 0; i < relPaths.length; ++i) {
-          stats1.set(relPaths[i], stats[i]);
-        }
-
-        return new Promise<void>((resolve) => {
-          setTimeout(() => {
-            resolve();
-          }, 500);
-        });
-      }).then(() => {
-        const promises: Promise<fse.Stats>[] = [];
-
-        for (const absPath of absPaths) {
-          promises.push(io.stat(absPath));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((stats: fse.Stats[]) => {
-        if (stats.length !== relPaths.length) {
-          throw new Error('Internal error: stats != paths');
-        }
-
-        const errors: Error[] = [];
-
-        for (let i = 0; i < relPaths.length; ++i) {
-          const prevStats = stats1.get(relPaths[i]);
-          // When a file is being written by another process, either...
-          // ... the size changes through time (e.g. simple write operation)
-          // and/or...
-          // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
-          // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
-          if (prevStats && (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime())) {
-            const msg = `File '${relPaths[i]}' is being written by another process`;
-            errors.push(new StacklessError(msg));
-          }
-        }
-
-        if (errors.length > 0) {
-          throw new AggregateError(errors);
-        }
-      });
+  for (const absPath of absPaths) {
+    promises.push(io.stat(absPath));
   }
+
+  const stats1 = new Map<string, fse.Stats>();
+
+  return Promise.all(promises)
+    .then((stats: fse.Stats[]) => {
+
+      for (let i = 0; i < relPaths.length; ++i) {
+        stats1.set(relPaths[i], stats[i]);
+      }
+
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 500);
+      });
+    }).then(() => {
+      const promises: Promise<fse.Stats>[] = [];
+
+      for (const absPath of absPaths) {
+        promises.push(io.stat(absPath));
+      }
+
+      return Promise.all(promises);
+    })
+    .then((stats: fse.Stats[]) => {
+
+      const errors: Error[] = [];
+
+      for (let i = 0; i < relPaths.length; ++i) {
+        const prevStats = stats1.get(relPaths[i]);
+        // When a file is being written by another process, either...
+        // ... the size changes through time (e.g. simple write operation)
+        // and/or...
+        // ... the mtime changes (e.g. when a file is copied through the Windows Explorer*)
+        // * When the Windows Explorer copies a file, the size seems to be already set, and only 'mtime' changes
+        if (prevStats && (prevStats.size !== stats[i].size || prevStats.mtime.getTime() !== stats[i].mtime.getTime())) {
+          const msg = `File '${relPaths[i]}' is being written by another process`;
+          errors.push(new StacklessError(msg));
+        }
+      }
+
+      if (errors.length > 0) {
+        throw new AggregateError(errors);
+      }
+    });
+}
+
+export namespace win32 {
 
   /**
    * Check if the passed files are open by any other process.
@@ -616,7 +610,7 @@ export class IoContext {
           switch (testIf) {
             case TEST_IF.FILE_CAN_BE_READ_FROM:
               // check if files are written by another process
-              return win32.checkReadAccess(absPaths, relPaths);
+              return checkReadAccess(absPaths, relPaths);
             case TEST_IF.FILE_CAN_BE_WRITTEN_TO:
             default:
               // Check if files are touched by any other process.
@@ -632,33 +626,54 @@ export class IoContext {
         });
     }
 
-    function checkUnixLike(relPaths): Promise<void> {
+    function checkUnixLike(relPaths: string[]): Promise<void> {
       const absPaths = relPaths.map((p: string) => join(dir, p));
+      const checkIfFilesAreReallyBeingWritten = new Map<string, string>();
+
       return checkAccess(absPaths)
         .then(() => {
           return unix.whichFilesInDirAreOpen(dir);
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
-          const errors: Error[] = [];
 
-          for (const relPath of relPaths) {
+          const zip = (a, b) => a.map((k, i) => [k, b[i]]);
+
+          const errors: Error[] = [];
+          for (const [absPath, relPath] of zip(absPaths, relPaths)) {
             const fhs: unix.FileHandle[] | undefined = fileHandles.get(relPath);
             if (fhs) {
               for (const fh of fhs) {
-                if (fh.lockType === unix.LOCKTYPE.READ_WRITE_LOCK_FILE
-                    || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE
-                    || fh.lockType === unix.LOCKTYPE.WRITE_LOCK_FILE_PART) {
-                  const msg = `File '${relPath}' is being written by ${fh.processname ?? 'another process'}`;
-                  errors.push(new StacklessError(msg));
+                switch (fh.lockType) {
+                  case unix.LOCKTYPE.READ_WRITE_LOCK_FILE: {
+                    // Some applications like InDesign keep a read+write handle on the file
+                    // that is opened. That means, we can't really tell if the file is
+                    // actually being written. In that case, we resort to the approach that
+                    // we use on Windows to determine if the file is really being written.
+                    checkIfFilesAreReallyBeingWritten.set(absPath, relPath);
+                    break;
+                  }
+                  case unix.LOCKTYPE.WRITE_LOCK_FILE:
+                  case unix.LOCKTYPE.WRITE_LOCK_FILE_PART: {
+                    const msg = `File '${relPath}' is being written by ${fh.processname ?? 'another process'}`;
+                    errors.push(new StacklessError(msg));
+                    break;
+                  }
                 }
               }
             }
           }
-
           if (errors.length > 0) {
             throw new AggregateError(errors);
           }
-        });
+        })
+        .then(() => {
+          const absPaths: string[] = Array.from(checkIfFilesAreReallyBeingWritten.keys());
+          const relPaths: string[] = Array.from(checkIfFilesAreReallyBeingWritten.values());
+
+          return checkReadAccess(absPaths, relPaths);
+        })
+        .then(() => {
+        })
     }
 
     switch (process.platform) {

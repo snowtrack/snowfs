@@ -930,8 +930,92 @@ async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
   }
 }
 
+/**
+ * Create read/write file handles and check if only the files that are actively written to are being
+ * reported. On Linux and MacOS files that have a write AND read lock are checked differently than
+ * files that have a read or write lock. For more information see unix.LOCKTYPE.READ_WRITE_LOCK_FILE in io_context.ts.
+ * @param idleReadFile        Number of files to open in read+write mode but ARE NOT written to.
+ * @param activeWriteFile     Number of files to open in read+write mode but are written to.
+ */
+async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: number): Promise<void> {
+  t.plan(activeCnt === 0 ? 1 : activeCnt + 1);  // there is one test below that checks that activeCnt === reported error messages
+
+  const tmp = join(process.cwd(), 'tmp');
+  fse.ensureDirSync(tmp);
+
+  const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
+
+  const fileHandles = new Map<string, number>();
+  const activeHandles = new Set<number>();
+
+  for (let i = 0; i < idleCnt; ++i) {
+    const readFileHandleFile = `idle-${i}.txt`;
+    const absPath = join(absDir, readFileHandleFile);
+    fse.ensureFileSync(absPath);
+    fileHandles.set(readFileHandleFile, fse.openSync(absPath, 'w+'));
+  }
+
+  for (let i = 0; i < activeCnt; ++i) {
+    const readFileHandleFile = `active-${i}.txt`;
+    const absPath = join(absDir, readFileHandleFile);
+    fse.ensureFileSync(absPath);
+    const fh = fse.openSync(absPath, 'w+');
+    fileHandles.set(readFileHandleFile, fh);
+    activeHandles.add(fh);
+  }
+
+  let stop = false;
+
+  function parallelWrite(): void {
+    activeHandles.forEach((fh: number) => {
+      fse.writeFile(fh, '123456789abcdefghijklmnopqrstuvwxyz\n');
+    });
+
+    setTimeout(() => {
+      if (stop) {
+        t.log('Stop parallel writes');
+      } else {
+        parallelWrite();
+      }
+    });
+  }
+
+  parallelWrite();
+
+  await sleep(500); // just to ensure on GitHub runners that all files were written to
+
+  const ioContext = new IoContext();
+  try {
+    await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
+    t.log('Ensure that only the active file handles are reported as being written');
+    if (idleCnt + activeCnt === 0) {
+      t.true(true); // to satisfy t.plan
+    }
+  } catch (error) {
+    if (error instanceof AggregateError) {
+      const errorMessages: string[] = error.errors.map((e) => e.message);
+      // only the active file handles must be reported as being written
+      t.log(`Expected ${activeCnt} files as being written, and reported ${errorMessages.length}`);
+      t.is(activeCnt, errorMessages.length);
+
+      for (let i = 0; i < errorMessages.length; ++i) {
+        t.is(`File 'active-${i}.txt' is being written by another process`, errorMessages[i]);
+      }
+    } else {
+      // any other error than AggregateError is unexpected
+      throw error;
+    }
+  }
+
+  stop = true;
+
+  for (const handle of Array.from(fileHandles.values())) {
+    fse.closeSync(handle);
+  }
+}
+
 if (process.platform === 'win32') {
-  test('performFileAccessCheck (read/write) / 0 file', async (t) => {
+  test('performFileAccessCheck (read/write) / 0 file [Win only]', async (t) => {
     try {
       await performReadLockCheckTest(t, 0);
     } catch (error) {
@@ -939,7 +1023,7 @@ if (process.platform === 'win32') {
     }
   });
 
-  test('performFileAccessCheck (read/write) / 1 file', async (t) => {
+  test('performFileAccessCheck (read/write) / 1 file [Win only]', async (t) => {
     try {
       await performReadLockCheckTest(t, 1);
     } catch (error) {
@@ -947,7 +1031,7 @@ if (process.platform === 'win32') {
     }
   });
 
-  test('performFileAccessCheck (read/write) / 100 file', async (t) => {
+  test('performFileAccessCheck (read/write) / 100 file [Win only]', async (t) => {
     try {
       await performReadLockCheckTest(t, 100);
     } catch (error) {
@@ -955,7 +1039,7 @@ if (process.platform === 'win32') {
     }
   });
 
-  test('performFileAccessCheck (read/write) / 1000 file', async (t) => {
+  test('performFileAccessCheck (read/write) / 1000 file [Win only]', async (t) => {
     try {
       await performReadLockCheckTest(t, 1000);
     } catch (error) {
@@ -963,9 +1047,18 @@ if (process.platform === 'win32') {
     }
   });
 
-  test('performFileAccessCheck (read/write) / 10000 file', async (t) => {
+  test('performFileAccessCheck (read/write) / 10000 file [Win only]', async (t) => {
     try {
       await performReadLockCheckTest(t, 10000);
+    } catch (error) {
+      t.fail(error.message);
+    }
+  });
+} else {
+  test('performReadWriteAccessCheck / 6 w+ files where 3 files are being written [macOS/Linux]', async (t) => {
+    try {
+      // On Linux and macOS we want to test for read+write handles
+      await performReadWriteLockCheckTest(t, 3, 3);
     } catch (error) {
       t.fail(error.message);
     }
