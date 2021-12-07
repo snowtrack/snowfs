@@ -130,8 +130,12 @@ export class TreeFile extends TreeEntry {
     super(hash, path, stats);
   }
 
-  getRealAbsPath(): string {
-    return this.runtimeData.realAbsPath;
+  getRealAbsPath(opts?: {filePrefix: boolean}): string {
+    if (opts?.filePrefix) {
+      return `file://${this.runtimeData.realAbsPath}`;
+    } else {
+      return this.runtimeData.realAbsPath;
+    }
   }
 
   clone(parent?: TreeDir): TreeFile {

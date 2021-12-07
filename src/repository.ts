@@ -310,8 +310,12 @@ export class StatusEntry {
     return this.absPath;
   }
 
-  getRealAbsPath(): string {
-    return this.absPath;
+  getRealAbsPath(opts?: {filePrefix: boolean}): string {
+    if (opts?.filePrefix) {
+      return `file://${this.absPath}`;
+    } else {
+      return this.absPath;
+    }
   }
 
   /** Return true if the object is new. */
