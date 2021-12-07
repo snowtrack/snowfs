@@ -69,7 +69,8 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     obj.stats = {
       mtime: new Date(0),
       ctime: new Date(0),
-      birthtime: new Date(0)
+      birthtime: new Date(0),
+      size: -1
     }
   }
 
@@ -302,7 +303,7 @@ export class StatusEntry {
       ctime: data.stats.ctime,
       mtime: data.stats.mtime,
       birthtime: data.stats.birthtime,
-      size: data.stats.size,
+      size: data.stats.size ?? -1,
     };
   }
 
