@@ -704,6 +704,9 @@ export class IoContext {
 
     // just to be on the safe side
     absPaths.forEach((absPath: string) => {
+      if (io.protectedLocation(absPath)) {
+        throw new Error(`cannot move '${absPath}' to trash`);
+      }
       switch (process.platform) {
         case 'win32': {
           if (absPath.length <= 3) { // if empty or C:\ or C:/
