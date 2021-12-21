@@ -27,6 +27,7 @@ export class RuntimeData {
   absPath = '';
   realAbsPath: string | null = null;
   font: unknown | null = null; // font path if available
+  isMovie: boolean = false;
 }
 
 export class StatsSubset {
