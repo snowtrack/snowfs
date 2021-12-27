@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import * as io from './io';
 
 import { join, relative, normalize, extname, basename } from './path';
-import { Repository } from './repository';
+import { Repository, STATUS } from './repository';
 import {
   getPartHash, HashBlock, MB20, RuntimeData, StatsSubset,
 } from './common';
@@ -77,6 +77,9 @@ export abstract class TreeEntry {
 
   ext: string;
 
+  /** Flags, which define the attributes of the item. */
+  status: STATUS;
+
   basename: string;
 
   constructor(
@@ -84,6 +87,7 @@ export abstract class TreeEntry {
     public path: string,
     public stats: StatsSubset,
   ) {
+    this.status = STATUS.UNMODIFIED;
     this.ext = extname(path);
     this.basename = basename(this.path);
   }
