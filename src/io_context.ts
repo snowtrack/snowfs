@@ -828,7 +828,7 @@ export class IoContext {
               if (stderr) {
                 reject(new Error(stderr.toString()));
               } else {
-                reject(new Error('deleting files failed'));
+                reject(new Error('Deletion failed'));
               }
             }
           });
