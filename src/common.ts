@@ -25,7 +25,6 @@ export class RuntimeData {
   isSnowProject = false;
   isInPackage = false;
   absPath = '';
-  mtimeString: string = '';
   realAbsPath: string | null = null;
   font: unknown | null = null; // font path if available
   isMovie: boolean = false;
