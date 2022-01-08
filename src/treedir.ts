@@ -92,6 +92,8 @@ export abstract class TreeEntry {
     this.basename = basename(this.path);
   }
 
+  abstract toJson(): any;
+
   isDirectory(): this is TreeDir {
     return this instanceof TreeDir;
   }
@@ -235,7 +237,7 @@ export class TreeDir extends TreeEntry {
 
   hash: string | undefined;
 
-  children: (TreeEntry)[] = [];
+  children: TreeEntry[] = [];
 
   constructor(public path: string,
               public stats: StatsSubset,
@@ -303,7 +305,7 @@ export class TreeDir extends TreeEntry {
       throw new Error('item must have path');
     }
 
-    const children: string[] = this.children.map((value: TreeDir | TreeFile) => value.toJson());
+    const children: any = this.children.map((value: TreeEntry) => value.toJson());
 
     const stats: any = {
       size: this.stats.size,
@@ -338,7 +340,7 @@ export class TreeDir extends TreeEntry {
     if (opt.entireHierarchy) {
       visit(this.children, map);
     } else {
-      this.children.forEach((o: TreeDir | TreeFile) => {
+      this.children.forEach((o: TreeEntry) => {
         if (o instanceof TreeFile || opt.entireHierarchy) {
           map.set(o.path, o);
         }
