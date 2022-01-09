@@ -77,6 +77,8 @@ export abstract class TreeEntry {
 
   ext: string;
 
+  extWithoutDot: string;
+
   /** Flags, which define the attributes of the item. */
   status: STATUS;
 
@@ -89,6 +91,7 @@ export abstract class TreeEntry {
   ) {
     this.status = STATUS.UNMODIFIED;
     this.ext = extname(path);
+    this.extWithoutDot = this.ext.slice(1);
     this.basename = basename(this.path);
   }
 

@@ -80,6 +80,7 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     o.parent = parent;
     o.basename = basename(o.path);
     o.ext = extname(o.path);
+    o.extWithoutDot = o.ext.slice(1);
     o.runtimeData = new RuntimeData();
     o.runtimeData.absPath = join(repo.workdir(), o.path);
     return o;
@@ -286,6 +287,8 @@ export class StatusEntry {
 
   ext: string;
 
+  extWithoutDot: string;
+
   basename: string;
 
   absPath: string;
@@ -296,6 +299,7 @@ export class StatusEntry {
     this.path = data.path;
     this.status = data.status;
     this.ext = extname(this.path);
+    this.extWithoutDot = this.ext.slice(1);
     this.basename = basename(this.path);
     this.absPath = absPath;
     this.isdir = data.stats.isDirectory();
