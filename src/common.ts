@@ -17,7 +17,6 @@ export const MB2 = 2000000;
 export const MB1 = 1000000;
 
 export class RuntimeData {
-  thumbnailLoaded = false;
   stimg = new BehaviorSubject<string | null>(null);
   stmeta = new BehaviorSubject<any>(null);
   filetypeName = '';
