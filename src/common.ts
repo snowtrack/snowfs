@@ -25,7 +25,6 @@ export class RuntimeData {
   isInPackage = false;
   absPath = '';
   realAbsPath: string | null = null;
-  font: unknown | null = null; // font path if available
   isMovie: boolean = false;
 }
 
