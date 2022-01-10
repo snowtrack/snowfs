@@ -25,7 +25,6 @@ export class RuntimeData {
   isInPackage = false;
   absPath = '';
   realAbsPath: string | null = null;
-  isMovie: boolean = false;
 }
 
 export class StatsSubset {
