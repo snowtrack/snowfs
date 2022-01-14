@@ -22,6 +22,7 @@ export class RuntimeData {
   filetypeName = '';
   isPackage = false;
   isSnowProject = false;
+  isGitProject = false;
   isInPackage = false;
   absPath = '';
   realAbsPath: string | null = null;
