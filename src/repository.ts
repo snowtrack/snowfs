@@ -82,7 +82,7 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     o.ext = extname(o.path);
     o.extWithoutDot = o.ext.slice(1);
     o.runtimeData = new RuntimeData();
-    o.runtimeData.absPath = join(repo.workdir(), o.path);
+    o.absPath = join(repo.workdir(), o.path);
     return o;
   }
 
@@ -93,8 +93,8 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
   o.hash = obj.hash;
 
   o.runtimeData = new RuntimeData();
-  o.runtimeData.absPath = join(repo.workdir(), o.path);
-  o.runtimeData.realAbsPath = repo.getOdb().getAbsObjectPath(o);
+  o.absPath = join(repo.workdir(), o.path);
+  o.realAbsPath = repo.getOdb().getAbsObjectPath(o);
 
   return o;
 }

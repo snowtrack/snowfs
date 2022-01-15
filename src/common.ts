@@ -24,8 +24,6 @@ export class RuntimeData {
   isSnowProject = false;
   isGitProject = false;
   isInPackage = false;
-  absPath = '';
-  realAbsPath: string | null = null;
 }
 
 export class StatsSubset {

@@ -77,6 +77,11 @@ export abstract class TreeEntry {
 
   ext: string;
 
+  /** Absolute path of the item where this resides or resides in the repo.
+   * If this is a TreeFile, the real absolute path in the ODB see TreeFile.realAbsPath
+  */
+  absPath = '';
+
   extWithoutDot: string;
 
   /** Flags, which define the attributes of the item. */
@@ -106,7 +111,7 @@ export abstract class TreeEntry {
   }
 
   getAbsPath(): string {
-    return this.runtimeData.absPath;
+    return this.absPath;
   }
 
   abstract clone(parent?: TreeDir): TreeEntry;
@@ -130,6 +135,10 @@ function generateSizeAndCaches(item: TreeEntry): [number, string] {
 }
 
 export class TreeFile extends TreeEntry {
+
+  // Path of the item where it really resides on disk inside the ODB
+  realAbsPath: string;
+
   constructor(
     hash: string,
     path: string,
@@ -141,9 +150,9 @@ export class TreeFile extends TreeEntry {
 
   getRealAbsPath(opts?: {filePrefix: boolean}): string {
     if (opts?.filePrefix) {
-      return `file://${this.runtimeData.realAbsPath}`;
+      return `file://${this.realAbsPath}`;
     } else {
-      return this.runtimeData.realAbsPath;
+      return this.realAbsPath;
     }
   }
 
