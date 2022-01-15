@@ -293,6 +293,8 @@ export class StatusEntry {
 
   absPath: string;
 
+  ino: number | undefined;
+
   runtimeData = new RuntimeData();
 
   constructor(data: StatusItemOptionsCustom, absPath: string) {
@@ -303,6 +305,7 @@ export class StatusEntry {
     this.basename = basename(this.path);
     this.absPath = absPath;
     this.isdir = data.stats.isDirectory();
+    this.ino = data.stats.ino;
     this.stats = {
       ctime: data.stats.ctime,
       mtime: data.stats.mtime,

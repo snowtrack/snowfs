@@ -24,7 +24,6 @@ export class RuntimeData {
   isSnowProject = false;
   isGitProject = false;
   isInPackage = false;
-  ino: number | null = null;
 }
 
 export class StatsSubset {
