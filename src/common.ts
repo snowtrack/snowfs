@@ -16,7 +16,7 @@ export const MB10 = 10000000;
 export const MB2 = 2000000;
 export const MB1 = 1000000;
 
-export class RuntimeData {
+export class SnowtrackData {
   stimg = new BehaviorSubject<string>('data:,'); // empty default image
   stmeta = new BehaviorSubject<any>(null);
   filetypeName = '';

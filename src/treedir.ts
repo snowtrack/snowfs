@@ -7,7 +7,7 @@ import * as io from './io';
 import { join, relative, normalize, extname, basename } from './path';
 import { Repository, STATUS } from './repository';
 import {
-  getPartHash, HashBlock, MB20, RuntimeData, StatsSubset,
+  getPartHash, HashBlock, MB20, SnowtrackData, StatsSubset,
 } from './common';
 
 import sortPaths = require('sort-paths');
@@ -73,7 +73,7 @@ export function calculateSizeAndHash(items: TreeEntry[]): [number, string] {
 export abstract class TreeEntry {
 
   /** TreeEntry runtime data. Only for internal use. */
-  runtimeData = new RuntimeData();
+  snowtrackData = new SnowtrackData();
 
   ext: string;
 
@@ -160,8 +160,8 @@ export class TreeFile extends TreeEntry {
     const file = new TreeFile(this.hash,
       this.path, StatsSubset.clone(this.stats), parent);
 
-    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
-      parent.runtimeData = { ...this.runtimeData };
+    if (this.snowtrackData && Object.keys(this.snowtrackData).length > 0) {
+      parent.snowtrackData = { ...this.snowtrackData };
     }
     return file;
   }
@@ -265,8 +265,8 @@ export class TreeDir extends TreeEntry {
 
   clone(parent?: TreeDir): TreeDir {
     const newTree = new TreeDir(this.path, StatsSubset.clone(this.stats), parent);
-    if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
-      newTree.runtimeData = { ...this.runtimeData };
+    if (this.snowtrackData && Object.keys(this.snowtrackData).length > 0) {
+      newTree.snowtrackData = { ...this.snowtrackData };
     }
     newTree.children = this.children.map((c: TreeEntry) => c.clone(newTree));
     return newTree;

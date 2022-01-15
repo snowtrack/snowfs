@@ -7,7 +7,7 @@ import {
 import { Log } from './log';
 import { Commit } from './commit';
 import {
-  calculateFileHash, FileInfo, HashBlock, RuntimeData, StatsSubset,
+  calculateFileHash, FileInfo, HashBlock, SnowtrackData, StatsSubset,
 } from './common';
 import { IgnoreManager } from './ignore';
 import { Index } from './index';
@@ -81,7 +81,7 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     o.basename = basename(o.path);
     o.ext = extname(o.path);
     o.extWithoutDot = o.ext.slice(1);
-    o.runtimeData = new RuntimeData();
+    o.snowtrackData = new SnowtrackData();
     o.absPath = join(repo.workdir(), o.path);
     return o;
   }
@@ -92,7 +92,7 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
   o.parent = parent;
   o.hash = obj.hash;
 
-  o.runtimeData = new RuntimeData();
+  o.snowtrackData = new SnowtrackData();
   o.absPath = join(repo.workdir(), o.path);
   o.realAbsPath = repo.getOdb().getAbsObjectPath(o);
 
@@ -295,7 +295,7 @@ export class StatusEntry {
 
   ino: number | undefined;
 
-  runtimeData = new RuntimeData();
+  snowtrackData = new SnowtrackData();
 
   constructor(data: StatusItemOptionsCustom, absPath: string) {
     this.path = data.path;
