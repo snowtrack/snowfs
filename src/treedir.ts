@@ -77,7 +77,7 @@ export abstract class TreeEntry {
 
   ext: string;
 
-  /** Absolute path of the item where this resides or resides in the repo.
+  /** Absolute path of the item where this item resides (or resided if deleted) in the repo.
    * If this is a TreeFile, the real absolute path in the ODB see TreeFile.realAbsPath
   */
   absPath = '';
