@@ -20,9 +20,10 @@ export class SnowtrackData {
   stimg = new BehaviorSubject<string>('data:,'); // empty default image
   stmeta = new BehaviorSubject<any>(null);
   filetypeName = '';
-  isPackage = false;
   isSnowProject = false;
   isGitProject = false;
+  
+  isPackage = false;
   isInPackage = false;
 }
 
