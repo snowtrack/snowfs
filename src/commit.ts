@@ -2,7 +2,6 @@ import * as crypto from 'crypto';
 import { Repository } from './repository';
 import { TreeDir } from './treedir';
 import { jsonCompliant } from './common';
-import { join } from './path';
 
 /**
  * A class that represents the commits of a repository.

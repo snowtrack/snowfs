@@ -6,7 +6,6 @@ import { exec, spawn } from 'child_process';
 import {
   join, dirname, normalize, relative,
 } from './path';
-import { MB1 } from './common';
 import * as io from './io';
 
 import trash = require('trash');
@@ -521,35 +520,6 @@ export class IoContext {
     }
 
     return i === j;
-  }
-
-  private copyFileApfs(src: string, dst: string): Promise<void> {
-    return io.stat(src)
-      .then((stat: fse.Stats) => {
-        // TODO: (Need help)
-        // It seems on APFS copying files smaller than 1MB is faster than using COW.
-        // Could be a local hickup on my system, verification/citation needed
-        if (stat.size < MB1) {
-          return io.copyFile(src, dst, fse.constants.COPYFILE_FICLONE);
-        }
-
-      const p0 = cp.spawn('cp', [src, dst]);
-      return new Promise((resolve, reject) => {
-        let stderr = '';
-
-          p0.stderr.on('data', (data) => {
-            stderr += data.toString();
-          });
-
-          p0.on('exit', (code) => {
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(new Error(`Error ${code}: ${stderr}`));
-            }
-          });
-        });
-      });
   }
 
   /**
