@@ -400,7 +400,7 @@ export function getSnowFSRepo(dirpath: string): Promise<string | null> {
       }
 
       if (dirname(dirpath) === dirpath) { // if arrived at root
-        throw new Error('commondir not found');
+        return null;
       }
 
       return getSnowFSRepo(dirname(dirpath));
