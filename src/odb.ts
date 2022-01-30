@@ -216,8 +216,7 @@ export class Odb {
 
   writeCommit(commit: Commit): Promise<void> {
     const json = commit.toJson();
-    return fse.writeJson(join(this.repo.options.commondir, 'versions',  commit.hash),
-            json, { spaces: '\t'});
+    return fse.writeJson(join(this.repo.options.commondir, 'versions',  commit.hash), json);
   }
 
   writeObject(filepath: string, ioContext: IoContext): Promise<{file: string, fileinfo: FileInfo}> {
