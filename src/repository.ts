@@ -1892,6 +1892,37 @@ export class Repository {
       .then(() => repo);
   }
 
+  static create(commits: Map<string, any>, refs: Map<string, any>): Repository {
+    const repo = new Repository();
+
+    for (const commit of Array.from(commits.values())) {
+      const tmpCommit: any = commit;
+
+      tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+      tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
+      tmpCommit.userData = tmpCommit.userData ?? {};
+      tmpCommit.runtimeData = {};
+      tmpCommit.runtimeData.missingObjects = new Set<string>();
+
+      const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
+      c.repo = repo;
+      c.root = buildRootFromJson(repo, c.root, null);
+      repo.commitMap.set(tmpCommit.hash, c);
+    }
+
+    for (const ref of Array.from(refs.entries())) {
+      const tmpRef: any = ref;
+
+      const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
+      if (tmpRef[1].lastModifiedDate) {
+        r.lastModifiedDate = new Date(tmpRef[1].lastModifiedDate);
+      }
+      repo.references.set(r.getName(), r);
+    }
+
+    return repo;
+  }
+
   static getRootCommit(commits: Map<string, Commit>): Commit | undefined {
     // The first commit that has no parent is considered to be the root commit
     return Array.from(commits.values()).find((c: Commit) => !c.parent?.length);
@@ -1908,5 +1939,78 @@ export class Repository {
       }
     }
     return leafCommits;
+  }
+
+  static merge(localRepo: Repository, remoteRepo: Repository, refNamePool: Set<string>): { commits: Map<CommitHash, Commit>, refs: Map<RefName, Reference> } {
+    const localRootCommit: Commit | undefined = this.getRootCommit(localRepo.commitMap);
+    const remoteRootCommit: Commit | undefined = this.getRootCommit(remoteRepo.commitMap);
+
+    if (!localRootCommit || !remoteRootCommit) {
+      throw new Error('unable to find first commit');
+    }
+
+    if (localRootCommit.hash !== remoteRootCommit.hash) {
+      throw new Error('refusing to merge unrelated histories');
+    }
+
+    let refList: Reference[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      refList = refList.concat(repo.getAllReferences());
+    });
+
+    let commitList: Commit[] = [];
+    [localRepo, remoteRepo].map((repo: Repository) => {
+      commitList = commitList.concat(repo.getAllCommits(COMMIT_ORDER.UNDEFINED));
+    });
+
+    const sortedCommits = Array.from(commitList.values()).sort((a: Commit, b: Commit) => {
+      const aTime = a.lastModifiedDate ?? a.date;
+      const bTime = b.lastModifiedDate ?? b.date;
+      if (aTime === bTime) {
+        return 0;
+      } else if (aTime > bTime) {
+        return 1;
+      } else {
+        return -1;
+      }
+    });
+
+    const combinedCommits = new Map<CommitHash, Commit>();
+    for (const commit of sortedCommits) {
+      combinedCommits.set(commit.hash, commit);
+    }
+
+    const allRefs: Map<RefHash, Reference> = new Map(refList.sort((a: Reference, b: Reference) => {
+      if (a.lastModifiedDate && b.lastModifiedDate) {
+        return a.lastModifiedDate > b.lastModifiedDate ? 1 : -1;
+      } else if (a.lastModifiedDate) {
+        return 1;
+      } else if (b.lastModifiedDate) {
+        return -1;
+      } else {
+        return 0;
+      }
+    }).map((r: Reference) => [r.hash, r]));
+    const newRefs = new Map<RefHash, Reference>();
+
+    const usedRefNames = new Set<string>(Array.from(allRefs.values()).map((r: Reference) => r.getName()));
+    const leafCommits: Map<CommitHash, Commit> = Repository.findLeafCommits(combinedCommits);
+    for (const leafCommit of Array.from(leafCommits.values())) {
+      const ref: Reference | undefined = allRefs.get(leafCommit.hash);
+      if (ref) {
+        if (newRefs.has(ref.getName())) {
+          const availableRefNames = new Set<string>([...refNamePool].filter(x => !usedRefNames.has(x)));
+          const refName: string = availableRefNames.size > 0 ? Array.from(availableRefNames.keys())[0] : 'Unnamed Track';
+          availableRefNames.add(refName);
+          const cloneRef = ref.clone();
+          cloneRef.setName(refName);
+          newRefs.set(refName, cloneRef);
+        } else {
+          newRefs.set(ref.getName(), ref);
+        }
+      }
+    }
+
+    return {commits: combinedCommits, refs: newRefs};
   }
 }
