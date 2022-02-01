@@ -37,6 +37,10 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
+type RefName = string;
+type RefHash = string;
+type CommitHash = string;
+
 export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: TreeDir): any {
   if (Array.isArray(obj)) {
     return obj.map((c: any) => buildRootFromJson(repo, c, parent));
