@@ -28,6 +28,7 @@ export class IgnoreManager {
         '**/Backup_of*', // Auto backup by Corel Draw
         '**/Adobe Premiere Pro Auto-Save/**', // Adobe Premiere
         '**/Adobe After Effects Auto-Save/**', // Adobe After Effects
+        '**/tmpAEtoAMEProject-*.aep', // Adobe After Effects <--> Media Encoder
         '**/RECOVER_*', // Adobe Animate
         '**/temp.noindex/**', // Adobe Character Animator
         '**/~*', // Adobe InDesign lock files start with ~ and end with 'idlk'
