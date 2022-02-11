@@ -80,7 +80,6 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
     o.parent = parent;
     o.basename = basename(o.path);
     o.ext = extname(o.path);
-    o.extWithoutDot = o.ext.slice(1);
     o.snowtrackData = new SnowtrackData();
     o.absPath = join(repo.workdir(), o.path);
     return o;
@@ -89,6 +88,7 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
   const o: TreeFile = Object.setPrototypeOf(obj, TreeFile.prototype);
   o.basename = basename(o.path);
   o.ext = extname(o.path);
+  o.extWithoutDot = o.ext.slice(1);
   o.parent = parent;
   o.hash = obj.hash;
 
