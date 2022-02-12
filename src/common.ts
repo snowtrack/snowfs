@@ -8,7 +8,6 @@ import {
 } from './path';
 
 import { Repository } from './repository';
-import { BehaviorSubject } from 'rxjs';
 
 export const MB100 = 100000000;
 export const MB20 = 20000000;
@@ -17,8 +16,6 @@ export const MB2 = 2000000;
 export const MB1 = 1000000;
 
 export class SnowtrackData {
-  stimg = new BehaviorSubject<string>('data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='); // 1x1px png
-  stmeta = new BehaviorSubject<any>(null);
   filetypeName = '';
   isSnowProject = false;
   isGitProject = false;
