@@ -45,7 +45,7 @@ export class IgnoreManager {
       return fse.readFile(filepath).then((value: Buffer) => {
         const lines: string[] = value.toString().split('\n');
         for (let line of lines) {
-          line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''); // remove /* comment */ or // comment
+          line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*|#.*/g, ''); // remove # comment */ or // comment #
           if (line.length > 0) {
             this.patterns.push(line);
 
