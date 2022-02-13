@@ -1147,7 +1147,7 @@ export class Repository {
 
                 // We first use deleteOrTrash to delete/trash the item because it checks if the item is backed up
                 // in the version database and rather sends it to trash than destroying the data
-                const putToTrashImmediately = [];
+                const putToTrashImmediately: string[] = [];
                 tasks.push(() => deleteOrTrash(this, dst, alwaysDelete, putToTrashImmediately)
                   .then(() => {
                     // Since we replace the object, we can delete the object immediately and we don't
@@ -1284,7 +1284,7 @@ export class Repository {
     function markParentsAsModified(itemPath: string): void {
       // Create the parent strings from the status path and call flagDirAsModified
       // E.g. for hello/foo/bar/texture.psd we flag hello, hello/foo/ hello/foo/bar
-      const parents = [];
+      const parents: string[] = [];
       dirname(itemPath).split('/').reduce((a, b) => {
         const constructedPath = a ? `${a}/${b}` : b;
         parents.push(constructedPath);
