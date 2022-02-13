@@ -36,8 +36,14 @@ export class Odb {
 
   repo: Repository;
 
+  objectsDir: string;
+
+  versionsDir: string;
+
   constructor(repo: Repository) {
     this.repo = repo;
+    this.objectsDir = join(this.repo.options.commondir, 'objects');
+    this.versionsDir = join(this.repo.options.commondir, 'versions');
   }
 
   static open(repo: Repository): Promise<Odb> {
@@ -60,8 +66,8 @@ export class Odb {
         }
         return io.ensureDir(options.commondir);
       })
-      .then(() => io.ensureDir(join(options.commondir, 'objects')))
-      .then(() => io.ensureDir(join(options.commondir, 'versions')))
+      .then(() => io.ensureDir(odb.objectsDir))
+      .then(() => io.ensureDir(odb.versionsDir))
       .then(() => io.ensureDir(join(options.commondir, 'hooks')))
       .then(() => io.ensureDir(join(options.commondir, 'refs')))
       .then(() => {
@@ -81,8 +87,7 @@ export class Odb {
   }
 
   readCommits(): Promise<Commit[]> {
-    const objectsDir: string = join(this.repo.options.commondir, 'versions');
-    return osWalk(objectsDir, OSWALK.FILES)
+    return osWalk(this.versionsDir, OSWALK.FILES)
       .then((value: DirItem[]) => {
         const promises = [];
         for (const ref of value) {
@@ -176,17 +181,17 @@ export class Odb {
   }
 
   getAbsObjectPath(file: TreeFile): string {
-    const objects: string = join(this.repo.options.commondir, 'objects');
+    const objects: string = this.objectsDir;
     return join(objects, file.hash.substr(0, 2), file.hash.substr(2, 2), file.hash.toString() + extname(file.path));
   }
 
   getAbsObjectPathByHash(hash: string, extname: string): string {
-    const objects: string = join(this.repo.options.commondir, 'objects');
+    const objects: string = this.objectsDir;
     return join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
   }
 
   getObjectByHash(hash: string, extname: string): Promise<fse.Stats> {
-    const objects: string = join(this.repo.options.commondir, 'objects');
+    const objects: string = this.objectsDir;
     const object = join(objects, hash.substr(0, 2), hash.substr(2, 2), hash.toString() + extname);
     return io.stat(object)
       .catch(() => null); // if the file is not available, we return null
