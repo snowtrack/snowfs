@@ -1828,10 +1828,8 @@ export class Repository {
    * @returns           The new repository object.
    */
   static initExt(workdir: string, opts?: RepositoryInitOptions): Promise<Repository> {
-    const repo = new Repository();
 
     workdir = normalize(workdir);
-
     if (io.protectedLocation(workdir)) {
       throw new Error("this location cannot be used as a repository");
     }
@@ -1854,6 +1852,13 @@ export class Repository {
       // eslint-disable-next-line no-param-reassign
       opts.commondir = join(workdir, '.snow');
     }
+    
+    const repo = new Repository();
+    repo.options = opts;
+    repo.repoCommonDir = opts.commondir;
+    repo.repoWorkDir = workdir;
+    repo.repoRemote = undefined;
+    repo.repoIndexes = [];
 
     return fse.pathExists(join(workdir, '.snow'))
       .then((workdirExists: boolean) => {
@@ -1870,11 +1875,6 @@ export class Repository {
       .then(() => Odb.create(repo, opts))
       .then((odb: Odb) => {
         repo.repoOdb = odb;
-        repo.options = opts;
-        repo.repoWorkDir = workdir;
-        repo.repoCommonDir = opts.commondir;
-        repo.repoRemote = undefined;
-        repo.repoIndexes = [];
 
         if (commondirOutside) {
           const snowtrackFile: string = join(workdir, '.snow');
