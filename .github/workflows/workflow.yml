@@ -26,7 +26,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v9-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v10-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v9-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v10-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: npm run benchmark
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v9-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v10-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -119,7 +119,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v9-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v10-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
@@ -167,7 +167,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
-          key: ${{ runner.os }}-modules-v9-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-modules-v10-${{ hashFiles('**/package-lock.json') }}
       - run: npm install
 
       - name: Run Tests
