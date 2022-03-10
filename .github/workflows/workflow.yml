@@ -31,11 +31,200 @@ jobs:
       - name: Upgrade node-gyp
         shell: powershell
         run: |
-              npm install --global node-gyp@latest
+              npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
     
-      - name: Install
-        run: npm install
+      - run: npm install
+      - run: npm run benchmark
 
-      - name: Run Benchmark
-        run: npm run benchmark
+  macos-benchmark:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          lfs: true
+          node-version: 14.x
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Upgrade node-gyp
+        run: |
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run benchmark
+
+
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          lfs: true
+          node-version: 14.x
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Upgrade node-gyp
+        run: |
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run ava
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build -- --target node14-linux-x64 --output=dist/snow
+          dist/snow --version
+          find dist -mindepth 1 ! -name snow -delete
+          mkdir -p dist/node_modules/drivelist/build/Release/
+          cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist
+
+      - name: 'Tar files'
+        run: tar -cvf snow.tar -C dist .
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-linux-x64.zip
+          path: snow.tar
+
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          lfs: true
+          node-version: 14.x
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Upgrade node-gyp
+        run: |
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run ava
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build -- --target node14-macos-x64 --output=dist/snow
+          dist/snow --version
+          find dist -mindepth 1 ! -name snow -delete
+          mkdir -p dist/node_modules/drivelist/build/Release/
+          cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
+          cp -r resources dist
+
+      - name: 'Tar files'
+        run: tar -cvf snow.tar -C dist .
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-darwin-x64.zip
+          path: snow.tar
+
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+    
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          lfs: true
+          node-version: 14.x
+      - name: Checkout LFS objects
+        run: git lfs pull
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Upgrade node-gyp
+        shell: powershell
+        run: |
+              npm install --global node-gyp@9
+              npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
+
+      - run: npm install
+      - run: npm run ava
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+
+      - name: npm run tsc, build
+        run: |
+          npm run tsc
+          npm run build -- --target node14-win-x64 --output=dist/snow.exe
+          dist/snow.exe --version
+          New-Item -Path dist/node_modules/drivelist/build/Release -ItemType Directory -Force
+          cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
+          Copy-Item -Path resources -Destination dist -recurse -Force
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: snow-cli-win-x64.zip
+          path: |
+            dist/snow.exe
+            dist/resources
+            dist/node_modules/drivelist/build/Release/drivelist.node
+
+
+  finish:
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
