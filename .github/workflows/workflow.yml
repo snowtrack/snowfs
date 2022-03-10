@@ -27,11 +27,15 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
-      - run: npm install
 
-      - name: npm run benchmark
+      - name: Upgrade node-gyp
+        shell: powershell
         run: |
-          npm run benchmark
+              npm install --global node-gyp@9
+              npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
+    
+      - run: npm install
+      - run: npm run benchmark
 
   macos-benchmark:
     runs-on: macos-latest
@@ -49,11 +53,14 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
-      - run: npm install
 
-      - name: npm run benchmark
+      - name: Upgrade node-gyp
         run: |
-          npm run benchmark
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run benchmark
 
 
   linux:
@@ -72,10 +79,14 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
-      - run: npm install
 
-      - name: Run Tests
-        run: npm run ava
+      - name: Upgrade node-gyp
+        run: |
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run ava
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
@@ -120,10 +131,14 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
-      - run: npm install
 
-      - name: Run Tests
-        run: npm run ava
+      - name: Upgrade node-gyp
+        run: |
+              npm install --global node-gyp@9
+              npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+
+      - run: npm install
+      - run: npm run ava
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
@@ -168,10 +183,15 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
-      - run: npm install
 
-      - name: Run Tests
-        run: npm run ava
+      - name: Upgrade node-gyp
+        shell: powershell
+        run: |
+              npm install --global node-gyp@9
+              npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
+
+      - run: npm install
+      - run: npm run ava
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
