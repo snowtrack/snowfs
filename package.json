@@ -49,7 +49,7 @@
     "url": "https://github.com/snowtrack/snowfs.git"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": "14.17.6"
   },
   "dependencies": {
     "@supercharge/promise-pool": "^1.7.0",
