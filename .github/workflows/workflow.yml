@@ -32,7 +32,7 @@ jobs:
         shell: powershell
         run: |
               npm install --global node-gyp@latest
-              for /f "delims=" %P in ('npm prefix -g') do npm config set node_gyp "%P\node_modules\node-gyp\bin\node-gyp.js"
+              npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
     
       - name: Install
         run: npm install
