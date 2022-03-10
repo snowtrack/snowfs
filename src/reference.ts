@@ -63,7 +63,7 @@ export class Reference {
         });
 
       ref.userData = {};
-      if (this.userData != null) {
+      if (this.userData !== null) {
         ref.userData = { ...this.userData };
       }
 
