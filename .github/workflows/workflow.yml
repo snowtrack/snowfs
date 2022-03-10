@@ -27,6 +27,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+      - run: npm install --global node-gyp@latest
+      - run: for /f "delims=" %P in ('npm prefix -g') do npm config set node_gyp "%P\node_modules\node-gyp\bin\node-gyp.js"
       - run: npm install
 
       - name: npm run benchmark
@@ -49,6 +51,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+      - run: npm install --global node-gyp@latest
+      - run: npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
       - run: npm install
 
       - name: npm run benchmark
@@ -72,6 +76,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+      - run: npm install --global node-gyp@latest
+      - run: npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
       - run: npm install
 
       - name: Run Tests
@@ -120,6 +126,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+      - run: npm install --global node-gyp@latest
+      - run: npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
       - run: npm install
 
       - name: Run Tests
@@ -168,6 +176,8 @@ jobs:
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+      - run: npm install --global node-gyp@latest
+      - run: for /f "delims=" %P in ('npm prefix -g') do npm config set node_gyp "%P\node_modules\node-gyp\bin\node-gyp.js"
       - run: npm install
 
       - name: Run Tests
