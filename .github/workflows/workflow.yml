@@ -24,10 +24,12 @@ jobs:
       - name: Checkout LFS objects
         run: git lfs pull
       - uses: actions/cache@v2
-        shell: powershell
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-v8-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Upgrade node-gyp
+        shell: powershell
         run: |
               npm install --global node-gyp@latest
               for /f "delims=" %P in ('npm prefix -g') do npm config set node_gyp "%P\node_modules\node-gyp\bin\node-gyp.js"
