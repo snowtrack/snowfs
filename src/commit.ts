@@ -58,7 +58,7 @@ export class Commit {
     commit.hash = this.hash;
 
     commit.tags = [];
-    if (this.tags !== null) {
+    if (this.tags.length > 0) {
       commit.tags = [...this.tags];
     }
 
@@ -85,7 +85,7 @@ export class Commit {
       return;
     }
 
-    if (this.tags === null) {
+    if (this.tags.length === 0) {
       this.tags = [];
     }
 
