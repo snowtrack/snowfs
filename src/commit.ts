@@ -62,7 +62,7 @@ export class Commit {
     }
 
     commit.userData = {};
-    if (this.userData !== null) {
+    if (this.userData != null) {
       commit.userData = { ...this.userData };
     }
 
