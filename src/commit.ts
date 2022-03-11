@@ -57,7 +57,6 @@ export class Commit {
       this.parent ? [...this.parent] : []);
     commit.hash = this.hash;
 
-    commit.tags = [];
     if (this.tags.length > 0) {
       commit.tags = [...this.tags];
     }
