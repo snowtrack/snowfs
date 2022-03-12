@@ -84,10 +84,6 @@ export class Commit {
       return;
     }
 
-    if (this.tags.length === 0) {
-      this.tags = [];
-    }
-
     if (this.tags.includes(tag)) {
       return;
     }
