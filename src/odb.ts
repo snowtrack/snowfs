@@ -135,6 +135,14 @@ export class Odb {
         return commits.map((commit: any) => {
           const tmpCommit = commit;
 
+          if (!tmpCommit.tags) {
+            tmpCommit.tags = [];
+          }
+
+          if (!tmpCommit.userData) {
+            tmpCommit.userData = {};
+          }
+
           tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
           const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
           c.repo = this.repo;
