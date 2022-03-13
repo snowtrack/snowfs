@@ -46,7 +46,7 @@ SnowFS is a high-performance command-line application and node library for *Wind
 ## Made with SnowFS
 
 - [Snowtrack](https://www.snowtrack.io)
-- [SnowFS for Unity](https://github.com/daniellanner/snowfs-for-unity)
+- [SnowFS for Unity](https://github.com/daniellanner/snow-for-unity-facade)
 
 ## Why not Git/Git-LFS, libgit2, or SVN?
 

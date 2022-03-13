@@ -65,8 +65,7 @@ export class Commit {
     commit.hash = this.hash;
     commit.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
 
-    commit.tags = [];
-    if (this.tags != null) {
+    if (this.tags.length > 0) {
       commit.tags = [...this.tags];
     }
 
@@ -105,10 +104,6 @@ export class Commit {
   addTag(tag: string): void {
     if (tag.length === 0) {
       return;
-    }
-
-    if (this.tags == null) {
-      this.tags = [];
     }
 
     if (this.tags.includes(tag)) {

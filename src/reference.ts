@@ -66,7 +66,7 @@ export class Reference {
 
       ref.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
       ref.userData = {};
-      if (this.userData != null) {
+      if (this.userData !== null) {
         ref.userData = { ...this.userData };
       }
 
