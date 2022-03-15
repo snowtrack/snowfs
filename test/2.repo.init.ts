@@ -2,7 +2,6 @@ import test from 'ava';
 import * as crypto from 'crypto';
 import * as fse from 'fs-extra';
 
-import { tmpdir } from 'os';
 import {
   rmdir, DirItem, OSWALK, osWalk,
 } from '../src/io';
