@@ -22,7 +22,8 @@ import {
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from '../src/treedir';
 
-const PromisePool = require('@supercharge/promise-pool');
+const { PromisePool } = require('@supercharge/promise-pool');
+
 const AggregateError = require('es-aggregate-error');
 
 const sortPaths = require('sort-paths');
@@ -940,7 +941,7 @@ async function performReadLockCheckTest(t, fileCount: number) {
  * @param activeWriteFile     Number of files to open in read+write mode but are written to.
  */
 async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: number): Promise<void> {
-  t.plan(activeCnt === 0 ? 1 : activeCnt + 1);  // there is one test below that checks that activeCnt === reported error messages
+  t.plan(activeCnt === 0 ? 1 : activeCnt + 1); // there is one test below that checks that activeCnt === reported error messages
 
   const tmp = join(process.cwd(), 'tmp');
   fse.ensureDirSync(tmp);
@@ -1666,22 +1667,54 @@ test('TreeDir hash stability 1', (t) => {
   print(dgst, dgst == '803b778e162664a586c5d720ab80a0f730211fd76e09be82325112c6c0bdd8ab')
   */
 
-  const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
-    'foo1', {
+  const tree1 = new TreeFile(
+    '831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
+    'foo1',
+
+    {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
-    }, '.ext', null);
-  const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
-    'foo copy', {
+    },
+
+    '.ext',
+
+    null,
+  );
+  const tree2 = new TreeFile(
+    '9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
+    'foo copy',
+
+    {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
-    }, '.ext', null);
-  const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
-    'foo3/abc', {
+    },
+
+    '.ext',
+
+    null,
+  );
+  const tree3 = new TreeFile(
+    '6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
+    'foo3/abc',
+
+    {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
-    }, '.ext', null);
-  const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
-    'foo4', {
+    },
+
+    '.ext',
+
+    null,
+  );
+  const tree4 = new TreeFile(
+    'E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
+    'foo4',
+
+    {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
-    }, '.ext', null);
+    },
+
+    '.ext',
+
+    null,
+  );
 
   const hash = '75859dac2c7ece838134f7c50b67f119ec0636073a9fd19d0dc5ee0438c212d2';
   t.log(`All files must have the following hash: ${hash}`);
