@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@supercharge/promise-pool": "^2.1.0",
-    "chalk": "^5.0.1",
+    "chalk": "^4.1.2",
     "commander": "^9.1.0",
     "drivelist": "^9.2.4",
     "es-aggregate-error": "^1.0.7",
