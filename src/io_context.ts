@@ -3,18 +3,18 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
+
+import trash from 'trash';
 import {
   join, dirname, normalize, relative,
 } from './path';
 import { MB1 } from './common';
 import * as io from './io';
 
-const trash = require('trash');
 const AggregateError = require('es-aggregate-error');
 const drivelist = require('drivelist');
 
-// eslint-disable-next-line import/order
-const PromisePool = require('@supercharge/promise-pool');
+const { PromisePool } = require('@supercharge/promise-pool');
 
 class StacklessError extends Error {
   constructor(...args) {
@@ -53,7 +53,7 @@ export enum TEST_IF {
 /**
  * Convert a passed string to an utf-16 le string.
  */
-function strEncodeUTF16(str: string) {
+function strEncodeUTF16(str: string): Uint8Array {
   const buf = new ArrayBuffer(str.length * 2);
   const bufView = new Uint16Array(buf);
   for (let i = 0, strLen = str.length; i < strLen; i++) {
@@ -81,7 +81,6 @@ export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise
 
   return Promise.all(promises)
     .then((stats: fse.Stats[]) => {
-
       for (let i = 0; i < relPaths.length; ++i) {
         stats1.set(relPaths[i], stats[i]);
       }
@@ -101,7 +100,6 @@ export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise
       return Promise.all(promises);
     })
     .then((stats: fse.Stats[]) => {
-
       const errors: Error[] = [];
 
       for (let i = 0; i < relPaths.length; ++i) {
@@ -278,7 +276,7 @@ export function whichFilesInDirAreOpen(dirpath: string): Promise<Map<string, Fil
 
 }
 
-function getFilesystem(drive: any, mountpoint: string) {
+function getFilesystem(drive: any, mountpoint: string): Promise<FILESYSTEM> {
   try {
     if (process.platform === 'win32') {
       return new Promise<string | null>((resolve, _reject) => {
@@ -321,14 +319,14 @@ function getFilesystem(drive: any, mountpoint: string) {
     if (process.platform === 'darwin') {
       const isApfs: boolean = (drive.description === 'AppleAPFSMedia');
       if (isApfs) {
-        return FILESYSTEM.APFS;
+        return Promise.resolve(FILESYSTEM.APFS);
       }
     }
   } catch (error) {
-    return FILESYSTEM.OTHER;
+    return Promise.resolve(FILESYSTEM.OTHER);
   }
 
-  return FILESYSTEM.OTHER;
+  return Promise.resolve(FILESYSTEM.OTHER);
 }
 
 type TrashExecutor = string | ((item: string[] | string) => void);
@@ -649,7 +647,7 @@ export class IoContext {
     }
 
     function checkUnixLike(relPaths: string[]): Promise<void> {
-      const absPaths = relPaths.map((p: string) => join(dir, p));
+      const absPaths: string[] = relPaths.map((p: string) => join(dir, p));
       const checkIfFilesAreReallyBeingWritten = new Map<string, string>();
 
       return checkAccess(absPaths)
@@ -658,7 +656,9 @@ export class IoContext {
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
 
-          const zip = (a, b) => a.map((k, i) => [k, b[i]]);
+          const zip = (a: string[], b: string[]): [string, string][] => {
+            return a.map((k: string, i: number): [string, string] => [k, b[i]]);
+          };
 
           const errors: Error[] = [];
           for (const [absPath, relPath] of zip(absPaths, relPaths)) {
@@ -680,6 +680,7 @@ export class IoContext {
                     errors.push(new StacklessError(msg));
                     break;
                   }
+                  // no default
                 }
               }
             }
@@ -693,9 +694,7 @@ export class IoContext {
           const relPaths: string[] = Array.from(checkIfFilesAreReallyBeingWritten.values());
 
           return checkReadAccess(absPaths, relPaths);
-        })
-        .then(() => {
-        })
+        });
     }
 
     switch (process.platform) {
@@ -715,13 +714,13 @@ export class IoContext {
    *
    * @param absPaths    The file(s) or directory to move to the trash.
   */
-  static putToTrash(absPaths: string[] | string): Promise<void[]> {
+  static putToTrash(absPaths: string[] | string): Promise<void> {
     if (typeof absPaths === 'string') {
       absPaths = [absPaths];
     }
 
     if (!Array.isArray(absPaths)) { // assertion absPath is an array
-      return Promise.all([]);
+      return Promise.resolve();
     }
 
     // just to be on the safe side
@@ -747,7 +746,7 @@ export class IoContext {
 
     if (IoContext.trashExecutor && typeof IoContext.trashExecutor !== 'string') {
       IoContext.trashExecutor(absPaths);
-      return Promise.all([]);
+      return Promise.resolve();
     }
 
     let trashPath: string;

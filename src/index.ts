@@ -12,8 +12,8 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
-// eslint-disable-next-line import/order
-import PromisePool = require('@supercharge/promise-pool');
+const { PromisePool } = require('@supercharge/promise-pool');
+
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
  * when files are written to disk.

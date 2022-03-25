@@ -24,8 +24,7 @@ import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
-// eslint-disable-next-line import/order
-const PromisePool = require('@supercharge/promise-pool');
+const { PromisePool } = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
   UNDEFINED = 1,
