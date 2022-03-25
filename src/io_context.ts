@@ -691,9 +691,6 @@ export class IoContext {
           const relPaths: string[] = Array.from(checkIfFilesAreReallyBeingWritten.values());
 
           return checkReadAccess(absPaths, relPaths);
-        })
-        .then(() => {
-          /* */
         });
     }
 
