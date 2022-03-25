@@ -647,7 +647,7 @@ export class IoContext {
     }
 
     function checkUnixLike(relPaths: string[]): Promise<void> {
-      const absPaths = relPaths.map((p: string) => join(dir, p));
+      const absPaths: string[] = relPaths.map((p: string) => join(dir, p));
       const checkIfFilesAreReallyBeingWritten = new Map<string, string>();
 
       return checkAccess(absPaths)
@@ -655,7 +655,10 @@ export class IoContext {
           return unix.whichFilesInDirAreOpen(dir);
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
-          const zip = (a, b) => a.map((k, i) => [k, b[i]]);
+
+          const zip = (a: string[], b: string[]): [string, string][] => {
+            return a.map((k: string, i: number): [string, string] => [k, b[i]]);
+          };
 
           const errors: Error[] = [];
           for (const [absPath, relPath] of zip(absPaths, relPaths)) {
