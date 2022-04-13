@@ -20,7 +20,7 @@ const chalk = require('chalk');
 const drivelist = require('drivelist');
 const AggregateError = require('es-aggregate-error');
 
-const versionString = '0.9.2';
+const versionString = '0.9.3';
 
 function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): boolean {
   return pathPattern === '*' || (pathPattern === '.' && relFilepath.startsWith(relCwd)) || pathPattern === relative(relCwd, relFilepath);
