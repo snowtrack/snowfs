@@ -1,6 +1,9 @@
 {
   "version" : "4.3.4",
   "compileOnSave": false,
+  "ts-node": {
+    "swc": true
+  },
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "./dist",
