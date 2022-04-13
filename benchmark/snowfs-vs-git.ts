@@ -195,11 +195,7 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
     if (process.stdin.isTTY) {
       // eslint-disable-next-line no-await-in-loop
       const answer: string = await input(`Location for benchmark-tests [${desktop}]: `);
-      if (answer.length > 0) {
-        playground = answer;
-      } else {
-        playground = desktop;
-      }
+      playground = answer.length > 0 ? answer : desktop;
     } else {
       playground = os.tmpdir();
     }
