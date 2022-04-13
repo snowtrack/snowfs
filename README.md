@@ -152,7 +152,7 @@ main();
 
 The CLI of `SnowFS` offers some basic functionality and is subject to enhancements. See [Report #90](https://github.com/Snowtrack/SnowFS/issues/90)
 
-[![release](https://img.shields.io/badge/Download%20CLI%20Alpha-0.9.3-orange)](https://github.com/Snowtrack/SnowFS/releases/tag/v0.9.2)
+[![release](https://img.shields.io/badge/Download%20CLI%20Alpha-0.9.2-orange)](https://github.com/Snowtrack/SnowFS/releases/tag/v0.9.2)
 
 ```
 $ snow init foo
