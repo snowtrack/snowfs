@@ -99,7 +99,7 @@ jobs:
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-linux-x64.zip
+          name: snow-cli-linux-x64
           path: snow.tar
 
 
@@ -147,7 +147,7 @@ jobs:
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-darwin-x64.zip
+          name: snow-cli-darwin-x64
           path: snow.tar
 
 
@@ -192,7 +192,7 @@ jobs:
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-win-x64.zip
+          name: snow-cli-win-x64
           path: |
             dist/snow.exe
             dist/resources
