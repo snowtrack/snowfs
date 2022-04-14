@@ -127,22 +127,26 @@ import { join } from "path";
 import { Index } from "./src";
 import { Repository } from "./src/repository";
 
-export function main() {
-  let repo: Repository;
-  let index: Index;
+export async function main() {
   const repoPath = "/path/to/a/non/existing/directory";
-  Repository.initExt(repoPath)
-    .then((repoResult: Repository) => {
-      return fse.copyFile("/path/to/texture.psd", join(repoPath, "texture.psd"));
-    })
-    .then(() => {
-      index = repo.ensureMainIndex();
-      index.addFiles(["texture.psd"]);
-      return index.writeFiles();
-    })
-    .then(() => {
-      return repo.createCommit(index, "This is my first commit");
-    });
+
+  // Create a new repository.
+  let repo: Repository = Repository.initExt(repoPath);
+
+  // Copy a file called 'texture.psd' to the working directory.
+  await fse.copyFile("/path/to/texture.psd", join(repoPath, "texture.psd"));
+
+  // Retrieve the main index.
+  const index: Index = repo.ensureMainIndex();
+
+  // Mark 'texture.psd' as a new file in the index.
+  index.addFiles(["texture.psd"]);
+
+  // Write all files of the index to the object database.
+  await index.writeFiles();
+
+  // Create a commit for the index.
+  await repo.createCommit(index, "This is my first commit");
 }
 
 main();
