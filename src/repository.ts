@@ -1030,7 +1030,7 @@ export class Repository {
     return io.pathExists(snowtrackIgnoreDefault)
       .then((exists: boolean) => {
         if (exists) {
-          return ignore.loadFile(snowtrackIgnoreDefault);
+          return ignore.loadIgnore(snowtrackIgnoreDefault);
         }
       })
       .then(() => {
@@ -1054,17 +1054,19 @@ export class Repository {
         const oldItems: TreeEntry[] = Array.from(oldItemsMap.values());
 
         if (filter & FILTER.INCLUDE_IGNORED) {
-          const areIgnored: Set<string> = ignore.ignoredList(currentItemsInProj.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.filter(currentItemsInProj.map((item) => item.relPath));
 
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.relPath, new StatusEntry({
-                path: entry.relPath,
-                status: STATUS.WT_IGNORED,
-                stats: entry.stats,
-              },
-              entry.stats.isDirectory()));
+              statusResult.set(entry.relPath, new StatusEntry(
+                {
+                  path: entry.relPath,
+                  status: STATUS.WT_IGNORED,
+                  stats: entry.stats,
+                },
+                entry.stats.isDirectory(),
+              ));
             }
           }
         }
@@ -1074,7 +1076,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
 
           /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.relPath));
 
           // get the list of directories which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1105,7 +1107,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => !oldItemsMap.has(item.relPath));
 
           /// check which items of the new items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.relPath));
 
           // get the list of new items which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1130,7 +1132,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => !curItemsMap.has(item.path));
 
           /// check which items of the deleted items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.path));
 
           // get the list of deleted items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1150,7 +1152,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => curItemsMap.has(item.path));
 
           /// check which items of the still existing items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.path));
 
           // get the list of items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1166,21 +1168,25 @@ export class Repository {
       .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
         for (const existingItem of existingItems) {
           if (existingItem.modified) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
 
             markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.UNMODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
           }
         }
 
