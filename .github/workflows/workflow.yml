@@ -27,7 +27,7 @@ jobs:
       - name: Upgrade node-gyp
         shell: powershell
         run: |
-              npm ci --global node-gyp@9
+              npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
     
       - run: npm ci
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upgrade node-gyp
         run: |
-              npm ci --global node-gyp@9
+              npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
       - run: npm ci
@@ -70,7 +70,7 @@ jobs:
 
       - name: Upgrade node-gyp
         run: |
-              npm ci --global node-gyp@9
+              npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
       - run: npm ci
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upgrade node-gyp
         run: |
-              npm ci --global node-gyp@9
+              npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
       - run: npm ci
@@ -167,7 +167,7 @@ jobs:
       - name: Upgrade node-gyp
         shell: powershell
         run: |
-              npm ci --global node-gyp@9
+              npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
       - run: npm ci
