@@ -58,9 +58,9 @@
     "drivelist": "^9.2.4",
     "es-aggregate-error": "^1.0.7",
     "fs-extra": "^10.0.1",
+    "gitignore-parser": "0.0.2",
     "hasha": "^5.2.2",
     "lodash": "^4.17.21",
-    "micromatch": "^4.0.4",
     "sort-paths": "^1.1.1",
     "trash": "^7.2.0",
     "ts-node": "^10.7.0"
