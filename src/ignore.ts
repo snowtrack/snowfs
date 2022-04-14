@@ -10,7 +10,7 @@ const DEFAULT_IGNORE_PATTERN = [
   '._.*',
   '.git', // for .git worktree file
   '.git/**',
-  '.snow', // for .git worktree file
+  '.snow', // for .snow worktree file
   '.snow/**',
   '.snowignore',
   '*.bkp',
@@ -43,11 +43,18 @@ const DEFAULT_IGNORE_PATTERN = [
 export class IgnoreManager {
   ign: any = { denies: () => false };
 
-  async loadIgnore(gitignore: string): Promise<void> {
-    const file = await fse.readFile(gitignore, 'utf8');
+  async init(snowignorePath: string | null = null): Promise<void> {
+    let ignoreItems = `${DEFAULT_IGNORE_PATTERN.join('\n')}\n`;
+
+    if (!snowignorePath) {
+      this.ign = parser.compile(ignoreItems);
+      return Promise.resolve();
+    }
+
+    const file = await fse.readFile(snowignorePath, 'utf8');
 
     const lines: string[] = file.toString().split('\n');
-    let ignoreItems = '';
+
     for (let line of lines) {
       line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*|#.*/g, ''); // remove # comment */ or // comment #
       if (line.length > 0) {

@@ -1026,12 +1026,13 @@ export class Repository {
     }
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
-    return io.pathExists(snowtrackIgnoreDefault)
+    const snowignorePath: string = join(this.repoWorkDir, '.snowignore');
+    return io.pathExists(snowignorePath)
       .then((exists: boolean) => {
         if (exists) {
-          return ignore.loadIgnore(snowtrackIgnoreDefault);
+          return ignore.init(snowignorePath);
         }
+        return ignore.init();
       })
       .then(() => {
         let walk: OSWALK = OSWALK.FILES;
