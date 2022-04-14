@@ -41,7 +41,7 @@ const DEFAULT_IGNORE_PATTERN = [
 ];
 
 export class IgnoreManager {
-  ign: any;
+  ign: any = { denies: () => false };
 
   async loadIgnore(gitignore: string): Promise<void> {
     const file = await fse.readFile(gitignore, 'utf8');
