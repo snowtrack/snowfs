@@ -16,8 +16,8 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
@@ -38,8 +38,8 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
@@ -60,8 +60,8 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
@@ -97,9 +97,9 @@ jobs:
         run: tar -cvf snow.tar -C dist .
 
       - name: Publish Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-linux-x64.zip
+          name: snow-cli-linux-x64
           path: snow.tar
 
 
@@ -108,8 +108,8 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
@@ -145,9 +145,9 @@ jobs:
         run: tar -cvf snow.tar -C dist .
 
       - name: Publish Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-darwin-x64.zip
+          name: snow-cli-darwin-x64
           path: snow.tar
 
 
@@ -156,8 +156,8 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
@@ -190,9 +190,9 @@ jobs:
           Copy-Item -Path resources -Destination dist -recurse -Force
 
       - name: Publish Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          name: snow-cli-win-x64.zip
+          name: snow-cli-win-x64
           path: |
             dist/snow.exe
             dist/resources
@@ -215,7 +215,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
