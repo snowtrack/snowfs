@@ -1029,10 +1029,7 @@ export class Repository {
     const snowignorePath: string = join(this.repoWorkDir, '.snowignore');
     return io.pathExists(snowignorePath)
       .then((exists: boolean) => {
-        if (exists) {
-          return ignore.init(snowignorePath);
-        }
-        return ignore.init();
+        return ignore.init(exists ? snowignorePath : null);
       })
       .then(() => {
         let walk: OSWALK = OSWALK.FILES;
