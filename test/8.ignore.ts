@@ -99,6 +99,7 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
   const pattern = ['*.jpg', '*.mov'];
 
   const ignored = [
+    '.jpg', // is ignored, same behaviour in Git
     'abc.jpg', // bc of '*.jpg'
     'foo/bar.jpg', // bc of '*.jpg'
     'foo/bar/bas.jpg', // bc of '*.jpg'
@@ -106,7 +107,6 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
     'foo/bar.mov', // bc of '*.mov'
     'foo/bar.mov/xyz', // bc of '*.mov'
     'foo/bar/bas.mov', // bc of '*.mov'
-    '.jpg', // is ignored, same behaviour in Git
   ];
 
   const unignored = [
@@ -186,6 +186,7 @@ test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
       'foo/baz',
     ];
 
+    // eslint-disable-next-line no-await-in-loop
     await testIgnore(t, pattern, ignored, unignored);
   }
 });
