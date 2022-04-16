@@ -3,12 +3,7 @@ import * as fse from 'fs-extra';
 import nm = require('micromatch');
 
 const DEFAULT_IGNORE_PATTERNS = [
-  '.DS_Store',
   'thumbs.db',
-  '._.*',
-  '.git', // for .git worktree file
-  '.git/**',
-  '.snowignore',
   '*.bkp',
   'bkp/**',
   '*_bak[0-9]*.[A-Za-z0-9]+',
@@ -17,9 +12,8 @@ const DEFAULT_IGNORE_PATTERNS = [
   'temp/**',
   'cache/**',
   '*.lnk',
-  'desktop.ini',
-  '.idea/**',
-  '.Spotlight-V100',
+  '[Dd]esktop.ini',
+  '.Spotlight-V100/**',
 
   'Backup_of*', // Auto backup by Corel Draw
   'Adobe Premiere Pro Auto-Save/**', // Adobe Premiere
@@ -31,18 +25,14 @@ const DEFAULT_IGNORE_PATTERNS = [
   '*.blend+([0-9])', // Blender auto-saved files
   '*.bak*([0-9])', // Cinema 4D Backup files
   'backup/**', // Cinema 4D auto-saved
-  '.autosave/**', // autosave for Substance
   '*.3dm.rhl', // Rhino tmp files
   '*.3dmbak', // Rhino backup files
 ];
 export class IgnoreManager {
   patterns: string[] = [];
 
-  constructor() {
-  }
-
   async init(filepath: string | null): Promise<void> {
-    const patterns: string[] = [].concat(DEFAULT_IGNORE_PATTERNS);
+    const patterns: string[] = [];
 
     if (filepath) {
       const content: Buffer = await fse.readFile(filepath);
@@ -59,6 +49,8 @@ export class IgnoreManager {
   }
 
   loadPatterns(patterns: string[]): void {
+    this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
+
     for (const item of patterns) {
       this.patterns.push(`${item}`); // if item is a file or directory located in root
 
@@ -93,10 +85,10 @@ export class IgnoreManager {
   getIgnoreItemsArray(filepaths: string[]): string[] {
     const options = {
       // Match dotfiles. Otherwise dotfiles are ignored unless a . is explicitly defined in the pattern.
-      dot: true,
+      dot: false,
 
-      // a case-insensitive regex for matching files
-      nocase: true,
+      // make matcher case-sensitive
+      nocase: false,
 
       // Convert all slashes in file paths to forward slashes. This does not convert slashes in the glob pattern itself
       posixSlashes: true,

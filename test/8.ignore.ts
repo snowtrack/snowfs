@@ -14,7 +14,7 @@ function createFiles(workdir : string, ...names : string[]) {
   }
 }
 
-function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]): void {
+async function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]): Promise<void> {
   const ignore = new IgnoreManager();
 
   ignore.loadPatterns(pattern);
@@ -27,6 +27,10 @@ function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]
     const res = areIgnored.has(i);
     t.true(res);
     if (!res) {
+      console.log('Expected:');
+      console.log(ignored.sort());
+      console.log('Received:');
+      console.log(Array.from(areIgnored).sort());
       success = false;
     }
   }
@@ -68,7 +72,7 @@ test('Ignore Manager plain [foo, bar, bas]', async (t) => {
     'a/b/c/foo.jpg',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager plain [foo/bar]', async (t) => {
@@ -88,7 +92,7 @@ test('Ignore Manager plain [foo/bar]', async (t) => {
     'bar/foo',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager [*.jpg, *.mov]', async (t) => {
@@ -115,7 +119,7 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
     'foo/bar/bas.jpg.bkp',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager [pic.*, bar.*]', async (t) => {
@@ -139,7 +143,7 @@ test('Ignore Manager [pic.*, bar.*]', async (t) => {
     'foo/bar/bas.pic',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager [foo, !foo/bar/baz]', async (t) => {
@@ -164,7 +168,7 @@ test('Ignore Manager [foo, !foo/bar/baz]', async (t) => {
     'bar/baz',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
@@ -182,7 +186,7 @@ test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
       'foo/baz',
     ];
 
-    testIgnore(t, pattern, ignored, unignored);
+    await testIgnore(t, pattern, ignored, unignored);
   }
 });
 
@@ -207,7 +211,7 @@ test('Ignore Manager [foo/bar[1-4]]', async (t) => {
     'bar11.jpg',
   ];
 
-  testIgnore(t, pattern, ignored, unignored);
+  await testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Test in getStatus: Ignore single file in root', async (t) => {
