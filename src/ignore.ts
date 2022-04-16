@@ -116,6 +116,6 @@ export class IgnoreManager {
   }
 
   getIgnoreItems(filepaths: string[]): Set<string> {
-    return new Set(this.getIgnoreItemsArray(filepaths) as string[]);
+    return new Set(this.getIgnoreItemsArray(filepaths));
   }
 }
