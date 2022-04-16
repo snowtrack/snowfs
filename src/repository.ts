@@ -1055,7 +1055,7 @@ export class Repository {
         const oldItems: TreeEntry[] = Array.from(oldItemsMap.values());
 
         if (filter & FILTER.INCLUDE_IGNORED) {
-          const areIgnored: Set<string> = ignore.filter(currentItemsInProj.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(currentItemsInProj.map((item) => item.relPath));
 
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
@@ -1077,7 +1077,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
 
           /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of directories which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1108,7 +1108,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => !oldItemsMap.has(item.relPath));
 
           /// check which items of the new items are ignored
-          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of new items which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1133,7 +1133,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => !curItemsMap.has(item.path));
 
           /// check which items of the deleted items are ignored
-          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of deleted items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1153,7 +1153,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => curItemsMap.has(item.path));
 
           /// check which items of the still existing items are ignored
-          const areIgnored: Set<string> = ignore.filter(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
