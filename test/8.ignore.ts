@@ -99,7 +99,6 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
   const pattern = ['*.jpg', '*.mov'];
 
   const ignored = [
-    '.jpg', // is ignored, same behaviour in Git
     'abc.jpg', // bc of '*.jpg'
     'foo/bar.jpg', // bc of '*.jpg'
     'foo/bar/bas.jpg', // bc of '*.jpg'
@@ -110,6 +109,9 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
   ];
 
   const unignored = [
+    // This would be ignored by Git, but we set dot: false to improve speedup.
+    '.jpg',
+
     'jpg',
     'jpg.',
     'foo.jpg.bkp',
