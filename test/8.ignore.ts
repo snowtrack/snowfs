@@ -20,7 +20,7 @@ async function testIgnore(t, pattern: string[], ignored: string[], unignored: st
   ignore.loadPatterns(pattern);
 
   const areIgnored: Set<string> = ignore.getIgnoreItems(ignored.concat(unignored));
-  t.is(areIgnored.size, ignored.length);
+  t.is(areIgnored.size, ignored.length, `Ignored:  ${Array.from(areIgnored).sort()}\nvs.\nExpected; ${ignored.sort()}`);
 
   let success = true;
   for (const i of ignored) {
@@ -114,11 +114,11 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
 
     'jpg',
     'jpg.',
-    'foo.jpg.bkp',
+    'foo.jpg.abc',
     'foo/jpg.',
     'foo/bar/jpg.baz',
-    'foo/bar.jpg.bkp',
-    'foo/bar/bas.jpg.bkp',
+    'foo/bar.jpg.abc',
+    'foo/bar/bas.jpg.abc',
   ];
 
   await testIgnore(t, pattern, ignored, unignored);
@@ -130,11 +130,11 @@ test('Ignore Manager [pic.*, bar.*]', async (t) => {
   const ignored = [
     'pic.', // because of 'pic.*', is ignored, same behaviour in Git
     'pic.jpg', // because of 'pic.*'
-    'pic.jpg.bkp', // because of 'pic.*'
+    'pic.jpg.abc', // because of 'pic.*'
     'foo/pic.jpg', // because of 'pic.*'
-    'foo/pic.jpg.bkp', // because of 'pic.*'
+    'foo/pic.jpg.abc', // because of 'pic.*'
     'foo/baz/pic.jpg', // because of 'pic.*'
-    'foo/baz/pic.jpg.bkp', // because of 'pic.*'
+    'foo/baz/pic.jpg.abc', // because of 'pic.*'
     'foo/bar.xyz', // because of 'bar.*'
     'foo/bar.baz/xyz', // because of 'bar.*'
   ];
