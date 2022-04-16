@@ -1,6 +1,6 @@
 import * as fse from 'fs-extra';
 
-import nm = require('micromatch');
+const mm = require('micromatch');
 
 const DEFAULT_IGNORE_PATTERNS = [
   'thumbs.db',
@@ -85,26 +85,32 @@ export class IgnoreManager {
   getIgnoreItemsArray(filepaths: string[]): string[] {
     const options = {
       // Match dotfiles. Otherwise dotfiles are ignored unless a . is explicitly defined in the pattern.
-      dot: false,
+      dot: true,
 
-      // make matcher case-sensitive
+      // Perform case-insensitive matching. Equivalent to the regex i flag. Note that this option is ignored when the flags option is defined.
       nocase: false,
 
       // Convert all slashes in file paths to forward slashes. This does not convert slashes in the glob pattern itself
       posixSlashes: true,
 
       // Disable support for matching with extglobs (like +(a|b))
+      // https://github.com/micromatch/micromatch#extglobs
       noextglob: true,
 
       // Disable brace matching, so that {a,b} and {1..3} would be treated as literal characters.
+      // https://github.com/micromatch/micromatch#braces-1
       // Instead use [1-3]
       nobrace: true,
 
       // Disable regex positive and negative lookbehinds. Note that you must be using Node 8.1.10 or higher to enable regex lookbehinds.
       lookbehinds: false,
+
+      // POSIX character classes ("posix brackets").
+      // https://github.com/micromatch/micromatch#posix-bracket-expressions
+      posix: false,
     };
 
-    const ignored = nm(filepaths, this.patterns, options);
+    const ignored = mm(filepaths, this.patterns, options);
     return ignored;
   }
 
