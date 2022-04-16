@@ -32,6 +32,7 @@ function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]
       t.log('Received:');
       t.log(Array.from(areIgnored).sort());
       success = false;
+      break;
     }
   }
 
