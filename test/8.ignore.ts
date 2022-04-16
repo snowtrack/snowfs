@@ -5,6 +5,7 @@ import * as fse from 'fs-extra';
 import { join } from '../src/path';
 import { getRandomPath } from './helper';
 import { FILTER, Repository, StatusEntry } from '../src/repository';
+import { IgnoreManager } from '../src/ignore';
 
 function createFiles(workdir : string, ...names : string[]) {
   for (let i = 0; i < names.length; i++) {
@@ -13,7 +14,147 @@ function createFiles(workdir : string, ...names : string[]) {
   }
 }
 
-test('Ignore single file in root', async (t) => {
+function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]): void {
+  const ignore = new IgnoreManager();
+
+  ignore.loadPatterns(pattern);
+
+  const areIgnored: Set<string> = ignore.getIgnoreItems(ignored.concat(unignored));
+  t.is(areIgnored.size, ignored.length);
+  for (const i of ignored) {
+    t.true(areIgnored.has(i));
+  }
+}
+
+test('Ignore Manager plain [foo, bar, bas]', async (t) => {
+  const pattern = ['foo', 'bar', 'bas'];
+
+  const ignored = [
+    'foo',
+    'foo/bar',
+    'foo/test/abc.jpg',
+    'bar',
+    'bas',
+    'a/foo/b',
+    'a/b/c/foo',
+  ];
+
+  const unignored = [
+    // must not be ignored
+    'baz',
+    'baz/abc',
+
+    'afoo',
+    'foob',
+    'afoob',
+
+    'a-foo',
+    'foo-b',
+    'a-foo-b',
+
+    'a/b/c/foo.jpg',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager plain [foo/bar]', async (t) => {
+  const pattern = ['foo/bar'];
+
+  const ignored = [
+    'foo/bar',
+    'foo/bar/baz',
+
+    // ignore even if foo is in a subdirectory
+    'x/foo/bar',
+    'x/foo/bar/baz',
+  ];
+
+  const unignored = [
+    'foo',
+    'bar/foo',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager [*.jpg, *.mov]', async (t) => {
+  const pattern = ['*.jpg', '*.mov'];
+
+  const ignored = [
+    'abc.jpg', // bc of '*.jpg'
+    'foo/bar.jpg', // bc of '*.jpg'
+    'foo/bar/bas.jpg', // bc of '*.jpg'
+    'abc.mov', // bc of '*.mov'
+    'foo/bar.mov', // bc of '*.mov'
+    'foo/bar.mov/xyz', // bc of '*.mov'
+    'foo/bar/bas.mov', // bc of '*.mov'
+    '.jpg', // is ignored, same behaviour in Git
+  ];
+
+  const unignored = [
+    'jpg',
+    'jpg.',
+    'foo.jpg.bkp',
+    'foo/jpg.',
+    'foo/bar/jpg.baz',
+    'foo/bar.jpg.bkp',
+    'foo/bar/bas.jpg.bkp',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager [pic.*, bar.*]', async (t) => {
+  const pattern = ['pic.*', 'bar.*'];
+
+  const ignored = [
+    'pic.', // because of 'pic.*', is ignored, same behaviour in Git
+    'pic.jpg', // because of 'pic.*'
+    'pic.jpg.bkp', // because of 'pic.*'
+    'foo/pic.jpg', // because of 'pic.*'
+    'foo/pic.jpg.bkp', // because of 'pic.*'
+    'foo/baz/pic.jpg', // because of 'pic.*'
+    'foo/baz/pic.jpg.bkp', // because of 'pic.*'
+    'foo/bar.xyz', // because of 'bar.*'
+    'foo/bar.baz/xyz', // because of 'bar.*'
+  ];
+
+  const unignored = [
+    'pic',
+    'foo.pic',
+    'foo/bar/bas.pic',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager [foo, !foo/bar/baz]', async (t) => {
+  const pattern = ['foo', '!foo/bar/bas'];
+
+  const ignored = [
+    'foo',
+    'foo/bar',
+    'foo/bar/baz',
+
+    // ignore even if foo is in a subdirectory
+    'x/foo',
+    'x/foo/bar',
+    'x/foo/bar/bas',
+    'x/foo/bar/baz',
+  ];
+
+  const unignored = [
+    'foo/bar/bas',
+    'x/foo/bar/bas',
+    'bar',
+    'bar/baz',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Test in getStatus: Ignore single file in root', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -43,7 +184,7 @@ test('Ignore single file in root', async (t) => {
     });
 });
 
-test('Ignore multiple files in root', async (t) => {
+test('Ignore Test in getStatus: Ignore multiple files in root', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -81,7 +222,7 @@ test('Ignore multiple files in root', async (t) => {
   });
 });
 
-test('Ignore *.txt', async (t) => {
+test('Ignore Test in getStatus: Ignore *.txt', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -126,7 +267,7 @@ test('Ignore *.txt', async (t) => {
     });
 });
 
-test('Ignore subdirectory', async (t) => {
+test('Ignore Test in getStatus: Ignore subdirectory', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -193,7 +334,7 @@ test('Ignore subdirectory', async (t) => {
     });
 });
 
-test('Ignore nested subdirectory', async (t) => {
+test('Ignore Test in getStatus: Ignore nested subdirectory', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -290,7 +431,7 @@ test('Ignore nested subdirectory', async (t) => {
     });
 });
 
-test('Ignore comments in ignore', async (t) => {
+test('Ignore Test in getStatus: Ignore comments in ignore', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -386,7 +527,7 @@ test('Ignore comments in ignore', async (t) => {
     });
 });
 
-test('Ignore inline comments in ignore', async (t) => {
+test('Ignore Test in getStatus: Ignore inline comments in ignore', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
@@ -472,7 +613,7 @@ test('Ignore inline comments in ignore', async (t) => {
     });
 });
 
-test('Ignore inverse', async (t) => {
+test('Ignore Test in getStatus: Ignore inverse', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
 
