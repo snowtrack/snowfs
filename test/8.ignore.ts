@@ -21,8 +21,21 @@ function testIgnore(t, pattern: string[], ignored: string[], unignored: string[]
 
   const areIgnored: Set<string> = ignore.getIgnoreItems(ignored.concat(unignored));
   t.is(areIgnored.size, ignored.length);
+
+  let success = true;
   for (const i of ignored) {
-    t.true(areIgnored.has(i));
+    const res = areIgnored.has(i);
+    t.true(res);
+    if (!res) {
+      success = false;
+    }
+  }
+
+  if (success && areIgnored.size === ignored.length) {
+    t.log('---');
+    t.log(`Ignore Pattern:  [${pattern.map((x: string) => `'${x}'`).join(', ')}]`);
+    t.log(`Ignored Items:   [${ignored.map((x: string) => `'${x}'`).join(', ')}]`);
+    t.log(`Unignored Items: [${unignored.map((x: string) => `'${x}'`).join(', ')}]`);
   }
 }
 
@@ -149,6 +162,49 @@ test('Ignore Manager [foo, !foo/bar/baz]', async (t) => {
     'x/foo/bar/bas',
     'bar',
     'bar/baz',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
+  const patterns = [['foo/*/baz'], ['foo/*/baz/'], ['foo/*/baz/**']];
+  for (const pattern of patterns) {
+    const ignored = [
+      'foo/bar/baz',
+      'x/foo/bar/baz',
+      'x/foo/bar/baz/y',
+    ];
+
+    const unignored = [
+      'foo',
+      'foo/bar',
+      'foo/baz',
+    ];
+
+    testIgnore(t, pattern, ignored, unignored);
+  }
+});
+
+test('Ignore Manager [foo/bar[1-4]]', async (t) => {
+  const pattern = ['foo/bar[1-4].jpg'];
+
+  const ignored = [
+    'foo/bar1.jpg',
+    'foo/bar2.jpg',
+    'foo/bar3.jpg',
+    'foo/bar4.jpg',
+  ];
+
+  const unignored = [
+    'foo/bar0.jpg',
+    'foo/bar5.jpg',
+    'foo/bar6.jpg',
+    'foo/bar7.jpg',
+    'foo/bar8.jpg',
+    'foo/bar11.jpg',
+    'bar1.jpg',
+    'bar11.jpg',
   ];
 
   testIgnore(t, pattern, ignored, unignored);
