@@ -173,6 +173,24 @@ test('Ignore Manager [foo, !foo/bar/baz]', async (t) => {
   testIgnore(t, pattern, ignored, unignored);
 });
 
+test('Ignore Manager [foo/*/bar, !foo/*/baz]', async (t) => {
+  const pattern = ['foo/*/bas', '!foo/*/bas/a'];
+
+  const ignored = [
+    'foo/bar/bas',
+    'foo/bar/bas/b',
+    'foo/bar/bas/c',
+  ];
+
+  const unignored = [
+    'foo/bar',
+    'foo/bar/bas/a',
+    'foo/bar/bas/b',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
 test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
   const patterns = [['foo/*/baz'], ['foo/*/baz/'], ['foo/*/baz/**']];
   for (const pattern of patterns) {
