@@ -49,7 +49,8 @@ test('Ignore Manager plain [foo, bar, bas]', async (t) => {
 
   const ignored = [
     'foo',
-    'foo/bar',
+    'abc/bar', // because of 'bar'
+    'foo/bar', // because of 'foo' and 'bar'
     'foo/test/abc.jpg',
     'bar',
     'bas',
