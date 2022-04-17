@@ -215,6 +215,39 @@ test('Root Test 1 [/foo]', async (t) => {
   }
 });
 
+test('Root Test 2 [**/logs]', async (t) => {
+  const pattern = ['**logs'];
+
+  const ignored = [
+    'logs/monday/foo.bar',
+    'build/logs/debug.log',
+    'logs/debug.log',
+  ];
+
+  const unignored = [
+    'logs-files',
+    'file-log',
+    'log/logs.txt',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Root Test 2 [**/logs/debug.log]', async (t) => {
+  const pattern = ['**/logs/debug.log'];
+
+  const ignored = [
+    'logs/debug.log',
+    'build/logs/debug.log',
+  ];
+
+  const unignored = [
+    'logs/build/debug.log',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
 test('Root Test 2 [/foo/bar] [/foo/bar/] [/foo/bar/**]', async (t) => {
   for (const pattern of [['/foo/bar'], ['/foo/bar/'], ['/foo/bar/**']]) {
     const ignored = [
