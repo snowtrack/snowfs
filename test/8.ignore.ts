@@ -816,3 +816,110 @@ test('Ignore Test in getStatus: Ignore inverse', async (t) => {
       t.true(items[10].isNew()); // remember, isNew because subdir/file5.foo is included
     });
 });
+
+test('Ignore Test in getStatus: nodefaultignore [default false]', async (t) => {
+  const repoPath = getRandomPath();
+  let repo: Repository;
+
+  await Repository.initExt(repoPath).then((repoResult: Repository) => {
+    repo = repoResult;
+
+    createFiles(
+      repoPath,
+      'subdir/file1.txt', // is NOT ignored by default
+      'tmp/foo.txt', // is ignored by default
+    );
+
+    return repo.getStatus(FILTER.DEFAULT | FILTER.SORT_CASE_SENSITIVELY);
+  }).then((items: StatusEntry[]) => {
+    t.is(items.length, 2);
+
+    t.is(items[0].path, 'subdir');
+    t.is(items[1].path, 'subdir/file1.txt');
+
+    t.true(items[0].isDirectory()); // subdir
+
+    t.true(items[0].isNew());
+    t.true(items[1].isNew());
+  }).then(() => {
+    return repo.getStatus(FILTER.ALL | FILTER.SORT_CASE_SENSITIVELY);
+  })
+    .then((items: StatusEntry[]) => {
+      t.is(items.length, 4);
+
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'tmp');
+
+      t.is(items[2].path, 'subdir/file1.txt');
+      t.is(items[3].path, 'tmp/foo.txt');
+
+      t.true(items[0].isDirectory()); // subdir
+      t.true(items[1].isDirectory()); // tmp
+
+      t.true(items[0].isNew());
+      t.true(items[1].isIgnored());
+      t.true(items[2].isNew());
+      t.true(items[3].isIgnored());
+    });
+});
+
+test('Ignore Test in getStatus: nodefaultignore [true]', async (t) => {
+  const repoPath = getRandomPath();
+  let repo: Repository;
+
+  await Repository.initExt(repoPath)
+    .then(async (repoResult: Repository) => {
+      // set 'nodefaultignore' to true
+      const configPath = join(repoResult.commondir(), 'config');
+      const config: any = fse.readJsonSync(configPath);
+      config.nodefaultignore = true;
+      fse.writeJsonSync(configPath, config);
+
+      // Since we modified the repo config, we reload
+      // the repo to have a fresh start for the test
+      repo = await Repository.open(repoPath);
+
+      createFiles(
+        repoPath,
+        'subdir/file1.txt', // is NOT ignored by default
+        'tmp/foo.txt', // is ignored by default
+      );
+
+      return repo.getStatus(FILTER.DEFAULT | FILTER.SORT_CASE_SENSITIVELY);
+    }).then((items: StatusEntry[]) => {
+      t.is(items.length, 4);
+
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'tmp');
+
+      t.is(items[2].path, 'subdir/file1.txt');
+      t.is(items[3].path, 'tmp/foo.txt');
+
+      t.true(items[0].isDirectory()); // subdir
+      t.true(items[1].isDirectory()); // tmp
+
+      t.true(items[0].isNew());
+      t.true(items[1].isNew());
+      t.true(items[2].isNew());
+      t.true(items[3].isNew());
+    }).then(() => {
+      return repo.getStatus(FILTER.ALL | FILTER.SORT_CASE_SENSITIVELY);
+    })
+    .then((items: StatusEntry[]) => {
+      t.is(items.length, 4);
+
+      t.is(items[0].path, 'subdir');
+      t.is(items[1].path, 'tmp');
+
+      t.is(items[2].path, 'subdir/file1.txt');
+      t.is(items[3].path, 'tmp/foo.txt');
+
+      t.true(items[0].isDirectory()); // subdir
+      t.true(items[1].isDirectory()); // tmp
+
+      t.true(items[0].isNew());
+      t.true(items[1].isNew());
+      t.true(items[2].isNew());
+      t.true(items[3].isNew());
+    });
+});

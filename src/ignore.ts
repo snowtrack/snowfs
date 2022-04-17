@@ -29,7 +29,7 @@ const DEFAULT_IGNORE_PATTERNS = [
 export class IgnoreManager {
   patterns: string[] = [];
 
-  async init(filepath: string | null): Promise<void> {
+  async init(filepath: string | null, nodefaultignore: boolean = false): Promise<void> {
     const patterns: string[] = [];
 
     if (filepath) {
@@ -43,11 +43,13 @@ export class IgnoreManager {
       }
     }
 
-    this.loadPatterns(patterns);
+    this.loadPatterns(patterns, nodefaultignore);
   }
 
-  loadPatterns(patterns: string[]): void {
-    this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
+  loadPatterns(patterns: string[], nodefaultignore: boolean = false): void {
+    if (!nodefaultignore) {
+      this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
+    }
 
     for (let item of patterns) {
       const negate = item.startsWith('!');
