@@ -191,6 +191,52 @@ test('Ignore Manager [foo/*/bar, !foo/*/bas]', async (t) => {
   testIgnore(t, pattern, ignored, unignored);
 });
 
+test('Root Test 1 [/foo]', async (t) => {
+  for (const pattern of [['/foo'], ['/foo/'], ['/foo/**']]) {
+    const ignored = [
+      'foo',
+      'foo/',
+      'foo/bar',
+      'foo/bar/',
+      'foo/bar/bas',
+    ];
+
+    const unignored = [
+      'fooo',
+      'fooo/',
+      'fooo/bar',
+      'x/foo',
+      'x/foo/',
+      'x/foo/bar',
+      'x/foo/bar/bas',
+    ];
+
+    testIgnore(t, pattern, ignored, unignored);
+  }
+});
+
+test('Root Test 2 [/foo/bar] [/foo/bar/] [/foo/bar/**]', async (t) => {
+  for (const pattern of [['/foo/bar'], ['/foo/bar/'], ['/foo/bar/**']]) {
+    const ignored = [
+      'foo/bar',
+      'foo/bar/',
+      'foo/bar/bas',
+    ];
+
+    const unignored = [
+      'fooo',
+      'fooo/',
+      'fooo/bar',
+      'x/foo',
+      'x/foo/',
+      'x/foo/bar',
+      'x/foo/bar/bas',
+    ];
+
+    testIgnore(t, pattern, ignored, unignored);
+  }
+});
+
 test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
   const patterns = [['foo/*/baz'], ['foo/*/baz/'], ['foo/*/baz/**']];
   for (const pattern of patterns) {

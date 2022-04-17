@@ -58,13 +58,20 @@ export class IgnoreManager {
 
       if (item.endsWith('/**')) {
         item = item.slice(0, -3);
-      }
-
-      if (item.endsWith('/')) {
+      } else if (item.endsWith('/*')) {
+        item = item.slice(0, -2);
+      } else if (item.endsWith('/')) {
         item = item.slice(0, -1);
       }
 
-      this.patterns.push(`${negate ? '!' : ''}?(**/)${item}?(/**)`);
+      // Only match items that are based in root.
+      let startInRoot = false;
+      if (item.startsWith('/')) {
+        item = item.slice(1);
+        startInRoot = true;
+      }
+
+      this.patterns.push(`${negate ? '!' : ''}${startInRoot ? '' : '?(**/)'}${item}?(/**)`);
     }
   }
 
