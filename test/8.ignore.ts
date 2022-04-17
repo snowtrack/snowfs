@@ -125,6 +125,24 @@ test('Ignore Manager [*.jpg, *.mov]', async (t) => {
   testIgnore(t, pattern, ignored, unignored);
 });
 
+test('Ignore Manager [*.log, !important.log]', async (t) => {
+  const pattern = ['*.log', '!important.log'];
+
+  const ignored = [
+    'debug.log',
+    'trace.log',
+    'foo/test.log',
+    'foo/log.log',
+  ];
+
+  const unignored = [
+    'important.log',
+    'logs/important.log',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
 test('Ignore Manager [pic.*, bar.*]', async (t) => {
   const pattern = ['pic.*', 'bar.*'];
 
@@ -288,6 +306,44 @@ test('Ignore Manager [foo/*/baz], [foo/*/baz/], [foo/*/baz/**]', async (t) => {
     // eslint-disable-next-line no-await-in-loop
     testIgnore(t, pattern, ignored, unignored);
   }
+});
+
+test('Ignore Manager [debug[01].log]', async (t) => {
+  // Square brackets match a single character form the specified set.
+  const pattern = ['debug[01].log'];
+
+  const ignored = [
+    'debug0.log',
+    'debug1.log',
+    'foo/debug0.log',
+    'foo/debug1.log',
+  ];
+
+  const unignored = [
+    'debug2.log',
+    'debug01.log',
+    'foo/debug2.log',
+    'foo/debug01.log',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
+});
+
+test('Ignore Manager [debug?.log]', async (t) => {
+  // A question mark matches exactly one character.
+  const pattern = ['debug?.log'];
+
+  const ignored = [
+    'debug0.log',
+    'debugg.log',
+    'foo/debugg.log',
+  ];
+
+  const unignored = [
+    'debug10.log',
+  ];
+
+  testIgnore(t, pattern, ignored, unignored);
 });
 
 test('Ignore Manager [foo/bar[1-4]]', async (t) => {
