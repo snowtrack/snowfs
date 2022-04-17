@@ -8,8 +8,7 @@ const DEFAULT_IGNORE_PATTERNS = [
   'bkp/**',
   '*_bak[0-9]*.[A-Za-z0-9]+',
   '*.tmp',
-  'tmp/**',
-  'temp/**',
+  't?(e)mp/**',
   'cache/**',
   '*.lnk',
   '[Dd]esktop.ini',
@@ -56,12 +55,19 @@ export class IgnoreManager {
         item = item.slice(1);
       }
 
+      let forceWildcard = false;
+
+      // Remove trailing wildcards like /**, /* or /
+      // since we attach them later on our own.
       if (item.endsWith('/**')) {
         item = item.slice(0, -3);
+        forceWildcard = true;
       } else if (item.endsWith('/*')) {
         item = item.slice(0, -2);
+        forceWildcard = true;
       } else if (item.endsWith('/')) {
         item = item.slice(0, -1);
+        forceWildcard = true;
       }
 
       // Only match items that are based in root.
@@ -71,7 +77,7 @@ export class IgnoreManager {
         startInRoot = true;
       }
 
-      this.patterns.push(`${negate ? '!' : ''}${startInRoot ? '' : '?(**/)'}${item}?(/**)`);
+      this.patterns.push(`${negate ? '!' : ''}${startInRoot ? '' : '?(**/)'}${item}${forceWildcard ? '/**' : '?(/**)'}`);
     }
   }
 
