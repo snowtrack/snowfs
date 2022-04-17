@@ -50,11 +50,13 @@ export class Commit {
    * Return a cloned commit object.
    */
   clone(): Commit {
-    const commit = new Commit(this.repo,
+    const commit = new Commit(
+      this.repo,
       this.message,
       this.date,
       this.root,
-      this.parent ? [...this.parent] : []);
+      this.parent ? [...this.parent] : [],
+    );
     commit.hash = this.hash;
 
     if (this.tags.length > 0) {
