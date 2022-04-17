@@ -94,9 +94,9 @@ export class IgnoreManager {
       // Doc: Convert all slashes in file paths to forward slashes. This does not convert slashes in the glob pattern itself
       posixSlashes: true,
 
-      // Doc: Disable support for matching with extglobs (like +(a|b))
+      // Doc: Support for matching with extglobs (like +(a|b))
       // https://github.com/micromatch/micromatch#extglobs
-      noextglob: true,
+      noextglob: false,
 
       // Doc: Disable brace matching, so that {a,b} and {1..3} would be treated as literal characters.
       // https://github.com/micromatch/micromatch#braces-1
