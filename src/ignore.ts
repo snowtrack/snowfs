@@ -72,11 +72,12 @@ export class IgnoreManager {
         forceWildcard = true;
       }
 
-      // Only match items that are based in root.
       let startInRoot = false;
-      if (item.startsWith('/')) {
+      if (item.startsWith('/')) { // Only match items that are based in root.
         item = item.slice(1);
         startInRoot = true;
+      } else if (item.startsWith('**/')) { // Only match items that are based in root.
+        item = item.slice(3);
       }
 
       this.patterns.push(`${negate ? '!' : ''}${startInRoot ? '' : '?(**/)'}${item}${forceWildcard ? '/**' : '?(/**)'}`);
