@@ -149,7 +149,6 @@ test('Ignore Manager [pic.*, bar.*]', async (t) => {
   testIgnore(t, pattern, ignored, unignored);
 });
 
-/*
 test('Ignore Manager [foo, !foo/bar/bas]', async (t) => {
   const pattern = ['foo', '!foo/bar/bas'];
 
@@ -173,9 +172,8 @@ test('Ignore Manager [foo, !foo/bar/bas]', async (t) => {
 
   testIgnore(t, pattern, ignored, unignored);
 });
-*/
 
-test('Ignore Manager [foo/*/bar, !foo/*/baz]', async (t) => {
+test('Ignore Manager [foo/*/bar, !foo/*/bas]', async (t) => {
   const pattern = ['foo/*/bas', '!foo/*/bas/a'];
 
   const ignored = [
