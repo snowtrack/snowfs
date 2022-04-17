@@ -50,34 +50,21 @@ export class IgnoreManager {
   loadPatterns(patterns: string[]): void {
     this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
 
-    for (const item of patterns) {
-      this.patterns.push(`${item}`); // if item is a file or directory located in root
-
-      if (!item.endsWith('/**')) {
-        // if item is a directory in root with children
-        if (item.endsWith('/')) {
-          this.patterns.push(`${item}**`);
-        } else {
-          this.patterns.push(`${item}/**`);
-        }
+    for (let item of patterns) {
+      const negate = item.startsWith('!');
+      if (negate) {
+        item = item.slice(1);
       }
 
-      // Don't apply the subdirectory rules if the path begins with a slash.
-      if (!item.startsWith('/')) {
-        if (!item.startsWith('**/')) {
-          // If item is an item in a directory
-          this.patterns.push(`**/${item}`);
-        }
-
-        if (!item.startsWith('**/') && !item.endsWith('/**')) {
-          // if item is a directory in a directory
-          if (item.endsWith('/')) {
-            this.patterns.push(`**/${item}**`);
-          } else {
-            this.patterns.push(`**/${item}/**`);
-          }
-        }
+      if (item.endsWith('/**')) {
+        item = item.slice(0, -3);
       }
+
+      if (item.endsWith('/')) {
+        item = item.slice(0, -1);
+      }
+
+      this.patterns.push(`${negate ? '!' : ''}?(**/)${item}?(/**)`);
     }
   }
 
