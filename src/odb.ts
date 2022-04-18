@@ -45,7 +45,9 @@ export class Odb {
     return fse.readFile(join(repo.commondir(), 'config')).then((buf: Buffer) => {
       odb.config = JSON.parse(buf.toString());
       if (odb.config.version === 1) {
-        throw new Error(`repository version ${odb.config.version} is not supported`);
+        throw new Error(`Repository version ${odb.config.version} is outdated.`);
+      } else if (odb.config.version !== 2) {
+        throw new Error(`Repository version ${odb.config.version} is too new.`);
       }
       return odb;
     });
