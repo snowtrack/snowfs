@@ -15,7 +15,8 @@
     "benchmark": "cross-env NODE_ENV=benchmark node --require ts-node/register benchmark/snowfs-vs-git.ts",
     "ava": "nyc --reporter=html --reporter=lcov --reporter=text ava --timeout 900s --verbose --serial --fail-fast --color true",
     "docs": "typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default",
-    "prepublishOnly": "npm run clean && npm run tsc && npm run ava"
+    "prepublishOnly": "npm run clean && npm run tsc && npm run ava",
+    "lint": "eslint \"**/*.{ts,tsx}\""
   },
   "ava": {
     "extensions": [
@@ -60,7 +61,7 @@
     "fs-extra": "^10.0.1",
     "hasha": "^5.2.2",
     "lodash": "^4.17.21",
-    "micromatch": "^4.0.4",
+    "micromatch": "^4.0.5",
     "sort-paths": "^1.1.1",
     "trash": "^7.2.0",
     "ts-node": "^10.7.0"

@@ -66,8 +66,14 @@ export function getSnowexec(): string {
   }
 }
 
-export function exec(t, command: string, args?: string[], opts?: {cwd?: string},
-  stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
+export function exec(
+  t,
+  command: string,
+  args?: string[],
+  opts?: {cwd?: string},
+  stdiopts?: EXEC_OPTIONS,
+  stdin = '',
+): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
 
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });

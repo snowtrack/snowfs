@@ -120,8 +120,13 @@ export class TreeFile extends TreeEntry {
   }
 
   clone(parent?: TreeDir): TreeFile {
-    return new TreeFile(this.hash,
-      this.path, StatsSubset.clone(this.stats), this.ext, parent);
+    return new TreeFile(
+      this.hash,
+      this.path,
+      StatsSubset.clone(this.stats),
+      this.ext,
+      parent,
+    );
   }
 
   toJsonObject(): any {
@@ -206,9 +211,11 @@ export class TreeDir extends TreeEntry {
 
   children: (TreeEntry)[] = [];
 
-  constructor(public path: string,
+  constructor(
+public path: string,
               public stats: StatsSubset,
-              public parent: TreeDir = null) {
+              public parent: TreeDir = null,
+  ) {
     super('', path, stats);
   }
 
@@ -329,8 +336,10 @@ export class TreeDir extends TreeEntry {
   /**
    * Browse through the entire hierarchy of the tree and remove the given item.
    */
-  static remove(tree: TreeDir,
-    cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean): void {
+  static remove(
+    tree: TreeDir,
+    cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean,
+  ): void {
     for (const child of tree.children) {
       if (child instanceof TreeDir) {
         TreeDir.remove(child, cb);

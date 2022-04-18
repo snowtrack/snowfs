@@ -519,9 +519,12 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  function runTest(filepath = '', errorMessage?: string) {
-    if (filepath) t.log(LOG_FILE, filepath);
-    else t.log(LOG_DIRECTORY);
+  function runTest(filepath: string, errorMessage?: string) {
+    if (filepath) {
+      t.log(LOG_FILE, filepath);
+    } else {
+      t.log(LOG_DIRECTORY);
+    }
 
     return testGitZip(t, 'nogit.zip')
       .then((directory: string) => {
@@ -566,7 +569,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
       });
   }
   try {
-    await runTest();
+    await runTest('');
     await runTest('foo');
     await runTest(
       'FILE_DOES_NOT_EXIST',
@@ -616,7 +619,7 @@ test('getRepoDetails (.git)', async (t) => {
   }
 
   try {
-    await runTest();
+    await runTest('');
     await runTest('foo');
   } catch (error) {
     console.error(error);
@@ -666,7 +669,7 @@ test('getRepoDetails (.git and .snow)', async (t) => {
   }
 
   try {
-    await runTest();
+    await runTest('');
 
     // test to see what happens if getRepoDetails gets an element from the direectory, than then directory itself
     await runTest('cube.blend');

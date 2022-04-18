@@ -30,7 +30,7 @@ jobs:
               npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
     
-      - run: npm install
+      - run: npm ci
       - run: npm run benchmark
 
   macos-benchmark:
@@ -51,7 +51,7 @@ jobs:
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
-      - run: npm install
+      - run: npm ci
       - run: npm run benchmark
 
 
@@ -73,8 +73,9 @@ jobs:
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
-      - run: npm install
+      - run: npm ci
       - run: npm run ava
+      - run: npm run lint
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
@@ -121,7 +122,7 @@ jobs:
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
-      - run: npm install
+      - run: npm ci
       - run: npm run ava
 
       - name: Coveralls GitHub Action
@@ -170,7 +171,7 @@ jobs:
               npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
-      - run: npm install
+      - run: npm ci
       - run: npm run ava
 
       - name: Coveralls GitHub Action

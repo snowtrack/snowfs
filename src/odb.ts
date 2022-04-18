@@ -19,12 +19,6 @@ import {
 import { TreeDir, TreeFile } from './treedir';
 import { IoContext } from './io_context';
 
-const defaultConfig: any = {
-  version: 2,
-  filemode: false,
-  symlinks: true,
-};
-
 /**
  * A class representing the internal database of a `SnowFS` repository.
  * The class offers accessibility functions to read or write from the database.
@@ -32,25 +26,10 @@ const defaultConfig: any = {
  * used when a repository is opened or initialized.
  */
 export class Odb {
-  config: any;
-
   repo: Repository;
 
   constructor(repo: Repository) {
     this.repo = repo;
-  }
-
-  static open(repo: Repository): Promise<Odb> {
-    const odb: Odb = new Odb(repo);
-    return fse.readFile(join(repo.commondir(), 'config')).then((buf: Buffer) => {
-      odb.config = JSON.parse(buf.toString());
-      if (odb.config.version === 1) {
-        throw new Error(`Repository version ${odb.config.version} is outdated.`);
-      } else if (odb.config.version !== 2) {
-        throw new Error(`Repository version ${odb.config.version} is too new.`);
-      }
-      return odb;
-    });
   }
 
   static create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
@@ -66,16 +45,6 @@ export class Odb {
       .then(() => io.ensureDir(join(options.commondir, 'versions')))
       .then(() => io.ensureDir(join(options.commondir, 'hooks')))
       .then(() => io.ensureDir(join(options.commondir, 'refs')))
-      .then(() => {
-        odb.config = { ...defaultConfig };
-
-        let config = { ...defaultConfig };
-        if (options.additionalConfig) {
-          config = Object.assign(config, { additionalConfig: options.additionalConfig });
-        }
-
-        return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(config));
-      })
       .then(() => odb);
   }
 
