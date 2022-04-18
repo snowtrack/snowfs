@@ -11,7 +11,7 @@ export { PathLike, Stats } from 'fs-extra';
 // filesystem onboard called 'original-fs'. For more information see
 // https://github.com/Snowtrack/SnowFS/issues/173
 let useOriginalFs = false;
-let fs;
+let fs: any;
 if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
   // eslint-disable-next-line global-require, import/no-unresolved
   fs = require('original-fs');
@@ -21,7 +21,7 @@ if (Object.prototype.hasOwnProperty.call(process.versions, 'electron')) {
   fs = require('fs');
 }
 
-let winattr;
+let winattr: any;
 if (process.platform === 'win32') {
   // eslint-disable-next-line global-require, import/no-extraneous-dependencies
   winattr = require('winattr');
@@ -34,7 +34,7 @@ export function usesOriginalFs(): boolean {
   return useOriginalFs;
 }
 
-export class DirItem {
+export interface DirItem {
   /** Absolute path of dir item */
   absPath: string;
 

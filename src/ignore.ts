@@ -1,67 +1,124 @@
 import * as fse from 'fs-extra';
 
-import nm = require('micromatch');
+const mm = require('micromatch');
 
+const DEFAULT_IGNORE_PATTERNS = [
+  'thumbs.db',
+  '*.bkp',
+  'bkp/**',
+  '*_bak[0-9]*.[A-Za-z0-9]+',
+  '*.tmp',
+  't?(e)mp/**',
+  'cache/**',
+  '*.lnk',
+  '[Dd]esktop.ini',
+
+  'Backup_of*', // Auto backup by Corel Draw
+  'Adobe Premiere Pro Auto-Save/**', // Adobe Premiere
+  'Adobe After Effects Auto-Save/**', // Adobe After Effects
+  'tmpAEtoAMEProject-*.aep', // Adobe After Effects <--> Media Encoder
+  'RECOVER_*', // Adobe Animate
+  'temp.noindex/**', // Adobe Character Animator
+  '~*', // Adobe InDesign lock files start with ~ and end with 'idlk'
+  '*.blend+([0-9])', // Blender auto-saved files
+  '*.bak*([0-9])', // Cinema 4D Backup files
+  'backup/**', // Cinema 4D auto-saved
+  '*.3dm.rhl', // Rhino tmp files
+  '*.3dmbak', // Rhino backup files
+];
 export class IgnoreManager {
-    patterns: string[];
+  patterns: string[] = [];
 
-    constructor() {
-      this.patterns = [
-        '**/.DS_Store',
-        '**/thumbs.db',
-        '**/._.*',
-        '**/.git', // for .git worktree file
-        '**/.git/**',
-        '**/.snowignore',
-        '**/*.bkp',
-        '**/**/bkp/**',
-        '**/*_bak[0-9]*.[A-Za-z0-9]+',
-        '**/*.tmp',
-        '**/tmp/**',
-        '**/temp/**',
-        '**/cache/**',
-        '**/*.lnk',
-        '**/desktop.ini',
-        '**/.idea/**',
-        '**/.Spotlight-V100',
+  async init(filepath: string | null, nodefaultignore: boolean = false): Promise<void> {
+    const patterns: string[] = [];
 
-        '**/Backup_of*', // Auto backup by Corel Draw
-        '**/Adobe Premiere Pro Auto-Save/**', // Adobe Premiere
-        '**/Adobe After Effects Auto-Save/**', // Adobe After Effects
-        '**/tmpAEtoAMEProject-*.aep', // Adobe After Effects <--> Media Encoder
-        '**/RECOVER_*', // Adobe Animate
-        '**/temp.noindex/**', // Adobe Character Animator
-        '**/~*', // Adobe InDesign lock files start with ~ and end with 'idlk'
-        '**/*.blend+([0-9])', // Blender auto-saved files
-        '**/*.bak*([0-9])', // Cinema 4D Backup files
-        '**/backup/**', // Cinema 4D auto-saved
-        '**/.autosave/**', // autosave for Substance
-        '**/*.3dm.rhl', // Rhino tmp files
-        '**/*.3dmbak', // Rhino backup files
-      ];
-    }
+    if (filepath) {
+      const content: Buffer = await fse.readFile(filepath);
 
-    loadFile(filepath: string): Promise<void> {
-      return fse.readFile(filepath).then((value: Buffer) => {
-        const lines: string[] = value.toString().split('\n');
-        for (let line of lines) {
-          line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*|#.*/g, ''); // remove # comment */ or // comment #
-          if (line.length > 0) {
-            this.patterns.push(line);
-
-            if (!line.endsWith('/')) { // could be a file or directory
-              this.patterns.push(`${line}/**`);
-            }
-          }
+      for (let line of content.toString().split('\n')) {
+        line = line.trim().replace(/\/\*[\s\S]*?\*\/|\/\/.*|#.*/g, ''); // remove # comment */ or // comment #
+        if (line.length > 0) {
+          patterns.push(line);
         }
-      });
+      }
     }
 
-    ignoredList(filepaths: string[]): Set<string> {
-      const ignored = nm(filepaths, this.patterns, {
-        dot: true, // Match dotfiles
-        nocase: true, // a case-insensitive regex for matching files
-      });
-      return new Set(ignored as string[]);
+    this.loadPatterns(patterns, nodefaultignore);
+  }
+
+  loadPatterns(patterns: string[], nodefaultignore: boolean = false): void {
+    if (!nodefaultignore) {
+      this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
     }
+
+    for (let item of patterns) {
+      const negate = item.startsWith('!');
+      if (negate) {
+        item = item.slice(1);
+      }
+
+      let forceWildcard = false;
+
+      // Remove trailing wildcards like /**, /* or /
+      // since we attach them later on our own.
+      if (item.endsWith('/**')) {
+        item = item.slice(0, -3);
+        forceWildcard = true;
+      } else if (item.endsWith('/*')) {
+        item = item.slice(0, -2);
+        forceWildcard = true;
+      } else if (item.endsWith('/')) {
+        item = item.slice(0, -1);
+        forceWildcard = true;
+      }
+
+      let startInRoot = false;
+      if (item.startsWith('/')) { // Only match items that are based in root.
+        item = item.slice(1);
+        startInRoot = true;
+      } else if (item.startsWith('**/')) { // Only match items that are based in root.
+        item = item.slice(3);
+      }
+
+      this.patterns.push(`${negate ? '!' : ''}${startInRoot ? '' : '?(**/)'}${item}${forceWildcard ? '/**' : '?(/**)'}`);
+    }
+  }
+
+  getIgnoreItemsArray(filepaths: string[]): string[] {
+    const options = {
+      // Doc: Match dotfiles. Otherwise dotfiles are ignored unless a . is explicitly defined in the pattern.
+      // We disable dots as it reduces the amount of default patterns to improve performance.
+      // This is a candidate to be configurable through .snow/config
+      dot: false,
+
+      // Doc: Perform case-insensitive matching. Equivalent to the regex i flag. Note that this option is ignored when the flags option is defined.
+      nocase: false,
+
+      // Doc: Convert all slashes in file paths to forward slashes. This does not convert slashes in the glob pattern itself
+      posixSlashes: true,
+
+      // Doc: Support for matching with extglobs (like +(a|b))
+      // https://github.com/micromatch/micromatch#extglobs
+      noextglob: false,
+
+      // Doc: Disable brace matching, so that {a,b} and {1..3} would be treated as literal characters.
+      // https://github.com/micromatch/micromatch#braces-1
+      // Instead use [1-3]
+      nobrace: true,
+
+      // Doc: Disable regex positive and negative lookbehinds. Note that you must be using Node 8.1.10 or higher to enable regex lookbehinds.
+      lookbehinds: false,
+
+      // Doc: POSIX character classes ("posix brackets").
+      // https://github.com/micromatch/micromatch#posix-bracket-expressions
+      posix: false,
+    };
+
+    const ignored = mm(filepaths, this.patterns, options);
+    return ignored;
+  }
+
+  getIgnoreItems(filepaths: string[]): Set<string> {
+    return new Set(this.getIgnoreItemsArray(filepaths));
+  }
 }

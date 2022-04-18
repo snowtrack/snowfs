@@ -39,6 +39,12 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
+const defaultConfig: any = {
+  version: 2,
+  filemode: false,
+  symlinks: true,
+};
+
 /**
  * Initialize a new [[Repository]].
  */
@@ -389,6 +395,9 @@ export class Repository {
 
   /** Repository index of the repository */
   repoIndexes: Index[];
+
+  /** Repository config from ./snow.config */
+  repoConfig: typeof defaultConfig;
 
   /** Options object, with which the repository got initialized */
   options: RepositoryInitOptions;
@@ -1026,12 +1035,10 @@ export class Repository {
     }
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
-    return io.pathExists(snowtrackIgnoreDefault)
+    const snowignorePath: string = join(this.repoWorkDir, '.snowignore');
+    return io.pathExists(snowignorePath)
       .then((exists: boolean) => {
-        if (exists) {
-          return ignore.loadFile(snowtrackIgnoreDefault);
-        }
+        return ignore.init(exists ? snowignorePath : null, this.repoConfig.nodefaultignore);
       })
       .then(() => {
         let walk: OSWALK = OSWALK.FILES;
@@ -1054,17 +1061,19 @@ export class Repository {
         const oldItems: TreeEntry[] = Array.from(oldItemsMap.values());
 
         if (filter & FILTER.INCLUDE_IGNORED) {
-          const areIgnored: Set<string> = ignore.ignoredList(currentItemsInProj.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(currentItemsInProj.map((item) => item.relPath));
 
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.relPath, new StatusEntry({
-                path: entry.relPath,
-                status: STATUS.WT_IGNORED,
-                stats: entry.stats,
-              },
-              entry.stats.isDirectory()));
+              statusResult.set(entry.relPath, new StatusEntry(
+                {
+                  path: entry.relPath,
+                  status: STATUS.WT_IGNORED,
+                  stats: entry.stats,
+                },
+                entry.stats.isDirectory(),
+              ));
             }
           }
         }
@@ -1074,7 +1083,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
 
           /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of directories which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1105,7 +1114,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => !oldItemsMap.has(item.relPath));
 
           /// check which items of the new items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of new items which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1130,7 +1139,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => !curItemsMap.has(item.path));
 
           /// check which items of the deleted items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of deleted items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1150,7 +1159,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => curItemsMap.has(item.path));
 
           /// check which items of the still existing items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1166,21 +1175,25 @@ export class Repository {
       .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
         for (const existingItem of existingItems) {
           if (existingItem.modified) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
 
             markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.UNMODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
           }
         }
 
@@ -1435,12 +1448,18 @@ export class Repository {
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
 
-        return Odb.open(repo);
+        return fse.readFile(join(repo.commondir(), 'config'));
       })
-      .then((odbResult: Odb) => {
-        odb = odbResult;
-        repo.repoOdb = odbResult;
+      .then((buf: Buffer) => {
+        const config = JSON.parse(buf.toString());
+        if (config.version === 1) {
+          throw new Error(`repository version ${config.version} is not supported`);
+        }
+
+        odb = new Odb(repo);
+        repo.repoOdb = odb;
         repo.repoLog = new Log(repo);
+        repo.repoConfig = config;
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
@@ -1511,6 +1530,9 @@ export class Repository {
       opts.commondir = join(workdir, '.snow');
     }
 
+    let odb: Odb;
+    let config = { ...defaultConfig };
+
     return fse.pathExists(join(workdir, '.snow'))
       .then((workdirExists: boolean) => {
         if (workdirExists) {
@@ -1524,12 +1546,22 @@ export class Repository {
         return io.ensureDir(workdir);
       })
       .then(() => Odb.create(repo, opts))
-      .then((odb: Odb) => {
+      .then((odbResult: Odb) => {
+        odb = odbResult;
+
+        if (opts.additionalConfig) {
+          config = Object.assign(config, { additionalConfig: opts?.additionalConfig });
+        }
+
+        return fse.writeFile(join(opts.commondir, 'config'), JSON.stringify(config));
+      })
+      .then(() => {
         repo.repoOdb = odb;
         repo.options = opts;
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = opts.commondir;
         repo.repoIndexes = [];
+        repo.repoConfig = config;
 
         if (commondirOutside) {
           const snowtrackFile: string = join(workdir, '.snow');
