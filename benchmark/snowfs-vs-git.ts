@@ -1,8 +1,8 @@
-import { spawn } from 'child_process';
 import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
+import { spawn } from 'child_process';
 import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
 
@@ -30,7 +30,7 @@ async function input(question: string): Promise<string> {
   });
 }
 
-function exec(command: string, args?: string[], t = console, opts?: {cwd?: string}): Promise<void> {
+function exec(command: string, args?: string[], t?: any, opts?: {cwd?: string}): Promise<void> {
   t.log(`$ ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.' });
   return new Promise((resolve, reject) => {

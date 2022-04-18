@@ -75,6 +75,7 @@ jobs:
 
       - run: npm install
       - run: npm run ava
+      - run: npm run lint
 
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2

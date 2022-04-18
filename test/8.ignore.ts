@@ -50,11 +50,14 @@ test('Ignore multiple files in root', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath, 'ignore-me.txt',
+    createFiles(
+      repoPath,
+      'ignore-me.txt',
       'file1.txt',
       'file2.txt',
       'file3.txt',
-      'file4.txt');
+      'file4.txt',
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -85,12 +88,14 @@ test('Ignore *.txt', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
       'file4.txt',
-      'file5.foo');
+      'file5.foo',
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -128,7 +133,8 @@ test('Ignore subdirectory', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
@@ -138,7 +144,8 @@ test('Ignore subdirectory', async (t) => {
       join('subdir', 'file2.txt'),
       join('subdir', 'file3.txt'),
       join('subdir', 'file4.txt'),
-      join('subdir', 'file5.foo'));
+      join('subdir', 'file5.foo'),
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -193,7 +200,8 @@ test('Ignore nested subdirectory', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
@@ -208,7 +216,8 @@ test('Ignore nested subdirectory', async (t) => {
       join('subdir', 'subdir', 'file2.txt'),
       join('subdir', 'subdir', 'file3.txt'),
       join('subdir', 'subdir', 'file4.txt'),
-      join('subdir', 'subdir', 'file5.txt'));
+      join('subdir', 'subdir', 'file5.txt'),
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -288,7 +297,8 @@ test('Ignore comments in ignore', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
@@ -303,7 +313,8 @@ test('Ignore comments in ignore', async (t) => {
       join('subdir', 'subdir', 'file2.txt'),
       join('subdir', 'subdir', 'file3.txt'),
       join('subdir', 'subdir', 'file4.txt'),
-      join('subdir', 'subdir', 'file5.txt'));
+      join('subdir', 'subdir', 'file5.txt'),
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -382,7 +393,8 @@ test('Ignore inline comments in ignore', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
@@ -397,7 +409,8 @@ test('Ignore inline comments in ignore', async (t) => {
       join('subdir', 'subdir', 'file2.txt'),
       join('subdir', 'subdir', 'file3.txt'),
       join('subdir', 'subdir', 'file4.txt'),
-      join('subdir', 'subdir', 'file5.txt'));
+      join('subdir', 'subdir', 'file5.txt'),
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');
@@ -466,7 +479,8 @@ test('Ignore inverse', async (t) => {
   await Repository.initExt(repoPath).then((repoResult: Repository) => {
     repo = repoResult;
 
-    createFiles(repoPath,
+    createFiles(
+      repoPath,
       'file1.txt',
       'file2.txt',
       'file3.txt',
@@ -476,7 +490,8 @@ test('Ignore inverse', async (t) => {
       join('subdir', 'file2.txt'),
       join('subdir', 'file3.txt'),
       join('subdir', 'file4.txt'),
-      join('subdir', 'file5.txt'));
+      join('subdir', 'file5.txt'),
+    );
 
     // add file to ignore
     const ignoreFile = join(repoPath, '.snowignore');

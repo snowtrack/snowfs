@@ -156,6 +156,7 @@ export namespace win32 {
           resolve();
         } else {
           try {
+            // eslint-disable-next-line no-unreachable-loop
             for (const d of JSON.parse(std)) {
               let msg = `Your files are accessed by ${d.strAppName}.`;
               if (d.strAppName !== 'Windows Explorer') {
@@ -655,7 +656,6 @@ export class IoContext {
           return unix.whichFilesInDirAreOpen(dir);
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
-
           const zip = (a: string[], b: string[]): [string, string][] => {
             return a.map((k: string, i: number): [string, string] => [k, b[i]]);
           };

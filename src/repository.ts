@@ -1059,12 +1059,14 @@ export class Repository {
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              statusResult.set(entry.relPath, new StatusEntry({
-                path: entry.relPath,
-                status: STATUS.WT_IGNORED,
-                stats: entry.stats,
-              },
-              entry.stats.isDirectory()));
+              statusResult.set(entry.relPath, new StatusEntry(
+                {
+                  path: entry.relPath,
+                  status: STATUS.WT_IGNORED,
+                  stats: entry.stats,
+                },
+                entry.stats.isDirectory(),
+              ));
             }
           }
         }
@@ -1166,21 +1168,25 @@ export class Repository {
       .then((existingItems: {file: TreeFile; modified : boolean, newStats: fse.Stats}[]) => {
         for (const existingItem of existingItems) {
           if (existingItem.modified) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.WT_MODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
 
             markParentsAsModified(existingItem.file.path);
           } else if (filter & FILTER.INCLUDE_UNMODIFIED) {
-            statusResult.set(existingItem.file.path,
+            statusResult.set(
+              existingItem.file.path,
               new StatusEntry({
                 path: existingItem.file.path,
                 status: STATUS.UNMODIFIED,
                 stats: existingItem.newStats,
-              }, false));
+              }, false),
+            );
           }
         }
 
