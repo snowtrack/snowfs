@@ -1453,9 +1453,10 @@ export class Repository {
       .then((buf: Buffer) => {
         const config = JSON.parse(buf.toString());
         if (config.version === 1) {
-          throw new Error(`Repository version ${config.version} is outdated.`);
-        } else if (config.version !== defaultConfig.version) {
-          throw new Error(`Repository version ${config.version} is too new (expected v${defaultConfig.version}).`);
+          // Repo version 1 was experimental and is not supported anymore.
+          throw new Error(`Repository version ${config.version} is not supported anymore.`);
+        } else if (config.version > defaultConfig.version) {
+          throw new Error(`Repository version ${config.version} is too new, please update.`);
         }
 
         odb = new Odb(repo);
