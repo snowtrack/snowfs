@@ -19,12 +19,6 @@ import {
 import { TreeFile } from './treedir';
 import { IoContext } from './io_context';
 
-const defaultConfig: any = {
-  version: 2,
-  filemode: false,
-  symlinks: true,
-};
-
 /**
  * A class representing the internal database of a `SnowFS` repository.
  * The class offers accessibility functions to read or write from the database.
@@ -32,8 +26,6 @@ const defaultConfig: any = {
  * used when a repository is opened or initialized.
  */
 export class Odb {
-  config: any;
-
   repo: Repository;
 
   objectsDir: string;
@@ -44,17 +36,6 @@ export class Odb {
     this.repo = repo;
     this.objectsDir = join(this.repo.options.commondir, 'objects');
     this.versionsDir = join(this.repo.options.commondir, 'versions');
-  }
-
-  static open(repo: Repository): Promise<Odb> {
-    const odb: Odb = new Odb(repo);
-    return fse.readFile(join(repo.commondir(), 'config')).then((buf: Buffer) => {
-      odb.config = JSON.parse(buf.toString());
-      if (odb.config.version === 1) {
-        throw new Error(`repository version ${odb.config.version} is not supported`);
-      }
-      return odb;
-    });
   }
 
   static create(repo: Repository, options: RepositoryInitOptions): Promise<Odb> {
@@ -70,19 +51,6 @@ export class Odb {
       .then(() => io.ensureDir(odb.versionsDir))
       .then(() => io.ensureDir(join(options.commondir, 'hooks')))
       .then(() => io.ensureDir(join(options.commondir, 'refs')))
-      .then(() => {
-        odb.config = { ...defaultConfig };
-
-        const config = { ...defaultConfig };
-        if (options.additionalConfig) {
-          config.additionalConfig = options.additionalConfig;
-        }
-        if (options.remote) {
-          config.remote = options.remote;
-        }
-
-        return fse.writeFile(join(options.commondir, 'config'), JSON.stringify(config));
-      })
       .then(() => odb);
   }
 
@@ -110,7 +78,9 @@ export class Odb {
             tmpCommit.userData = {};
           }
 
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
           tmpCommit.userData = tmpCommit.userData ?? {};
           tmpCommit.runtimeData = {};
@@ -135,7 +105,7 @@ export class Odb {
   }
 
   readReferences(): Promise<Reference[]> {
-    type DirItemAndReference = { ref: DirItem; content : any };
+    type DirItemAndReference = { ref: DirItem, content: any };
 
     const refsDir: string = join(this.repo.options.commondir, 'refs');
 
@@ -156,6 +126,7 @@ export class Odb {
           start: ret.content.start,
           userData: ret.content.userData,
         };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return new Reference(ret.content.type, basename(ret.ref.absPath), this.repo, opts);
       }))
       .then((refsResult: Reference[]) => refsResult);

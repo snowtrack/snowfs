@@ -53,7 +53,7 @@ test('Diff.basic', async (t) => {
   // Commit 4: create a file fooB.txt
   const commit4: Commit = await deleteFileAndCommit(repo, 'fooB.txt', 'delete fooB.txt');
 
-  const test0 = () => {
+  const test0 = (): void => {
     t.log('Compare initial commit with itself');
     const diff = new Diff(commit0, commit0, { includeDirs: true });
 
@@ -70,7 +70,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test1 = () => {
+  const test1 = (): void => {
     t.log('Compare initial commit with first commit');
     const diff = new Diff(commit1, commit0, { includeDirs: true });
 
@@ -89,7 +89,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test2 = () => {
+  const test2 = (): void => {
     t.log('Compare second commit with first commit');
     const diff = new Diff(commit2, commit1, { includeDirs: true });
 
@@ -108,7 +108,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test3 = () => {
+  const test3 = (): void => {
     t.log('Compare second commit with itself');
     const diff = new Diff(commit2, commit2, { includeDirs: true });
 
@@ -127,7 +127,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test4 = () => {
+  const test4 = (): void => {
     t.log('Compare 3rd commit with 2nd commit');
     const diff = new Diff(commit3, commit2, { includeDirs: true });
 
@@ -148,7 +148,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test5 = () => {
+  const test5 = (): void => {
     t.log('Compare 4th commit with 3rd commit');
     const diff = new Diff(commit4, commit3, { includeDirs: true });
 
@@ -169,7 +169,7 @@ test('Diff.basic', async (t) => {
     t.is(deletedArray[0].hash, 'ca90917cccffe77b6c01bab4a3ebc77243d784e1874dda8f35e217a858ea05f2');
   };
 
-  const test6 = () => {
+  const test6 = (): void => {
     t.log('Compare initial commit with 3rd commit');
     const diff = new Diff(commit3, commit0, { includeDirs: true });
 
@@ -243,7 +243,7 @@ test('Diff with subdirectories', async (t) => {
 
   const commit2 = await repo.createCommit(index, 'commit2');
 
-  const test0 = () => {
+  const test0 = (): void => {
     t.log('Compare initial commit with first commit');
     const diff = new Diff(commit1, commit0, { includeDirs: true });
 
@@ -280,7 +280,7 @@ test('Diff with subdirectories', async (t) => {
     t.is(deletedArray.length, 0, 'expected 0 elements');
   };
 
-  const test1 = () => {
+  const test1 = (): void => {
     t.log('Compare 2nd commit with first commit');
     const diff = new Diff(commit2, commit1, { includeDirs: true });
 

@@ -1,0 +1,79 @@
+{
+  "env": {
+      "es6": true,
+      "node": true,
+      "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking"
+  ],
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "paths": ["src", "bin"],
+        "extensions": [".ts"]
+      }
+    }
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+      "project": "./tsconfig.json",
+      "createDefaultProgram": true
+  },
+  "plugins": [
+      "@typescript-eslint"
+  ],
+  "rules": {
+    "@typescript-eslint/no-unsafe-return": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-namespace": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/unbound-method": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/restrict-template-expressions": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/explicit-function-return-type": ["error", {
+      "allowExpressions": true,
+      "allowTypedFunctionExpressions": true
+    }],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { 
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "no-plusplus": "off",
+    "no-empty-function": "off",
+    "no-useless-constructor": "off",
+    "max-classes-per-file": "off",
+    "import/prefer-default-export": "off",
+    "no-restricted-syntax": "off",
+    "import/extensions": "off",
+    "no-console": "off",
+    "import/no-extraneous-dependencies": "off",
+    "disable-next-line": "off",
+    "getter-return": "error",
+    "no-else-return": "off",
+    "no-constant-condition": "off",
+    "class-methods-use-this": "off",
+    "no-bitwise": ["error", { "allow": ["|", "&", "|="] }],
+    "no-shadow": "off",
+    "max-len": [1, 248, 4],
+    "no-mixed-operators": "off",
+    "no-use-before-define": "off",
+    "no-param-reassign": "off",
+    "no-alert": "off",
+    "no-undef": "off",
+    "arrow-body-style": "off",
+    "implicit-arrow-linebreak": "off",
+    "no-continue": "off",
+    "linebreak-style": "off"
+  }
+}

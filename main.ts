@@ -30,7 +30,7 @@ function fileMatch(relFilepath: string, relCwd: string, pathPattern: string): bo
  * Helper function to get an existing or creating a new index.
  * @param index   Either null/defined, or 'create' or an existing index;
 */
-function getIndex(repo: Repository, index: string | null | undefined) {
+function getIndex(repo: Repository, index: string | null | undefined): Index {
   if (index === 'create') {
     const i = repo.createIndex();
     console.log(`Created new index: [${i.id}]`);
@@ -62,7 +62,7 @@ function getIndex(repo: Repository, index: string | null | undefined) {
  * @param opts      Options passed from the commander.
  * @return          New options object.
  */
-async function parseOptions(opts: any) {
+async function parseOptions(opts: {input?: string}): Promise<any> {
   let tmp: string;
   if (opts.input) {
     if (opts.input === 'stdin') {
@@ -153,7 +153,7 @@ program
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
-  .action(async (path: string, opts?: any) => {
+  .action(async (path: string, opts?: {index?: string, debug?: boolean}) => {
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -187,7 +187,7 @@ program
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
-  .action(async (pathPattern: string, opts?: any) => {
+  .action(async (pathPattern: string, opts?: {index?: string, debug?: boolean}) => {
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -233,7 +233,7 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('create a new branch')
-  .action(async (branchName: string, startPoint: string, opts: any) => {
+  .action(async (branchName: string, startPoint: string, opts: {userData?: string, input?: string, delete?: boolean, index?: string, debug?: boolean, noColor?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -285,7 +285,7 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('checkout a commit')
-  .action(async (target: string | undefined, opts: any) => {
+  .action(async (target: string | undefined, opts: {debug?: boolean, input?: string, noColor?: boolean, discardChanges?: boolean, keepChanges?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -378,7 +378,7 @@ program
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('show the working tree status')
-  .action(async (opts: any) => {
+  .action(async (opts: {debug?: boolean, output?: string, index?: string, noColor?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -435,6 +435,7 @@ program
           console.log('New:');
           for (const n of newe) {
             if (index.addRelPaths.has(n.path)) {
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
               process.stdout.write(chalk.red('+ '));
             }
             console.log(n.path);
@@ -468,7 +469,7 @@ program
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .option('--index [id]', 'use a custom index id')
   .description('complete the commit')
-  .action(async (opts: any) => {
+  .action(async (opts: {input?: string, index?: string, message?: string, allowEmpty?: boolean, tags?: [], userData?: string, debug?: boolean}) => {
     try {
       opts = await parseOptions(opts);
 
@@ -513,7 +514,7 @@ program
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
   .option('--debug', 'add more debug information on errors')
   .description('print the log to the console')
-  .action(async (opts: any) => {
+  .action(async (opts: {noColor: boolean, output?: string, verbose?: boolean, userData?: any, debug?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -564,6 +565,7 @@ program
         }, opts.output === 'json-pretty' ? '   ' : ''));
       } else {
         for (const commit of commits) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           process.stdout.write(chalk.magenta.bold(`commit: ${commit.hash}`));
 
           const branchRefs: Reference[] = refs.filter((ref: Reference) => ref.hash === commit.hash);
@@ -603,6 +605,7 @@ program
             process.stdout.write('\n');
           }
 
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           if (Object.keys(commit.userData).length > 0) {
             process.stdout.write('User Data:');
             let seperator = ' ';
@@ -665,7 +668,7 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('switch a commit')
-  .action(async (branchName: string | undefined, opts: any) => {
+  .action(async (branchName: string | undefined, opts: {noColor?: boolean, input?: string, discardChanges?: boolean, keepChanges?: boolean, debug?: boolean, detach?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }

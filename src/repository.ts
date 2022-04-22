@@ -21,7 +21,6 @@ import {
   constructTree, DETECTIONMODE, TreeDir, TreeEntry, TreeFile,
 } from './treedir';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { PromisePool } = require('@supercharge/promise-pool');
 
 export enum COMMIT_ORDER {
@@ -30,6 +29,10 @@ export enum COMMIT_ORDER {
   OLDEST_FIRST = 3
 }
 
+type RefName = string;
+type RefHash = string;
+type CommitHash = string;
+
 /**
  * Reference type, introduced to support TAGS in the future.
  */
@@ -37,9 +40,11 @@ export enum REFERENCE_TYPE {
   BRANCH = 0
 }
 
-type RefName = string;
-type RefHash = string;
-type CommitHash = string;
+const defaultConfig: any = {
+  version: 2,
+  filemode: false,
+  symlinks: true,
+};
 
 export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: TreeDir): any {
   if (Array.isArray(obj)) {
@@ -62,8 +67,11 @@ export function buildRootFromJson(repo: Repository, obj: any[]|any, parent: Tree
       obj.stats.birthtime = new Date(0);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     obj.stats.mtime = new Date(obj.stats.mtime);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     obj.stats.ctime = new Date(obj.stats.ctime);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     obj.stats.birthtime = new Date(obj.stats.birthtime);
   } else {
     obj.stats = {
@@ -517,11 +525,14 @@ export class Repository {
   /** Repository index of the repository */
   repoIndexes: Index[];
 
+  /** Repository config from ./snow.config */
+  repoConfig: typeof defaultConfig;
+
   /** Options object, with which the repository got initialized */
   options: RepositoryInitOptions;
 
   /** HEAD reference to the currently checked out commit */
-  readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: undefined, start: null });
+  readonly head: Reference = new Reference(REFERENCE_TYPE.BRANCH, 'HEAD', this, { hash: '', start: '' });
 
   /** Hash Map of all commits of the repository. The commit hash is the key, and the Commit object is the value. */
   commitMap = new Map<string, Commit>();
@@ -1298,14 +1309,10 @@ export class Repository {
     }
 
     // First iterate over all files and get their file stats
-    const snowtrackIgnoreDefault: string = join(this.repoWorkDir, '.snowignore');
-    return io.pathExists(snowtrackIgnoreDefault)
+    const snowignorePath: string = join(this.repoWorkDir, '.snowignore');
+    return io.pathExists(snowignorePath)
       .then((exists: boolean) => {
-        if (exists) {
-          return ignore.loadFile(snowtrackIgnoreDefault);
-        } else {
-          return Promise.resolve();
-        }
+        return ignore.init(exists ? snowignorePath : null, Boolean(this.repoConfig.nodefaultignore));
       })
       .then(() => {
         let walk: OSWALK = OSWALK.FILES;
@@ -1328,17 +1335,19 @@ export class Repository {
         const oldItems: TreeEntry[] = Array.from(oldItemsMap.values());
 
         if (filter & FILTER.INCLUDE_IGNORED) {
-          const areIgnored: Set<string> = ignore.ignoredList(currentItemsInProj.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(currentItemsInProj.map((item) => item.relPath));
 
           const ignored: DirItem[] = currentItemsInProj.filter((item) => areIgnored.has(item.relPath));
           for (const entry of ignored) {
             if (!entry.stats.isDirectory() || filter & FILTER.INCLUDE_DIRECTORIES) {
-              const item = new StatusEntry({
-                path: entry.relPath,
-                status: STATUS.WT_IGNORED,
-                stats: entry.stats,
-              }, entry.absPath);
-              statusResult.set(entry.relPath, item);
+              statusResult.set(entry.relPath, new StatusEntry(
+                {
+                  path: entry.relPath,
+                  status: STATUS.WT_IGNORED,
+                  stats: entry.stats,
+                }, entry.absPath
+              ));
+              markParentsAsModified(entry.relPath);
             }
           }
         }
@@ -1348,7 +1357,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => item.stats.isDirectory() && !statusResult.has(item.relPath));
 
           /// check which items of the directories are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of directories which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1379,7 +1388,7 @@ export class Repository {
           const itemsStep1: DirItem[] = currentItemsInProj.filter((item) => !oldItemsMap.has(item.relPath));
 
           /// check which items of the new items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.relPath));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.relPath));
 
           // get the list of new items which are not ignored
           const itemsStep2: DirItem[] = itemsStep1.filter((item) => !areIgnored.has(item.relPath));
@@ -1404,7 +1413,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => !curItemsMap.has(item.path));
 
           /// check which items of the deleted items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of deleted items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1429,7 +1438,7 @@ export class Repository {
           const itemsStep1: TreeEntry[] = oldItems.filter((item) => curItemsMap.has(item.path));
 
           /// check which items of the still existing items are ignored
-          const areIgnored: Set<string> = ignore.ignoredList(itemsStep1.map((item) => item.path));
+          const areIgnored: Set<string> = ignore.getIgnoreItems(itemsStep1.map((item) => item.path));
 
           // get the list of items which are not ignored
           const itemsStep2: TreeEntry[] = itemsStep1.filter((item) => !areIgnored.has(item.path));
@@ -1729,16 +1738,22 @@ export class Repository {
         repo.options = new RepositoryInitOptions(commondir);
         repo.repoWorkDir = workdir;
         repo.repoCommonDir = commondir;
-        return fse.readJson(join(commondir, 'config'));
+
+        return fse.readFile(join(repo.commondir(), 'config'));
       })
-      .then((configData: any) => {
-        repo.repoRemote = configData.remote;
-        return Odb.open(repo);
-      })
-      .then((odbResult: Odb) => {
-        odb = odbResult;
-        repo.repoOdb = odbResult;
+      .then((buf: Buffer) => {
+        const config = JSON.parse(buf.toString());
+        if (config.version === 1) {
+          // Repo version 1 was experimental and is not supported anymore.
+          throw new Error(`Repository version ${config.version} is not supported anymore.`);
+        } else if (config.version > defaultConfig.version) {
+          throw new Error(`Repository version ${config.version} is too new, please update.`);
+        }
+
+        odb = new Odb(repo);
+        repo.repoOdb = odb;
         repo.repoLog = new Log(repo);
+        repo.repoConfig = config;
         return odb.readCommits();
       })
       .then((commits: Commit[]) => {
@@ -1860,6 +1875,9 @@ export class Repository {
     repo.repoRemote = undefined;
     repo.repoIndexes = [];
 
+    let odb: Odb;
+    let config = { ...defaultConfig };
+
     return fse.pathExists(join(workdir, '.snow'))
       .then((workdirExists: boolean) => {
         if (workdirExists) {
@@ -1873,8 +1891,22 @@ export class Repository {
         return io.ensureDir(workdir);
       })
       .then(() => Odb.create(repo, opts))
-      .then((odb: Odb) => {
+      .then((odbResult: Odb) => {
+        odb = odbResult;
+
+        if (opts.additionalConfig) {
+          config = Object.assign(config, { additionalConfig: opts?.additionalConfig });
+        }
+
+        return fse.writeFile(join(opts.commondir, 'config'), JSON.stringify(config));
+      })
+      .then(() => {
         repo.repoOdb = odb;
+        repo.options = opts;
+        repo.repoWorkDir = workdir;
+        repo.repoCommonDir = opts.commondir;
+        repo.repoIndexes = [];
+        repo.repoConfig = config;
 
         if (commondirOutside) {
           const snowtrackFile: string = join(workdir, '.snow');
@@ -1902,7 +1934,9 @@ export class Repository {
     for (const commit of Array.from(commits.values())) {
       const tmpCommit: any = commit;
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       tmpCommit.date = new Date(tmpCommit.date); // convert number from JSON into date object
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       tmpCommit.lastModifiedDate = tmpCommit.lastModifiedDate ? new Date(tmpCommit.lastModifiedDate) : null; // convert number from JSON into date object
       tmpCommit.userData = tmpCommit.userData ?? {};
       tmpCommit.runtimeData = {};
@@ -1911,6 +1945,7 @@ export class Repository {
       const c: Commit = Object.setPrototypeOf(tmpCommit, Commit.prototype);
       c.repo = repo;
       c.root = buildRootFromJson(repo, c.root, null);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       repo.commitMap.set(tmpCommit.hash, c);
     }
 
@@ -1919,6 +1954,7 @@ export class Repository {
 
       const r: Reference = new Reference(REFERENCE_TYPE.BRANCH, ref[0], repo, { hash: tmpRef[1].hash, start: tmpRef[1].start });
       if (tmpRef[1].lastModifiedDate) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         r.lastModifiedDate = new Date(tmpRef[1].lastModifiedDate);
       }
       repo.references.set(r.getName(), r);

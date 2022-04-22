@@ -12,14 +12,22 @@ export enum EXEC_OPTIONS {
     WRITE_STDIN = 2
 }
 
-export function shuffleArray(arr) {
+export function getErrorMessage(e: any): string {
+  if (e instanceof Error) {
+    return e.message;
+  }
+  return "";
+}
+
+export function shuffleArray<T>(arr: T[]): T[] {
   let len = arr.length;
   const d = len;
   const array = [];
-  let k; let
-    i;
+
+  let i;
+
   for (i = 0; i < d; i++) {
-    k = Math.floor(Math.random() * len);
+    const k = Math.floor(Math.random() * len);
     array.push(arr[k]);
     arr.splice(k, 1);
     len = arr.length;
@@ -84,8 +92,14 @@ export function getSnowexec(): string {
   }
 }
 
-export function exec(t, command: string, args?: string[], opts?: {cwd?: string},
-  stdiopts?: EXEC_OPTIONS, stdin = ''): Promise<void | string> {
+export function exec(
+  t,
+  command: string,
+  args?: string[],
+  opts?: {cwd?: string},
+  stdiopts?: EXEC_OPTIONS,
+  stdin = '',
+): Promise<void | string> {
   t.log(`Execute ${command} ${args.join(' ')}`);
 
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.', env: Object.assign(process.env, { SUPPRESS_BANNER: 'true' }) });

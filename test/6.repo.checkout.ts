@@ -293,5 +293,5 @@ test('checkout test', async (t) => {
     }
   }
 
-  rmdir(repoPath);
+  return rmdir(repoPath);
 });

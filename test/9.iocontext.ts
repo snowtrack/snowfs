@@ -4,7 +4,7 @@ import { join } from '../src/path';
 import { IoContext, FILESYSTEM } from '../src/io_context';
 import { createRandomFile, createRandomString } from './helper';
 
-async function copyTest(t, searchForFilesystem: FILESYSTEM) {
+async function copyTest(t, searchForFilesystem: FILESYSTEM): Promise<boolean> {
   const ioContext = new IoContext();
   await ioContext.init();
   for (const [mountpoint, drive] of ioContext.drives) {

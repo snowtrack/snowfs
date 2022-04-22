@@ -3,19 +3,22 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 
 import { exec, spawn } from 'child_process';
+
+import trash from 'trash';
 import {
   join, dirname, normalize, relative,
 } from './path';
 import * as io from './io';
 
-import trash = require('trash');
-import AggregateError = require('es-aggregate-error');
-import drivelist = require('drivelist');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+const AggregateError = require('es-aggregate-error');
+
+import * as drivelist from 'drivelist';
+
 const { PromisePool } = require('@supercharge/promise-pool');
 
 class StacklessError extends Error {
   constructor(...args: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     super(...args);
     this.name = this.constructor.name;
     delete this.stack;
@@ -51,7 +54,7 @@ export enum TEST_IF {
 /**
  * Convert a passed string to an utf-16 le string.
  */
-function strEncodeUTF16(str: string) : Uint8Array {
+function strEncodeUTF16(str: string): Uint8Array {
   const buf = new ArrayBuffer(str.length * 2);
   const bufView = new Uint16Array(buf);
   for (let i = 0, strLen = str.length; i < strLen; i++) {
@@ -79,7 +82,6 @@ export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise
 
   return Promise.all(promises)
     .then((stats: fse.Stats[]) => {
-
       for (let i = 0; i < relPaths.length; ++i) {
         stats1.set(relPaths[i], stats[i]);
       }
@@ -99,7 +101,6 @@ export function checkReadAccess(absPaths: string[], relPaths: string[]): Promise
       return Promise.all(promises);
     })
     .then((stats: fse.Stats[]) => {
-
       const errors: Error[] = [];
 
       for (let i = 0; i < relPaths.length; ++i) {
@@ -156,6 +157,7 @@ export namespace win32 {
           resolve();
         } else {
           try {
+            // eslint-disable-next-line no-unreachable-loop
             for (const d of JSON.parse(std)) {
               let msg = `Your files are accessed by ${d.strAppName}.`;
               if (d.strAppName !== 'Windows Explorer') {
@@ -165,7 +167,7 @@ export namespace win32 {
             }
           } catch (error) {
             // throw an error if something happened during JSON.parse
-            reject(new Error(error));
+            reject(error);
           }
         }
       });
@@ -455,7 +457,7 @@ export class IoContext {
       this.valid = true;
       return Promise.resolve();
     } else {
-      return drivelist.list().then((drives: any) => {
+      return drivelist.list().then((drives: drivelist.Drive[]) => {
         this.origDrives = drives;
         this.mountpoints = new Set();
         this.drives = new Map();
@@ -572,8 +574,8 @@ export class IoContext {
       return Promise.all(promises);
     }
 
-    function checkWin32(relPaths): Promise<void> {
-      const absPaths = relPaths.map((p: string) => join(dir, p));
+    function checkWin32(relPaths: string[]): Promise<void> {
+      const absPaths: string[] = relPaths.map((p: string) => join(dir, p));
 
       return checkAccess(absPaths)
         .then(() => {
@@ -597,7 +599,7 @@ export class IoContext {
     }
 
     function checkUnixLike(relPaths: string[]): Promise<void> {
-      const absPaths = relPaths.map((p: string) => join(dir, p));
+      const absPaths: string[] = relPaths.map((p: string) => join(dir, p));
       const checkIfFilesAreReallyBeingWritten = new Map<string, string>();
 
       return checkAccess(absPaths)
@@ -605,8 +607,9 @@ export class IoContext {
           return unix.whichFilesInDirAreOpen(dir);
         })
         .then((fileHandles: Map<string, unix.FileHandle[]>) => {
-
-          const zip = (a, b) => a.map((k, i) => [k, b[i]]);
+          const zip = (a: string[], b: string[]): [string, string][] => {
+            return a.map((k: string, i: number): [string, string] => [k, b[i]]);
+          };
 
           const errors: Error[] = [];
           for (const [absPath, relPath] of zip(absPaths, relPaths)) {
@@ -628,6 +631,7 @@ export class IoContext {
                     errors.push(new StacklessError(msg));
                     break;
                   }
+                  // no default
                 }
               }
             }
@@ -641,9 +645,7 @@ export class IoContext {
           const relPaths: string[] = Array.from(checkIfFilesAreReallyBeingWritten.values());
 
           return checkReadAccess(absPaths, relPaths);
-        })
-        .then(() => {
-        })
+        });
     }
 
     switch (process.platform) {
@@ -796,7 +798,7 @@ export class IoContext {
             } else {
               const stderr = proc.stderr.read();
               if (stderr) {
-                reject(new Error(stderr.toString()));
+                reject(new Error(`${stderr}`));
               } else {
                 reject(new Error('Deletion failed'));
               }

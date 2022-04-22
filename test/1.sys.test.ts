@@ -15,13 +15,13 @@ import {
   calculateFileHash,
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
-import { createRandomString, shuffleArray } from './helper';
+import { createRandomString, getErrorMessage, shuffleArray } from './helper';
 import {
   calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
 } from '../src/treedir';
 
-import PromisePool from '@supercharge/promise-pool';
+const { PromisePool } = require('@supercharge/promise-pool');
 import AggregateError from 'es-aggregate-error';
 import sortPaths from 'sort-paths';
 
@@ -49,7 +49,7 @@ const exampleFiles = [
 const LOG_DIRECTORY = 'Check getRepoDetails(..) with directory path';
 const LOG_FILE = 'Check getRepoDetails(..) with  filepath:';
 
-async function sleep(delay): Promise<void> {
+async function sleep(delay: number): Promise<void> {
   return new Promise<void>((resolve) => {
     setTimeout(() => {
       resolve();
@@ -172,7 +172,7 @@ test('osWalk test#1', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -218,7 +218,7 @@ test('osWalk test#2a', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -259,7 +259,7 @@ test('osWalk test#2', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -300,7 +300,7 @@ test('osWalk test#3', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -328,7 +328,7 @@ test('osWalk test#4', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -348,7 +348,7 @@ test('osWalk test#5', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -379,7 +379,7 @@ test('osWalk test#6', async (t) => {
     async function executeOsWalk(): Promise<void> {
       const dirItems: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES)
         .catch((error) => {
-          t.fail(error.message); // osWalk must never fail while we delete files from a directory
+          t.fail(getErrorMessage(error)); // osWalk must never fail while we delete files from a directory
           return [];
         });
       iteratedOverFiles.push(dirItems.length);
@@ -411,7 +411,7 @@ test('osWalk test#6', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -442,7 +442,7 @@ test('osWalk test#7', async (t) => {
     async function executeOsWalk(): Promise<void> {
       const dirItems: DirItem[] = await osWalk(tmpDir, OSWALK.DIRS | OSWALK.FILES)
         .catch((error) => {
-          t.fail(error.message); // osWalk must never fail while we delete files from a directory
+          t.fail(getErrorMessage(error)); // osWalk must never fail while we delete files from a directory
           return [];
         });
       iteratedOverFiles.push(dirItems.length);
@@ -486,7 +486,7 @@ test('osWalk test#7', async (t) => {
     fse.rmdirSync(tmpDir, { recursive: true });
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -516,9 +516,12 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
   let tmpDir: string;
-  function runTest(filepath = '', errorMessage?: string): Promise<void> {
-    if (filepath) t.log(LOG_FILE, filepath);
-    else t.log(LOG_DIRECTORY);
+  function runTest(filepath: string, errorMessage?: string): Promise<void> {
+    if (filepath) {
+      t.log(LOG_FILE, filepath);
+    } else {
+      t.log(LOG_DIRECTORY);
+    }
 
     return testGitZip(t, 'nogit.zip')
       .then((directory: string) => {
@@ -555,7 +558,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
             throw error;
           }
         } else {
-          t.fail(error.message);
+          t.fail(getErrorMessage(error));
         }
       })
       .finally(() => {
@@ -563,7 +566,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
       });
   }
   try {
-    await runTest();
+    await runTest('');
     await runTest('foo');
     await runTest(
       'FILE_DOES_NOT_EXIST',
@@ -571,7 +574,7 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
     );
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -605,7 +608,7 @@ test('getRepoDetails (.git)', async (t) => {
         },
       )
       .catch((error) => {
-        t.fail(error.message);
+        t.fail(getErrorMessage(error));
       })
       .finally(() => {
         fse.rmdirSync(tmpDir, { recursive: true });
@@ -613,11 +616,11 @@ test('getRepoDetails (.git)', async (t) => {
   }
 
   try {
-    await runTest();
+    await runTest('');
     await runTest('foo');
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -655,7 +658,7 @@ test('getRepoDetails (.git and .snow)', async (t) => {
         },
       )
       .catch((error) => {
-        t.fail(error.message);
+        t.fail(getErrorMessage(error));
       })
       .finally(() => {
         fse.rmdirSync(tmpDir, { recursive: true });
@@ -663,13 +666,13 @@ test('getRepoDetails (.git and .snow)', async (t) => {
   }
 
   try {
-    await runTest();
+    await runTest('');
 
     // test to see what happens if getRepoDetails gets an element from the direectory, than then directory itself
     await runTest('cube.blend');
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -705,13 +708,13 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
         },
       )
       .catch((error) => {
-        t.fail(error.message);
+        t.fail(getErrorMessage(error));
       })
       .finally(() => {
         fse.rmdirSync(tmpDir, { recursive: true });
       });
   } catch (error) {
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -767,7 +770,7 @@ test('compareFileHash test', async (t) => {
     }
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -785,7 +788,7 @@ test('fss.writeSafeFile test', async (t) => {
     t.is(fse.readFileSync(tmpFile).toString(), 'Foo2');
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -938,7 +941,7 @@ async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
  * @param activeWriteFile     Number of files to open in read+write mode but are written to.
  */
 async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: number): Promise<void> {
-  t.plan(activeCnt === 0 ? 1 : activeCnt + 1);  // there is one test below that checks that activeCnt === reported error messages
+  t.plan(activeCnt === 0 ? 1 : activeCnt + 1); // there is one test below that checks that activeCnt === reported error messages
 
   const tmp = join(process.cwd(), 'tmp');
   fse.ensureDirSync(tmp);
@@ -968,7 +971,7 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
 
   function parallelWrite(): void {
     activeHandles.forEach((fh: number) => {
-      fse.writeFile(fh, '123456789abcdefghijklmnopqrstuvwxyz\n');
+      void fse.writeFile(fh, '123456789abcdefghijklmnopqrstuvwxyz\n');
     });
 
     setTimeout(() => {
@@ -1019,7 +1022,7 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 0);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 
@@ -1027,7 +1030,7 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 1);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 
@@ -1035,7 +1038,7 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 100);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 
@@ -1043,7 +1046,7 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 1000);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 
@@ -1051,7 +1054,7 @@ if (process.platform === 'win32') {
     try {
       await performReadLockCheckTest(t, 10000);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 } else {
@@ -1060,7 +1063,7 @@ if (process.platform === 'win32') {
       // On Linux and macOS we want to test for read+write handles
       await performReadWriteLockCheckTest(t, 3, 3);
     } catch (error) {
-      t.fail(error.message);
+      t.fail(getErrorMessage(error));
     }
   });
 }
@@ -1069,7 +1072,7 @@ test('performFileAccessCheck / 0 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 0);
   } catch (error) {
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1077,7 +1080,7 @@ test('performFileAccessCheck / 1 file', async (t) => {
   try {
     await performWriteLockCheckTest(t, 1);
   } catch (error) {
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1086,7 +1089,7 @@ test('performFileAccessCheck / 10 file', async (t) => {
     await performWriteLockCheckTest(t, 10);
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1095,7 +1098,7 @@ test('performFileAccessCheck / 100 file', async (t) => {
     await performWriteLockCheckTest(t, 100);
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1104,7 +1107,7 @@ test('performFileAccessCheck / 1000 file', async (t) => {
     await performWriteLockCheckTest(t, 1000);
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1142,7 +1145,7 @@ test('performFileAccessCheck / no access', async (t) => {
     }
   } catch (error) {
     console.error(error);
-    t.fail(error.message);
+    t.fail(getErrorMessage(error));
   }
 });
 
@@ -1362,7 +1365,7 @@ test('TreeDir merge tree 4', async (t) => {
 test('TreeDir merge tree 5', async (t) => {
   // This test creates 2 trees, where the left is empty
 
-  const relPaths0 = [
+  const relPaths0: string[] = [
   ];
   const relPaths1 = [
     'subdir1/xyz', // will have 3 bytes inside
@@ -1407,7 +1410,7 @@ test('TreeDir merge tree 6', async (t) => {
   const relPaths0 = [
     'subdir0/foo-bar', // will have 7 bytes inside
   ];
-  const relPaths1 = [
+  const relPaths1: string[] = [
   ];
 
   const [root0] = await createTree(t, relPaths0);
@@ -1646,19 +1649,23 @@ test('TreeDir hash stability 1', (t) => {
   print(dgst, dgst == '803b778e162664a586c5d720ab80a0f730211fd76e09be82325112c6c0bdd8ab')
   */
 
-  const tree1 = new TreeFile('831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
+  const tree1 = new TreeFile(
+    '831f508de037020cd190118609f8c554fc9aebcc039349b9049d0a06b165195c',
     'foo1', {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
     }, null);
-  const tree2 = new TreeFile('9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
+  const tree2 = new TreeFile(
+    '9CC7221BC98C63669876B592A24D526BB26D4AC35DE797AA3571A6947CA5034E',
     'foo copy', {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
     },  null);
-  const tree3 = new TreeFile('6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
+  const tree3 = new TreeFile(
+    '6DCF42C93219B9A1ADCE837B99FBFC80AAF9BA98EFF3A21FADCFFA2819F506C0',
     'foo3/abc', {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
     }, null);
-  const tree4 = new TreeFile('E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
+  const tree4 = new TreeFile(
+    'E375CA4D4D4A4A7BE19260FFF5540B02DF664059C0D76B89FC2E8DEA85A45B3E',
     'foo4', {
       size: 0, ctime: new Date(0), mtime: new Date(0), birthtime: new Date(0),
     }, null);
@@ -1667,7 +1674,7 @@ test('TreeDir hash stability 1', (t) => {
   t.log(`All files must have the following hash: ${hash}`);
 
   for (let i = 0; i < 20; ++i) {
-    const shuffledArray = shuffleArray([tree1, tree2, tree3, tree4]);
+    const shuffledArray: TreeFile[] = shuffleArray([tree1, tree2, tree3, tree4]);
     const res = calculateSizeAndHash(shuffledArray);
 
     // Here we ensure that the hash of the tree entries is not dependend on their order

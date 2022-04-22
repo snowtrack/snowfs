@@ -12,11 +12,9 @@ import { Repository } from './repository';
 import { DirItem, OSWALK, osWalk } from './io';
 import { FileInfo } from './common';
 
+const { PromisePool } = require('@supercharge/promise-pool');
 
 export type processFileCallback = (filepath: string, start: boolean) => void;
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { PromisePool } = require('@supercharge/promise-pool');
 
 /**
  * Used in [[Index.writeFiles]]. Used to control certain behaviours
@@ -197,13 +195,19 @@ export class Index {
         const content: string = parseIndex[1].toString();
         const json: any = JSON.parse(content);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         index.addRelPaths = new Set(json.adds);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         index.deleteRelPaths = new Set(json.deletes);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         index.processedAdded = new Map(json.processed.map((item: any) => {
           const size: number = item.stat.size;
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           const ctime: Date = new Date(item.stat.ctime);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           const mtime: Date = new Date(item.stat.mtime);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           const birthtime: Date = new Date(item.stat.birthtime);
           return [item.name, {
             hash: item.hash,

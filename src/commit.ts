@@ -57,11 +57,13 @@ export class Commit {
    * Return a cloned commit object.
    */
   clone(): Commit {
-    const commit = new Commit(this.repo,
+    const commit = new Commit(
+      this.repo,
       this.message,
       this.date,
       this.root,
-      this.parent ? [...this.parent] : []);
+      this.parent ? [...this.parent] : [],
+    );
     commit.hash = this.hash;
     commit.lastModifiedDate = this.lastModifiedDate ? new Date(this.lastModifiedDate.getTime()) : null;
 
@@ -70,11 +72,13 @@ export class Commit {
     }
 
     commit.userData = {};
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     if (this.userData && Object.keys(this.userData).length > 0) {
       commit.userData = { ...this.userData };
     }
 
     commit.runtimeData = {};
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     if (this.runtimeData && Object.keys(this.runtimeData).length > 0) {
       commit.runtimeData = { ...this.runtimeData };
     }
@@ -126,6 +130,7 @@ export class Commit {
     const parent = this.parent ? this.parent : null;
     const root = this.root.toJson();
     const tags = this.tags?.length > 0 ? this.tags : undefined;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const userData = this.userData && Object.keys(this.userData).length > 0 ? this.userData : undefined;
 
     return {

@@ -120,7 +120,7 @@ test('repo init-commondir-inside', async (t) => {
 });
 
 
-test('repo protected locations', async (t) => {
+test('repo protected locations', (t) => {
   const homedir = os.homedir().replace(/\\/g, '/');
   const documents = join(homedir, 'Documents');
   const desktop = join(homedir, 'Desktop');

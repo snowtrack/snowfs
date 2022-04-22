@@ -14,7 +14,7 @@ import { COMMIT_ORDER, Repository } from '../src/repository';
 import { createRandomFile, getRandomPath } from './helper';
 import { TreeEntry } from '../src/treedir';
 
-async function repoTest(t, commondirInside: boolean) {
+async function repoTest(t, commondirInside: boolean): Promise<void> {
   const repoPath = getRandomPath();
 
   let repo: Repository;

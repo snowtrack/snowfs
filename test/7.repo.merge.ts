@@ -1,11 +1,8 @@
 import test from 'ava';
-import { assert } from 'console';
 import * as fse from 'fs-extra';
-import { Index } from '../src';
 import { Commit } from '../src/commit';
-import { join } from '../src/path';
 import { Reference } from '../src/reference';
-import { REFERENCE_TYPE, Repository, RepositoryInitOptions, RESET } from '../src/repository';
+import { REFERENCE_TYPE, Repository, RESET } from '../src/repository';
 import { getRandomPath, shuffleArray } from './helper';
 
 export function getBranchNames(): Set<string> {
@@ -67,10 +64,11 @@ function createRepo(): Promise<Repository> {
 
 function shuffleRepoMembers(repo: Repository): void {
   // shuffle members in commit map
-  const commitArray = Array.from(repo.commitMap.values());
+  const commitArray: Commit[] = Array.from(repo.commitMap.values());
   repo.commitMap = new Map(shuffleArray(commitArray).map((c: Commit) => [c.hash, c]));
-
-  repo.references = shuffleArray(repo.references);
+  
+  const referencesArray: Reference[] = Array.from(repo.references.values());
+  repo.references = new Map(shuffleArray(referencesArray).map((c: Reference) => [c.getName(), c]));
 }
 
 test('Repository.getRootCommit', async (t) => {

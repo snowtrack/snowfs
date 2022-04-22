@@ -51,7 +51,7 @@ export function usesOriginalFs(): boolean {
   return useOriginalFs;
 }
 
-export class DirItem {
+export interface DirItem {
   /** Absolute path of dir item */
   absPath: string;
 
@@ -102,7 +102,7 @@ export function hideItem(path: string): Promise<void> {
   return Promise.resolve();
 }
 
-function checkPath(pth): void {
+function checkPath(pth: string): void {
   if (process.platform === 'win32') {
     const pathHasInvalidWinCharacters = /[<>:"|?*]/u.test(pth.replace(parse(pth).root, ''));
 
@@ -407,6 +407,7 @@ export function osWalk(dirPath: string, request: OSWALK): Promise<DirItem[]> {
 
           const absPath = `${dirPath}/${item}`;
 
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           promises.push(stat(absPath)
             .then((stats: Stats) => {
               return {

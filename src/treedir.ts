@@ -251,9 +251,11 @@ export class TreeDir extends TreeEntry {
 
   children: TreeEntry[] = [];
 
-  constructor(public path: string,
+  constructor(
+              public path: string,
               public stats: StatsSubset,
-              public parent: TreeDir | undefined = undefined) {
+              public parent: TreeDir | null = null,
+  ) {
     super('', path, stats);
   }
 
@@ -334,7 +336,7 @@ export class TreeDir extends TreeEntry {
   getAllTreeFiles(opt: {entireHierarchy: boolean, includeDirs: boolean}): Map<string, TreeEntry> {
     const visit = (obj: TreeEntry[] | TreeEntry, map: Map<string, TreeEntry>): void => {
       if (Array.isArray(obj)) {
-        obj.forEach((c: any) => visit(c, map));
+        obj.forEach((c: TreeEntry) => visit(c, map));
         return;
       }
 
@@ -342,7 +344,7 @@ export class TreeDir extends TreeEntry {
         if (opt.includeDirs) {
           map.set(obj.path, obj);
         }
-        return obj.children.forEach((c: any) => visit(c, map));
+        return obj.children.forEach((c: TreeEntry) => visit(c, map));
       }
       map.set(obj.path, obj);
     };
@@ -379,8 +381,10 @@ export class TreeDir extends TreeEntry {
   /**
    * Browse through the entire hierarchy of the tree and remove the given item.
    */
-  static remove(tree: TreeDir,
-    cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean): void {
+  static remove(
+    tree: TreeDir,
+    cb: (entry: TreeEntry, index: number, array: TreeEntry[]) => boolean,
+  ): void {
     for (const child of tree.children) {
       if (child instanceof TreeDir) {
         TreeDir.remove(child, cb);

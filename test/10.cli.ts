@@ -519,10 +519,14 @@ test('Commit User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const uData: any = { str_key: 'str_value', int_key: 3 };
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-  await exec(t, snow,
-    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
+  await exec(
+    t,
+    snow,
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'],
+    { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
-    `--user-data: ${JSON.stringify(uData)}`);
+    `--user-data: ${JSON.stringify(uData)}`,
+  );
 
   const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   const c: any = JSON.parse(String(out));
@@ -555,9 +559,14 @@ test('Commit User Data --- FAIL INVALID INPUT', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
-  const error = await t.throwsAsync(async () => exec(t, snow,
-    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'], { cwd: snowWorkdir },
-    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+  const error = await t.throwsAsync(async () => exec(
+    t,
+    snow,
+    ['commit', '-m', 'unit test user data', '--allow-empty', '--input=stdin'],
+    { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
+    '--user-data: garbage-because-json-object-expected',
+  ));
 
   const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
   t.true(error.message.includes(errorMsgSub));
@@ -628,10 +637,14 @@ test('Branch User Data --- STORE AND LOAD IDENTICAL', async (t) => {
   const branchName = 'u-data-test';
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
-  await exec(t, snow,
-    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
+  await exec(
+    t,
+    snow,
+    ['branch', branchName, '--input=stdin'],
+    { cwd: snowWorkdir },
     EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
-    `--user-data:${JSON.stringify(uData)}`);
+    `--user-data:${JSON.stringify(uData)}`,
+  );
 
   const out = await exec(t, snow, ['log', '--output=json'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   const c: any = JSON.parse(String(out));
@@ -665,9 +678,14 @@ test('Branch User Data --- FAIL INVALID INPUT', async (t) => {
 
   await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
 
-  const error = await t.throwsAsync(async () => exec(t, snow,
-    ['branch', branchName, '--input=stdin'], { cwd: snowWorkdir },
-    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN, '--user-data: garbage-because-json-object-expected'));
+  const error = await t.throwsAsync(async () => exec(
+    t,
+    snow,
+    ['branch', branchName, '--input=stdin'],
+    { cwd: snowWorkdir },
+    EXEC_OPTIONS.RETURN_STDOUT | EXEC_OPTIONS.WRITE_STDIN,
+    '--user-data: garbage-because-json-object-expected',
+  ));
 
   const errorMsgSub = 'fatal: invalid user-data: SyntaxError: Unexpected token g in JSON at position 0';
   t.true(error.message.includes(errorMsgSub));

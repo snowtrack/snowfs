@@ -1,12 +1,12 @@
-import { spawn } from 'child_process';
 import * as readline from 'readline';
 import * as fse from 'fs-extra';
 import * as crypto from 'crypto';
 import * as os from 'os';
+import { spawn } from 'child_process';
 import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
+import { getErrorMessage } from '../test/helper';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const chalk = require('chalk');
 
 const BENCHMARK_FILE_SIZE = 4000000000;
@@ -30,7 +30,7 @@ async function input(question: string): Promise<string> {
   });
 }
 
-function exec(command: string, args?: string[], t = console, opts?: {cwd?: string}): Promise<void> {
+function exec(command: string, args?: string[], t?: any, opts?: {cwd?: string}): Promise<void> {
   t.log(`$ ${command} ${args.join(' ')}`);
   const p0 = spawn(command, args ?? [], { cwd: opts?.cwd ?? '.' });
   return new Promise((resolve, reject) => {
@@ -47,7 +47,7 @@ function exec(command: string, args?: string[], t = console, opts?: {cwd?: strin
   });
 }
 
-async function createRandomBuffer() {
+async function createRandomBuffer(): Promise<Buffer> {
   const buffer = await new Promise<Buffer>((resolve, reject) => {
     crypto.randomBytes(100000, (ex, buffer) => {
       if (ex) {
@@ -59,7 +59,7 @@ async function createRandomBuffer() {
   return buffer;
 }
 
-async function createFile(dst: string, size: number, t = console) {
+async function createFile(dst: string, size: number, t: any = console): Promise<void> {
   const stream = fse.createWriteStream(dst, { flags: 'w' });
 
   const delimiter = `Create ${basename(dst)} file of ${size} bytes`;
@@ -99,7 +99,7 @@ async function createFile(dst: string, size: number, t = console) {
   });
 }
 
-async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
+async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console): Promise<number> {
   fse.rmdirSync(repoPath, { recursive: true });
 
   t.log(`Create Git(+LFS) Repository at: ${repoPath}`);
@@ -124,7 +124,7 @@ async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMA
   return new Date().getTime() - t0;
 }
 
-async function gitRmTexture(repoPath: string, t = console): Promise<number> {
+async function gitRmTexture(repoPath: string, t: any = console): Promise<number> {
   t.log('Remove texture.psd...');
 
   const t0 = new Date().getTime();
@@ -133,7 +133,7 @@ async function gitRmTexture(repoPath: string, t = console): Promise<number> {
   return new Date().getTime() - t0;
 }
 
-async function gitRestoreTexture(repoPath: string, t = console): Promise<number> {
+async function gitRestoreTexture(repoPath: string, t: any = console): Promise<number> {
   t.log('Restore texture.psd...');
 
   const t0 = new Date().getTime();
@@ -195,11 +195,7 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
     if (process.stdin.isTTY) {
       // eslint-disable-next-line no-await-in-loop
       const answer: string = await input(`Location for benchmark-tests [${desktop}]: `);
-      if (answer.length > 0) {
-        playground = answer;
-      } else {
-        playground = desktop;
-      }
+      playground = answer.length > 0 ? answer : desktop;
     } else {
       playground = os.tmpdir();
     }
@@ -238,11 +234,11 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
 }
 
 if (process.env.NODE_ENV === 'benchmark') {
-  (async () => {
+  void (async () => {
     try {
       await startBenchmark();
     } catch (e) {
-      process.stderr.write(e.message);
+      process.stderr.write(getErrorMessage(e));
     }
   })();
 }
