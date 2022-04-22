@@ -1347,7 +1347,6 @@ export class Repository {
                   stats: entry.stats,
                 }, entry.absPath
               ));
-              markParentsAsModified(entry.relPath);
             }
           }
         }
