@@ -1,7 +1,8 @@
 /* eslint-disable max-len */
 import * as fse from 'fs-extra';
-
 import * as readline from 'readline';
+import * as drivelist from 'drivelist';
+
 import {
   isAbsolute, join, resolve, relative, normalize,
 } from './src/path';
@@ -17,7 +18,6 @@ import { IoContext } from './src/io_context';
 
 const program = require('commander');
 const chalk = require('chalk');
-const drivelist = require('drivelist');
 const AggregateError = require('es-aggregate-error');
 
 const versionString = '0.9.3';
