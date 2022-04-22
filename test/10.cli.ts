@@ -55,7 +55,7 @@ test('snow switch', async (t) => {
 
     // eslint-disable-next-line no-await-in-loop
     out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-    t.true((out as string).includes(`A branch 'branch-${i}' got created.`));
+    t.true(out.includes(`A branch 'branch-${i}' got created.`));
   }
 
   await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
@@ -105,7 +105,7 @@ test('snow switch', async (t) => {
   const error = await t.throwsAsync(async () => exec(t, snow, ['switch', 'branch-0'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT));
   const lines = error.message.split('\n');
   t.true(lines.includes('A abc3.txt')); // abc3.txt got added in the working dir
-  t.true(lines.includes('M abc0.txt')); // abc0.txt got added in the working dir
+  t.true(lines.includes('M abc0.txt')); // abc0.txt got modified in the working dir
   // abc1.txt did not get reported as deleted because switch/checkout don't mind if a file got deleted by the user since it can be restored
   t.true(lines.includes("fatal: You have local changes to 'branch-0'; not switching branches."));
 
@@ -137,7 +137,7 @@ test('snow switch', async (t) => {
 });
 
 test('snow checkout', async (t) => {
-  let out: string | void;
+  let out = '';
   const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
 
@@ -154,7 +154,7 @@ test('snow checkout', async (t) => {
 
     // eslint-disable-next-line no-await-in-loop
     out = await exec(t, snow, ['branch', `branch-${i}`], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-    t.true((out as string).includes(`A branch 'branch-${i}' got created.`));
+    t.true(out.includes(`A branch 'branch-${i}' got created.`));
   }
 
   await exec(t, snow, ['log', '--verbose'], { cwd: snowWorkdir });
@@ -266,7 +266,7 @@ test('snow branch foo-branch', async (t) => {
 
   // snow branch foo-branch
   out = await exec(t, snow, ['branch', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as string).includes("A branch 'foo-branch' got created."));
+  t.true(out.includes("A branch 'foo-branch' got created."));
 
   // the hash of 'foo-branch' must match the hash
   const repoAfter = await Repository.open(snowWorkdir);
@@ -280,7 +280,7 @@ test('snow branch foo-branch', async (t) => {
   // Create a branch with a different starting point
   // snow branch bar-branch 768FF3AA8273DFEB81E7A111572C823EA0850499
   out = await exec(t, snow, ['branch', 'bar-branch', firstCommit.hash], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as string).includes("A branch 'bar-branch' got created."));
+  t.true(out.includes("A branch 'bar-branch' got created."));
 
   // verify the target() and start() point are equal (in this case the
   // start-point and target are still the same since the branch didn't move forward)
@@ -296,9 +296,9 @@ test('snow branch foo-branch', async (t) => {
 
   // Delete foo-branch and bar branch
   out = await exec(t, snow, ['branch', '--delete', 'foo-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as string).includes(`Deleted branch 'foo-branch' (was ${fooBranch.target()})`));
+  t.true(out.includes(`Deleted branch 'foo-branch' (was ${fooBranch.target()})`));
   out = await exec(t, snow, ['branch', '--delete', 'bar-branch'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
-  t.true((out as string).includes(`Deleted branch 'bar-branch' (was ${barBranch.target()})`));
+  t.true(out.includes(`Deleted branch 'bar-branch' (was ${barBranch.target()})`));
 
   // Try to delete the HEAD branch which must fail
   error = await t.throwsAsync(async () =>
@@ -707,10 +707,10 @@ test('Multi-Index -- CREATE 2 INDEXES, COMMIT SEQUENTIALLY', async (t) => {
   const outAddA = await exec(t, snow, ['add', 'a.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
   const outAddB = await exec(t, snow, ['add', 'b.txt', '--index', 'create'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
 
-  const indexAMatch = /Created new index:\s\[(\w*)\]/.exec(outAddA as string);
+  const indexAMatch = /Created new index:\s\[(\w*)\]/.exec(outAddA );
   t.true(Boolean(indexAMatch));
 
-  const indexBMatch = /Created new index:\s\[(\w*)\]/.exec(outAddB as string);
+  const indexBMatch = /Created new index:\s\[(\w*)\]/.exec(outAddB );
   t.true(Boolean(indexBMatch));
 
   t.log('Write dontcommit-c.txt'); // dummy file just to ensure file is not commited
@@ -767,10 +767,10 @@ test('Multi-Index -- FAIL INVALID INPUT TEST 1', async (t) => {
   t.log('Test failed as expected');
 });
 
-test.only('driveinfo test', async (t) => {
+test('driveinfo test', async (t) => {
   const snow: string = getSnowexec();
 
-  const out1 = await exec(t, snow, ['driveinfo'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+  const out1 = await exec(t, snow, ['driveinfo'], {}, EXEC_OPTIONS.RETURN_STDOUT) ;
   console.log(out1);
   const parsedObj = JSON.parse(out1);
   if (!Array.isArray(parsedObj) || parsedObj.length === 0) {
@@ -782,11 +782,11 @@ test.only('driveinfo test', async (t) => {
   t.true(parsedObj[0].description?.length > 0, 'stdout must be a JSON parsable string');
   t.true(out1.includes('    '), 'driveinfo uses --output json-pretty as default and requires a 4-width space JSON output');
 
-  const out2 = await exec(t, snow, ['driveinfo', '--output', 'json'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+  const out2 = await exec(t, snow, ['driveinfo', '--output', 'json'], {}, EXEC_OPTIONS.RETURN_STDOUT) ;
   t.true(JSON.parse(out2)[0].description?.length > 0, 'stdout must be a JSON parsable string');
   t.true(out1.includes('    '), 'driveinfo --output json must return a minified JSON output');
 
-  const out3 = await exec(t, snow, ['driveinfo', '--output', 'json-pretty'], {}, EXEC_OPTIONS.RETURN_STDOUT) as string;
+  const out3 = await exec(t, snow, ['driveinfo', '--output', 'json-pretty'], {}, EXEC_OPTIONS.RETURN_STDOUT) ;
   t.true(JSON.parse(out3)[0].description?.length > 0, 'stdout must be a JSON parsable string');
   t.true(out1.includes('    '), 'driveinfo --output json-pretty requires a 4-width space JSON output');
 });
