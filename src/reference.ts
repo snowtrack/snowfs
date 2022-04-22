@@ -21,7 +21,7 @@ export class Reference {
   lastModifiedDate: Date | null;
 
   constructor(type: REFERENCE_TYPE, refName: string, repo: Repository, c: {hash: string, start: string, userData?: any}) {
-    // start and start might be null or undefined during runtime, so set '' for the moment to be sure
+    // 'hash' and 'start' might be null or undefined during runtime, so set '' for the moment to be sure
     this.hash = c.hash || '';
     this.startHash = c.start || '';
     this.userData = c.userData ?? {};
