@@ -491,31 +491,33 @@ test('osWalk test#7', async (t) => {
 });
 
 function testGitZip(t, zipname: string): Promise<string> {
-  const snowtrack: string = join(os.tmpdir(), 'foo');
+  const snowtrack: string = join(os.tmpdir(), 'snowtrack');
 
-  let tmpDir: string;
+  let repoDir: string;
   return fse
     .mkdirp(snowtrack)
     .then(() => fse.mkdtemp(join(snowtrack, 'snowtrack-')))
-    .then((tmpDirResult: string) => {
-      tmpDir = tmpDirResult;
+    .then((repoDirResult: string) => {
+      repoDir = repoDirResult;
       const gitanddstPath: string = join(__dirname, zipname);
-      t.log(`Unzip: ${zipname}`);
       return unzipper.Open.buffer(fse.readFileSync(gitanddstPath));
     })
-    .then((d) => d.extract({ path: denormalize(tmpDir), concurrency: 5 }))
+    .then((d) => {
+      t.log(`Unzip ${zipname} to ${repoDir}`);
+      return d.extract({ path: denormalize(repoDir), concurrency: 5 });
+    })
     .then(() =>
       // if tmpDir starts with /var/ we replace it with /private/var because
       // it is a symlink on macOS.
       (process.platform === 'darwin'
-        ? tmpDir.replace(/^(\/var\/)/, '/private/var/')
-        : tmpDir));
+        ? repoDir.replace(/^(\/var\/)/, '/private/var/')
+        : repoDir));
 }
 
 test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
   t.plan(8);
 
-  let tmpDir: string;
+  let repoDir: string;
   function runTest(filepath: string, errorMessage?: string): Promise<void> {
     if (filepath) {
       t.log(LOG_FILE, filepath);
@@ -524,10 +526,10 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
     }
 
     return testGitZip(t, 'nogit.zip')
-      .then((directory: string) => {
-        tmpDir = directory;
+      .then((repoDirResult: string) => {
+        repoDir = repoDirResult;
         return getRepoDetails(
-          filepath ? join(tmpDir, filepath) : tmpDir,
+          filepath ? join(repoDir, filepath) : repoDir,
         );
       })
       .then(
@@ -562,7 +564,8 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
         }
       })
       .finally(() => {
-        fse.rmdirSync(tmpDir, { recursive: true });
+        t.log(`Delete ${repoDir}`);
+        fse.rmdirSync(repoDir, { recursive: true });
       });
   }
   try {
@@ -687,7 +690,7 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
   // Btw, this test does not have a LOG_FILE like the others because we test the
   // parent directory
 
-  let tmpDir: string;
+  let repoDir: string;
 
   try {
     await testGitZip(t, 'onlysnowtrack.zip')
@@ -755,16 +758,16 @@ test('compareFileHash test', async (t) => {
 
     let i = 0;
     for (const test of testCases) {
-      const foo: string = join(os.tmpdir(), `foo${i++}.txt`);
+      const foo: string = join(os.tmpdir(), `foo${i++}_${createRandomString(10)}.txt`);
       fse.writeFileSync(foo, test.fileContent);
       if (test.error) {
         t.log(`Calculate '${foo}' and expect failing`);
         // eslint-disable-next-line no-await-in-loop
-        t.false(await compareFileHash(foo, test.filehash, test.hashBlocks));
+        t.false(await compareFileHash(foo, test.filehash, test.error, test.hashBlocks));
       } else {
         t.log(`Calculate '${foo}' and expect hash: ${test.filehash}`);
         // eslint-disable-next-line no-await-in-loop
-        t.true(await compareFileHash(foo, test.filehash, test.hashBlocks));
+        t.true(await compareFileHash(foo, test.filehash, test.error, test.hashBlocks));
       }
       fse.unlinkSync(foo);
     }
@@ -824,12 +827,14 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
   }
 
   let stop = false;
+  let writtenToAllFileHandles = false;
 
   function parallelWrite(): void {
     fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
       if (fh instanceof fse.WriteStream) {
         fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
       }
+      writtenToAllFileHandles = true;
     });
 
     setTimeout(() => {
@@ -843,13 +848,16 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
 
   parallelWrite();
 
-  await sleep(500); // just to ensure on GitHub runners that all files were written to
+  // we only continue if we have modified all files once
+  while (!writtenToAllFileHandles) {
+    await sleep(500);
+  }
 
   const ioContext = new IoContext();
   try {
     await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
-    t.log('Ensure no file is reported as being written to');
     if (fileCount === 0) {
+      t.log('Ensure no file is reported as being written to');
       t.true(true); // to satisfy t.plan
     }
   } catch (error) {
@@ -968,11 +976,13 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
   }
 
   let stop = false;
+  let writtenToAllFileHandles = false;
 
   function parallelWrite(): void {
     activeHandles.forEach((fh: number) => {
       void fse.writeFile(fh, '123456789abcdefghijklmnopqrstuvwxyz\n');
     });
+    writtenToAllFileHandles = true;
 
     setTimeout(() => {
       if (stop) {
@@ -985,13 +995,16 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
 
   parallelWrite();
 
-  await sleep(500); // just to ensure on GitHub runners that all files were written to
+  // we only continue if we have modified all files once
+  while (!writtenToAllFileHandles) {
+    await sleep(500);
+  }
 
   const ioContext = new IoContext();
   try {
     await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
-    t.log('Ensure that only the active file handles are reported as being written');
     if (idleCnt + activeCnt === 0) {
+      t.log('Ensure that only the active file handles are reported as being written');
       t.true(true); // to satisfy t.plan
     }
   } catch (error) {
