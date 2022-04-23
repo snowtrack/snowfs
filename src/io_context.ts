@@ -453,14 +453,19 @@ export class IoContext {
 
   init(): Promise<void> {
     const tmpDrives: [string, string][] = [];
-    if (process.platform !== 'darwin') {
+    
+    this.mountpoints = new Set();
+    this.drives = new Map();
+
+    if (process.platform === 'win32') {
+      // drivelist takes too long on Windows because it wakes up
+      // all sleeping drives.
+      // TODO: (Seb) Find another alternative to drivelist to get file system info.
       this.valid = true;
       return Promise.resolve();
     } else {
       return drivelist.list().then((drives: drivelist.Drive[]) => {
         this.origDrives = drives;
-        this.mountpoints = new Set();
-        this.drives = new Map();
   
         for (const drive of drives) {
           for (const mountpoint of drive.mountpoints) {
