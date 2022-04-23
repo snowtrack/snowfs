@@ -564,7 +564,6 @@ test('getRepoDetails (no git directory nor snowtrack)', async (t) => {
         }
       })
       .finally(() => {
-        t.log(`Delete ${repoDir}`);
         fse.rmdirSync(repoDir, { recursive: true });
       });
   }
@@ -795,6 +794,8 @@ test('fss.writeSafeFile test', async (t) => {
   }
 });
 
+type FileHandleEntry = { type: 'read' | 'write' | '', fd: number };
+
 async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
   if (fileCount === 0) {
     t.plan(1); // in that case t.true(true) is checked nothing is reported
@@ -807,7 +808,7 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
 
   const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
 
-  const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
+  const fileHandles = new Map<string, FileHandleEntry | null>();
 
   const noFileHandleFile = 'no-file-handle.txt';
   const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
@@ -817,25 +818,23 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
   const readFileHandleFile = 'read-file-handle.txt';
   const absReadFileHandleFile = join(absDir, readFileHandleFile);
   fse.writeFileSync(absReadFileHandleFile, 'single read-handle is on this file');
-  fileHandles.set(readFileHandleFile, fse.createReadStream(absReadFileHandleFile, { flags: 'r' }));
+  fileHandles.set(readFileHandleFile, { type: 'read', fd: fse.openSync(absReadFileHandleFile, 'r') });
 
   for (let i = 0; i < fileCount; ++i) {
     const relName = `foo${i}.txt`;
     const absFile = join(absDir, relName);
 
-    fileHandles.set(relName, fse.createWriteStream(absFile, { flags: 'w' }));
+    fileHandles.set(relName, { type: 'write', fd: fse.openSync(absFile, 'w') });
   }
 
   let stop = false;
-  let writtenToAllFileHandles = false;
 
   function parallelWrite(): void {
-    fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream) => {
-      if (fh instanceof fse.WriteStream) {
-        fh.write('123456789abcdefghijklmnopqrstuvwxyz\n');
+    for (const fh of fileHandles.values()) {
+      if (fh && fh.type === 'write') {
+        fse.writeSync(fh.fd, '123456789abcdefghijklmnopqrstuvwxyz\n');
       }
-      writtenToAllFileHandles = true;
-    });
+    }
 
     setTimeout(() => {
       if (stop) {
@@ -847,11 +846,6 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
   }
 
   parallelWrite();
-
-  // we only continue if we have modified all files once
-  while (!writtenToAllFileHandles) {
-    await sleep(500);
-  }
 
   const ioContext = new IoContext();
   try {
@@ -865,15 +859,15 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
       const errorMessages: string[] = error.errors.map((e) => e.message);
 
       let i = 0;
-      fileHandles.forEach((fh: fse.ReadStream | fse.WriteStream | null, path: string) => {
-        if (fh instanceof fse.WriteStream) {
+      fileHandles.forEach((fh: FileHandleEntry | null, path: string) => {
+        if (fh && fh.type === 'write') {
           if (i === 15) {
             t.log(`${fileCount - i} more to go...`);
           } else if (i < 15) {
             t.log(`Check if ${path} is detected as being written by another process`);
           }
           t.true(errorMessages[i++].includes(`File '${path}' is being written by`));
-        } else if (!fh || fh instanceof fse.ReadStream) {
+        } else if (!fh || fh.type === 'read') {
           t.log(`Ensure that ${path} is not being detected as being written by another process`);
           t.false(errorMessages.includes(`File ${path} is being written by`));
         }
@@ -886,8 +880,10 @@ async function performWriteLockCheckTest(t, fileCount: number): Promise<void> {
 
   stop = true;
 
-  for (const [, handle] of fileHandles) {
-    handle?.close();
+  for (const [, fh] of fileHandles) {
+    if (fh) {
+      fse.closeSync(fh.fd);
+    }
   }
 }
 
@@ -899,7 +895,7 @@ async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
 
   const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
 
-  const fileHandles = new Map<string, fse.WriteStream | fse.ReadStream | null>();
+  const fileHandles = new Map<string, FileHandleEntry | null>();
 
   const noFileHandleFile = 'no-file-handle.txt';
   const absNoFileHandleFilePath = join(absDir, noFileHandleFile);
@@ -919,7 +915,7 @@ async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
     // had the file handle
     const relName = `foo${fileCount - 1}.txt`;
     const absFile = join(absDir, relName);
-    fileHandles.set(relName, fse.createReadStream(absFile, { flags: 'r' }));
+    fileHandles.set(relName, { type: 'read', fd: fse.openSync(absFile, 'r') });
   }
 
   await sleep(500); // just to ensure on GitHub runners that all files were written to
@@ -936,8 +932,10 @@ async function performReadLockCheckTest(t, fileCount: number): Promise<void> {
     t.true(error.message.includes('Your files are accessed by'));
   }
 
-  for (const [, handle] of fileHandles) {
-    handle?.close();
+  for (const [, fh] of fileHandles) {
+    if (fh) {
+      fse.closeSync(fh.fd);
+    }
   }
 }
 
@@ -956,14 +954,14 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
 
   const absDir = fse.mkdtempSync(join(tmp, 'snowtrack-'));
 
-  const fileHandles = new Map<string, number>();
-  const activeHandles = new Set<number>();
+  const allFileHandles = new Map<string, number>();
+  const writeHandles = new Set<number>();
 
   for (let i = 0; i < idleCnt; ++i) {
     const readFileHandleFile = `idle-${i}.txt`;
     const absPath = join(absDir, readFileHandleFile);
     fse.ensureFileSync(absPath);
-    fileHandles.set(readFileHandleFile, fse.openSync(absPath, 'w+'));
+    allFileHandles.set(readFileHandleFile, fse.openSync(absPath, 'r'));
   }
 
   for (let i = 0; i < activeCnt; ++i) {
@@ -971,18 +969,16 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
     const absPath = join(absDir, readFileHandleFile);
     fse.ensureFileSync(absPath);
     const fh = fse.openSync(absPath, 'w+');
-    fileHandles.set(readFileHandleFile, fh);
-    activeHandles.add(fh);
+    allFileHandles.set(readFileHandleFile, fh);
+    writeHandles.add(fh);
   }
 
   let stop = false;
-  let writtenToAllFileHandles = false;
 
   function parallelWrite(): void {
-    activeHandles.forEach((fh: number) => {
-      void fse.writeFile(fh, '123456789abcdefghijklmnopqrstuvwxyz\n');
-    });
-    writtenToAllFileHandles = true;
+    for (const fd of writeHandles.values()) {
+      fse.writeSync(fd, '123456789abcdefghijklmnopqrstuvwxyz\n');
+    }
 
     setTimeout(() => {
       if (stop) {
@@ -995,16 +991,11 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
 
   parallelWrite();
 
-  // we only continue if we have modified all files once
-  while (!writtenToAllFileHandles) {
-    await sleep(500);
-  }
-
   const ioContext = new IoContext();
   try {
-    await ioContext.performFileAccessCheck(absDir, Array.from(fileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
+    await ioContext.performFileAccessCheck(absDir, Array.from(allFileHandles.keys()), TEST_IF.FILE_CAN_BE_READ_FROM);
     if (idleCnt + activeCnt === 0) {
-      t.log('Ensure that only the active file handles are reported as being written');
+      t.log('Ensure that only the actively written file handles are reported as being written');
       t.true(true); // to satisfy t.plan
     }
   } catch (error) {
@@ -1025,8 +1016,8 @@ async function performReadWriteLockCheckTest(t, idleCnt: number, activeCnt: numb
 
   stop = true;
 
-  for (const handle of Array.from(fileHandles.values())) {
-    fse.closeSync(handle);
+  for (const [, fd] of allFileHandles) {
+    fse.closeSync(fd);
   }
 }
 
