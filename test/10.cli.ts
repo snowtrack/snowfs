@@ -166,7 +166,7 @@ test('snow checkout', async (t) => {
   const allCommits = repo.getAllCommits(COMMIT_ORDER.OLDEST_FIRST);
 
   // switch to all branches while no modifications are present in the working dir
-  t.log(`Switch to ${allCommits[1]}`);
+  t.log(`Switch to commit ${allCommits[1].hash}`);
   await exec(t, snow, ['checkout', allCommits[1].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
   dirPaths = dirItems.map((d) => basename(d.relPath));
@@ -178,7 +178,7 @@ test('snow checkout', async (t) => {
   // otherwise checking out the latest commit is ambigious
   await exec(t, snow, ['branch', '--delete', 'Main'], { cwd: snowWorkdir });
 
-  t.log(`Switch to ${allCommits[2]}`);
+  t.log(`Switch to commit ${allCommits[2].hash}`);
   await exec(t, snow, ['checkout', allCommits[2].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
   dirPaths = dirItems.map((d) => basename(d.relPath));
@@ -186,7 +186,7 @@ test('snow checkout', async (t) => {
   t.true(dirPaths.includes('abc0.txt'));
   t.true(dirPaths.includes('abc1.txt'));
 
-  t.log(`Switch to ${allCommits[3]}`);
+  t.log(`Switch to commit ${allCommits[3].hash}`);
   await exec(t, snow, ['checkout', allCommits[3].hash], { cwd: snowWorkdir });
   dirItems = await osWalk(snowWorkdir, OSWALK.FILES);
   dirPaths = dirItems.map((d) => basename(d.relPath));
