@@ -15,6 +15,7 @@ import {
 } from './src/repository';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
+import { getErrorMessage } from './src/common';
 
 const program = require('commander');
 const chalk = require('chalk');
@@ -138,9 +139,9 @@ program
         throw error;
       } else {
         if (error instanceof AggregateError) {
-          process.stderr.write(`fatal: ${error.errors.map((e) => e.message).join('\n')}`);
+          process.stderr.write(`fatal: ${error.errors.map((e: Error) => e.message).join('\n')}`);
         } else {
-          process.stderr.write(`fatal: ${error.message}\n`);
+          process.stderr.write(`fatal: ${getErrorMessage(error)}\n`);
         }
         process.exit(-1);
       }

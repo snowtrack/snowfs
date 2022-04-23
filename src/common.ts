@@ -161,6 +161,16 @@ export function compareFileHash(filepath: string, filehash: string, expectError:
 }
 
 /**
+ * Return the string of an error message.
+ */
+export function getErrorMessage(e: any): string {
+  if (e instanceof Error) {
+    return e.message;
+  }
+  return "";
+}
+
+/**
  * Calculate the hash of a given file. Although the resulting hash is a sha256 hash, it does **not** match
  * the standard sha256 hash due to the way how this function calculates a hash. The given file, depending on
  * its size, is sliced into segments and each segment is hashed asynchronously. That speeds up the hasing

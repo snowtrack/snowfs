@@ -12,13 +12,6 @@ export enum EXEC_OPTIONS {
     WRITE_STDIN = 2
 }
 
-export function getErrorMessage(e: any): string {
-  if (e instanceof Error) {
-    return e.message;
-  }
-  return "";
-}
-
 export function shuffleArray<T>(arr: T[]): T[] {
   let len = arr.length;
   const d = len;

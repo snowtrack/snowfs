@@ -12,10 +12,10 @@ import * as fss from '../src/fs-safe';
 import { DirItem, OSWALK, osWalk } from '../src/io';
 import { IoContext, TEST_IF } from '../src/io_context';
 import {
-  calculateFileHash,
+  calculateFileHash, getErrorMessage,
   compareFileHash, getRepoDetails, LOADING_STATE, MB100,
 } from '../src/common';
-import { createRandomString, getErrorMessage, shuffleArray } from './helper';
+import { createRandomString, shuffleArray } from './helper';
 import {
   calculateSizeAndHash,
   constructTree, TreeDir, TreeEntry, TreeFile,
