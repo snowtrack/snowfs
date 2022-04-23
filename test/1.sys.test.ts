@@ -691,9 +691,9 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
 
   try {
     await testGitZip(t, 'onlysnowtrack.zip')
-      .then((directory: string) => {
-        tmpDir = dirname(directory);
-        return getRepoDetails(tmpDir);
+      .then((repoDirResult: string) => {
+        repoDir = repoDirResult;
+        return getRepoDetails(dirname(repoDirResult));
       })
       .then(
         (res: { state: LOADING_STATE; commondir: string | null; uuid?: string }) => {
@@ -711,7 +711,7 @@ test('getRepoDetails (parent of .git and .snow)', async (t) => {
         t.fail(getErrorMessage(error));
       })
       .finally(() => {
-        fse.rmdirSync(tmpDir, { recursive: true });
+        fse.rmdirSync(repoDir, { recursive: true });
       });
   } catch (error) {
     t.fail(getErrorMessage(error));
