@@ -108,7 +108,7 @@ export function getPartHash(filepath: string, options?: {start?: number; end?: n
  * @param filehash      The hash the file must match with.
  * @param hashBlocks    Array of hashblock hashes if previously calculated.
  */
-export function compareFileHash(filepath: string, filehash: string, hashBlocks?: string[]): Promise<boolean> {
+export function compareFileHash(filepath: string, filehash: string, expectError: boolean, hashBlocks?: string[]): Promise<boolean> {
   return io.stat(filepath).then((stat: fse.Stats) => {
     if (stat.size < MB20) {
       if (hashBlocks) {
@@ -154,7 +154,7 @@ export function compareFileHash(filepath: string, filehash: string, hashBlocks?:
     });
   }).catch((error: Error) => {
     // return false because it is an expected error
-    if (error.message === 'hashblock different') { return false; }
+    if (expectError && error.message === 'hashblock different') { return false; }
 
     throw error;
   });
