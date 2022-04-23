@@ -5,7 +5,7 @@ import * as os from 'os';
 import { spawn } from 'child_process';
 import { dirname, join, basename } from '../src/path';
 import { Repository, RESET } from '../src/repository';
-import { getErrorMessage } from '../test/helper';
+import { getErrorMessage } from '../src/common';
 
 const chalk = require('chalk');
 
