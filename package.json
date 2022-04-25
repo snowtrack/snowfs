@@ -16,7 +16,7 @@
     "ava": "nyc --reporter=html --reporter=lcov --reporter=text ava --timeout 900s --verbose --serial --fail-fast --color true",
     "docs": "typedoc --out docs src --theme ./node_modules/typedoc-neo-theme/bin/default",
     "prepublishOnly": "npm run clean && npm run tsc && npm run ava",
-    "lint": "eslint \"**/*.{ts,tsx}\""
+    "lint": "eslint --cache \"**/*.{ts,tsx}\""
   },
   "ava": {
     "extensions": [
