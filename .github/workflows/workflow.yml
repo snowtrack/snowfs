@@ -35,12 +35,13 @@ jobs:
           path: |
             **/node_modules
             **/.eslintcache
-          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+          key: ${{ runner.os }}-benchmark-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
 
           #  A list of restore-keys is useful when you are restoring a cache
           # from another cache because restore-keys can partially match cache keys.
           restore-keys: |
             ${{ runner.os }}-
+            ${{ runner.os }}-benchmark-
 
       - name: ⬆️ Upgrade node-gyp
         shell: powershell
@@ -78,11 +79,12 @@ jobs:
           path: |
             **/node_modules
             **/.eslintcache
-          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+          key: ${{ runner.os }}-benchmark-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
 
           #  A list of restore-keys is useful when you are restoring a cache
           # from another cache because restore-keys can partially match cache keys.
           restore-keys: |
+            ${{ runner.os }}-benchmark-
             ${{ runner.os }}-
 
       - name: ⏩ Upgrade node-gyp
@@ -121,11 +123,12 @@ jobs:
           path: |
             **/node_modules
             **/.eslintcache
-          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
 
           #  A list of restore-keys is useful when you are restoring a cache
           # from another cache because restore-keys can partially match cache keys.
           restore-keys: |
+            ${{ runner.os }}-build-
             ${{ runner.os }}-
 
       - name: ⏩ Upgrade node-gyp
@@ -192,11 +195,12 @@ jobs:
           path: |
             **/node_modules
             **/.eslintcache
-          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
 
           #  A list of restore-keys is useful when you are restoring a cache
           # from another cache because restore-keys can partially match cache keys.
           restore-keys: |
+            ${{ runner.os }}-build-
             ${{ runner.os }}-
 
       - name: ⏩ Upgrade node-gyp
@@ -262,11 +266,12 @@ jobs:
           path: |
             **/node_modules
             **/.eslintcache
-          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
 
           #  A list of restore-keys is useful when you are restoring a cache
           # from another cache because restore-keys can partially match cache keys.
           restore-keys: |
+            ${{ runner.os }}-build-
             ${{ runner.os }}-
 
 
