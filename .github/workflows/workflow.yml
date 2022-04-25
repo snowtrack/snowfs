@@ -47,7 +47,7 @@ jobs:
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
       - name: 📥 Install dependencies
-        run: npm run ci
+        run: npm ci
 
       - name: 🏇 Run Benchmark
         run: npm run benchmark
@@ -87,7 +87,7 @@ jobs:
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
     
       - name: 📥 Install dependencies
-        run: npm run ci
+        run: npm ci
 
       - name: 🏇 Run Benchmark
         run: npm run benchmark
@@ -128,7 +128,7 @@ jobs:
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
       - name: 📥 Install dependencies
-        run: npm run ci
+        run: npm ci
 
       - name: 🧪 Run Tests
         run: npm run ava
@@ -197,7 +197,7 @@ jobs:
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
       - name: 📥 Install dependencies
-        run: npm run ci
+        run: npm ci
 
 
       - name: 🧪 Run Tests
@@ -267,7 +267,7 @@ jobs:
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
       - name: 📥 Install dependencies
-        run: npm run ci
+        run: npm ci
 
       - name: 🧪 Run Tests
         run: npm run ava
