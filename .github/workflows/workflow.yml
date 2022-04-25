@@ -42,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-
 
-      - name: ⏩ Upgrade node-gyp
+      - name: ⬆️ Upgrade node-gyp
         shell: powershell
         run: |
               npm install --global node-gyp@9
