@@ -12,6 +12,7 @@ on:
 jobs:
 
   windows-benchmark:
+    name: 🏁 Windows Benchmark
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -53,6 +54,7 @@ jobs:
         run: npm run benchmark
 
   macos-benchmark:
+    name: 🍏 MacOS Benchmark
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
@@ -94,6 +96,7 @@ jobs:
 
 
   linux:
+    name: 🐧 Linux Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -163,6 +166,7 @@ jobs:
           path: snow.tar
 
   macos:
+    name: 🍏 MacOS Build
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
@@ -231,6 +235,7 @@ jobs:
 
 
   windows:
+    name: 🏁 Windows Build
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -298,7 +303,7 @@ jobs:
             dist/node_modules/drivelist/build/Release/drivelist.node
 
   analyze:
-    name: Analyze
+    name: 🧪 Analyze
     runs-on: ubuntu-latest
     permissions:
       actions: read
