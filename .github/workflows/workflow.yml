@@ -16,43 +16,81 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: ⚙️ Checkout Repository
+        uses: actions/checkout@v3
+        with: 
+          submodules: 'recursive'
+
+      - name: 🟢 Set node environment
+        uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
-      - name: Checkout LFS objects
-        run: git lfs pull
 
-      - name: Upgrade node-gyp
+      - name: 📦 Cache node_modules and eslintcache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            **/.eslintcache
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+
+          #  A list of restore-keys is useful when you are restoring a cache
+          # from another cache because restore-keys can partially match cache keys.
+          restore-keys: |
+            ${{ runner.os }}-
+
+      - name: ⏩ Upgrade node-gyp
         shell: powershell
         run: |
               npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
-    
-      - run: npm ci
-      - run: npm run benchmark
+
+      - name: 📥 Install dependencies
+        run: npm run ci-all
+
+      - name: 🏇 Run Benchmark
+        run: npm run benchmark
 
   macos-benchmark:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: ⚙️ Checkout Repository
+        uses: actions/checkout@v3
+        with: 
+          submodules: 'recursive'
+
+      - name: 🟢 Set node environment
+        uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
-      - name: Checkout LFS objects
-        run: git lfs pull
 
-      - name: Upgrade node-gyp
+      - name: 📦 Cache node_modules and eslintcache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            **/.eslintcache
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+
+          #  A list of restore-keys is useful when you are restoring a cache
+          # from another cache because restore-keys can partially match cache keys.
+          restore-keys: |
+            ${{ runner.os }}-
+
+      - name: ⏩ Upgrade node-gyp
         run: |
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
+    
+      - name: 📥 Install dependencies
+        run: npm run ci-all
 
-      - run: npm ci
-      - run: npm run benchmark
+      - name: 🏇 Run Benchmark
+        run: npm run benchmark
 
 
   linux:
@@ -60,31 +98,52 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: ⚙️ Checkout Repository
+        uses: actions/checkout@v3
+        with: 
+          submodules: 'recursive'
+
+      - name: 🟢 Set node environment
+        uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
-      - name: Checkout LFS objects
-        run: git lfs pull
 
-      - name: Upgrade node-gyp
+      - name: 📦 Cache node_modules and eslintcache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            **/.eslintcache
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+
+          #  A list of restore-keys is useful when you are restoring a cache
+          # from another cache because restore-keys can partially match cache keys.
+          restore-keys: |
+            ${{ runner.os }}-
+
+      - name: ⏩ Upgrade node-gyp
         run: |
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
-      - run: npm ci
-      - run: npm run ava
-      - run: npm run lint
+      - name: 📥 Install dependencies
+        run: npm run ci-all
 
-      - name: Coveralls GitHub Action
+      - name: 🧪 Run Tests
+        run: npm run ava
+
+      - name: 🧪 Run Linter
+        run: npm run lint
+
+      - name: 📰 Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: run-${{ matrix.test_number }}
           parallel: true
 
-      - name: npm run tsc, build
+      - name: 👷 npm run tsc, build
         run: |
           npm run tsc
           npm run build -- --target node14-linux-x64 --output=dist/snow
@@ -94,45 +153,64 @@ jobs:
           cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
           cp -r resources dist
 
-      - name: 'Tar files'
+      - name: 🗜️ 'Tar files'
         run: tar -cvf snow.tar -C dist .
 
-      - name: Publish Artifact
+      - name: 🚀 Publish Artifact
         uses: actions/upload-artifact@v3
         with:
           name: snow-cli-linux-x64
           path: snow.tar
-
 
   macos:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: ⚙️ Checkout Repository
+        uses: actions/checkout@v3
+        with: 
+          submodules: 'recursive'
+
+      - name: 🟢 Set node environment
+        uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
-      - name: Checkout LFS objects
-        run: git lfs pull
 
-      - name: Upgrade node-gyp
+      - name: 📦 Cache node_modules and eslintcache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            **/.eslintcache
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+
+          #  A list of restore-keys is useful when you are restoring a cache
+          # from another cache because restore-keys can partially match cache keys.
+          restore-keys: |
+            ${{ runner.os }}-
+
+      - name: ⏩ Upgrade node-gyp
         run: |
               npm install --global node-gyp@9
               npm config set node_gyp $(npm prefix -g)/lib/node_modules/node-gyp/bin/node-gyp.js
 
-      - run: npm ci
-      - run: npm run ava
+      - name: 📥 Install dependencies
+        run: npm run ci-all
 
-      - name: Coveralls GitHub Action
+
+      - name: 🧪 Run Tests
+        run: npm run ava
+
+      - name: 📰 Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: run-${{ matrix.test_number }}
           parallel: true
 
-      - name: npm run tsc, build
+      - name: 👷 npm run tsc, build
         run: |
           npm run tsc
           npm run build -- --target node14-macos-x64 --output=dist/snow
@@ -142,10 +220,10 @@ jobs:
           cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
           cp -r resources dist
 
-      - name: 'Tar files'
+      - name: 🗜️ 'Tar files'
         run: tar -cvf snow.tar -C dist .
 
-      - name: Publish Artifact
+      - name: 🚀 Publish Artifact
         uses: actions/upload-artifact@v3
         with:
           name: snow-cli-darwin-x64
@@ -157,31 +235,51 @@ jobs:
     timeout-minutes: 20
     steps:
     
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: ⚙️ Checkout Repository
+        uses: actions/checkout@v3
+        with: 
+          submodules: 'recursive'
+
+      - name: 🟢 Set node environment
+        uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: 14.17.6
-      - name: Checkout LFS objects
-        run: git lfs pull
 
-      - name: Upgrade node-gyp
+      - name: 📦 Cache node_modules and eslintcache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            **/.eslintcache
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/.eslintcache') }}
+
+          #  A list of restore-keys is useful when you are restoring a cache
+          # from another cache because restore-keys can partially match cache keys.
+          restore-keys: |
+            ${{ runner.os }}-
+
+
+      - name: ⏩ Upgrade node-gyp
         shell: powershell
         run: |
               npm install --global node-gyp@9
               npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
-      - run: npm ci
-      - run: npm run ava
+      - name: 📥 Install dependencies
+        run: npm run ci-all
 
-      - name: Coveralls GitHub Action
+      - name: 🧪 Run Tests
+        run: npm run ava
+
+      - name: 📰 Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: run-${{ matrix.test_number }}
           parallel: true
 
-      - name: npm run tsc, build
+      - name: 👷 npm run tsc, build
         run: |
           npm run tsc
           npm run build -- --target node14-win-x64 --output=dist/snow.exe
@@ -190,7 +288,7 @@ jobs:
           cp node_modules/drivelist/build/Release/drivelist.node dist/node_modules/drivelist/build/Release/drivelist.node
           Copy-Item -Path resources -Destination dist -recurse -Force
 
-      - name: Publish Artifact
+      - name: 🚀 Publish Artifact
         uses: actions/upload-artifact@v3
         with:
           name: snow-cli-win-x64
@@ -215,7 +313,7 @@ jobs:
         # Learn more about CodeQL language support at https://git.io/codeql-language-support
 
     steps:
-    - name: Checkout repository
+    - name: ⚙️ Checkout repository
       uses: actions/checkout@v3
 
     # Initializes the CodeQL tools for scanning.
