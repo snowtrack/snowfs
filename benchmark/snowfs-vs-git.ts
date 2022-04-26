@@ -202,6 +202,7 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
       playground = os.tmpdir();
     }
 
+    // Test if we can create directories in the playground
     const tmp: string = join(playground, 'benchmark-xyz-test');
     try {
       fse.mkdirpSync(tmp);
