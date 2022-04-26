@@ -146,11 +146,11 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: 🧪 Run Tests
-        run: npm run ava
-
       - name: 🧪 Run Linter
         run: npm run lint
+
+      - name: 🧪 Run Tests
+        run: npm run ava
 
       - name: 📰 Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.1.2
