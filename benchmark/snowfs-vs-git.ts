@@ -99,7 +99,7 @@ async function createFile(dst: string, size: number, t: any = console): Promise<
   });
 }
 
-async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
+async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console): Promise<number> {
   if (fse.pathExistsSync(repoPath)) {
     fse.rmdirSync(repoPath, { recursive: true });
   }
