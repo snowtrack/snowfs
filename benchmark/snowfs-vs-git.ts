@@ -9,7 +9,7 @@ import { Repository, RESET } from '../src/repository';
 // eslint-disable-next-line import/no-extraneous-dependencies
 const chalk = require('chalk');
 
-const BENCHMARK_FILE_SIZE = 4000000000;
+const BENCHMARK_FILE_SIZE = process.platform === 'win32' ? 1000000000 : 4000000000;
 
 async function input(question: string): Promise<string> {
   const rl = readline.createInterface({
