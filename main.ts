@@ -124,7 +124,7 @@ program
   .command('init [path] [commondir]')
   .option('--debug', 'add more debug information on errors')
   .description('initialize a SnowFS repository')
-  .action(async (path: string, commondir?: string, opts?: any) => {
+  .action(async (path: string, commondir: string | undefined, opts: {debug?: boolean}) => {
     const repoPath: string = path ?? '.';
     try {
       await Repository.initExt(repoPath, {
@@ -154,7 +154,7 @@ program
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
-  .action(async (path: string, opts?: {index?: string, debug?: boolean}) => {
+  .action(async (path: string, opts: {index?: string, debug?: boolean}) => {
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -188,7 +188,7 @@ program
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
-  .action(async (pathPattern: string, opts?: {index?: string, debug?: boolean}) => {
+  .action(async (pathPattern: string, opts: {index?: string, debug?: boolean}) => {
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -278,7 +278,7 @@ program
   });
 
 program
-  .command('checkout [target]')
+  .command('checkout <target>')
   .option('--discard-changes', 'force switch and discard changes in workdir')
   .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('--debug', 'add more debug information on errors')
@@ -286,7 +286,7 @@ program
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('checkout a commit')
-  .action(async (target: string | undefined, opts: {debug?: boolean, input?: string, noColor?: boolean, discardChanges?: boolean, keepChanges?: boolean}) => {
+  .action(async (target: string, opts: {debug?: boolean, input?: string, noColor?: boolean, discardChanges?: boolean, keepChanges?: boolean}) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
@@ -294,13 +294,6 @@ program
     try {
       opts = await parseOptions(opts);
       const repo = await Repository.open(normalize(process.cwd()));
-      const targetCommit = repo.findCommitByHash(target);
-      if (!targetCommit) {
-        if (repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, target)) {
-          throw new Error(`target ${target} seems to be a branch and must be checked out via 'snow switch'`);
-        }
-        throw new Error(`cannot find commit '${target}'`);
-      }
 
       if (target) {
         if (opts.discardChanges && opts.keepChanges) {
@@ -462,7 +455,7 @@ program
 
 program
   .command('commit')
-  .option('-m, --message [message]', 'input file')
+  .option('-m, --message <message>', 'input file')
   .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
   .option('--debug', 'add more debug information on errors')
   .option('--user-data', 'open standard input to apply user data for commit')
@@ -470,7 +463,7 @@ program
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .option('--index [id]', 'use a custom index id')
   .description('complete the commit')
-  .action(async (opts: {input?: string, index?: string, message?: string, allowEmpty?: boolean, tags?: [], userData?: string, debug?: boolean}) => {
+  .action(async (opts: {message: string, input?: string, index?: string, allowEmpty?: boolean, tags?: [], userData?: string, debug?: boolean}) => {
     try {
       opts = await parseOptions(opts);
 
@@ -478,7 +471,7 @@ program
       const index: Index = getIndex(repo, opts.index);
       let data = {};
 
-      let tags: string[];
+      let tags: string[] | undefined;
       if (opts.tags && opts.tags.length > 0) {
         tags = String(opts.tags).split(',');
       }
