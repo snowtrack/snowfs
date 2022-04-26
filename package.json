@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@supercharge/promise-pool": "^2.1.0",
-    "chalk": "^4.1.2",
+    "chalk": "^5.0.1",
     "commander": "^9.1.0",
     "drivelist": "^9.2.4",
     "es-aggregate-error": "^1.0.7",
@@ -76,7 +76,7 @@
     "@types/unzipper": "^0.10.5",
     "@typescript-eslint/eslint-plugin": "^5.16.0",
     "@typescript-eslint/parser": "^5.16.0",
-    "ava": "^3.15.0",
+    "ava": "^4.2.0",
     "coveralls": "^3.1.1",
     "cross-env": "^7.0.3",
     "eslint": "^8.11.0",
