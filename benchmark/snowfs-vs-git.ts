@@ -9,7 +9,7 @@ import { getErrorMessage } from '../src/common';
 
 const chalk = require('chalk');
 
-const BENCHMARK_FILE_SIZE = 4000000000;
+const BENCHMARK_FILE_SIZE = process.platform === 'win32' ? 1000000000 : 4000000000;
 
 async function input(question: string): Promise<string> {
   const rl = readline.createInterface({
@@ -99,8 +99,10 @@ async function createFile(dst: string, size: number, t: any = console): Promise<
   });
 }
 
-async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t: any = console): Promise<number> {
-  fse.rmdirSync(repoPath, { recursive: true });
+async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
+  if (fse.pathExistsSync(repoPath)) {
+    fse.rmdirSync(repoPath, { recursive: true });
+  }
 
   t.log(`Create Git(+LFS) Repository at: ${repoPath}`);
   await exec('git', ['init', basename(repoPath)], t, { cwd: dirname(repoPath) });
@@ -200,6 +202,7 @@ export async function startBenchmark(textureFilesize: number = BENCHMARK_FILE_SI
       playground = os.tmpdir();
     }
 
+    // Test if we can create directories in the playground
     const tmp: string = join(playground, 'benchmark-xyz-test');
     try {
       fse.mkdirpSync(tmp);
