@@ -100,7 +100,9 @@ async function createFile(dst: string, size: number, t = console) {
 }
 
 async function gitAddTexture(repoPath: string, textureFilesize: number = BENCHMARK_FILE_SIZE, t = console): Promise<number> {
-  fse.rmdirSync(repoPath, { recursive: true });
+  if (fse.pathExistsSync(repoPath)) {
+    fse.rmdirSync(repoPath, { recursive: true });
+  }
 
   t.log(`Create Git(+LFS) Repository at: ${repoPath}`);
   await exec('git', ['init', basename(repoPath)], t, { cwd: dirname(repoPath) });
