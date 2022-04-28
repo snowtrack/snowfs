@@ -1897,7 +1897,7 @@ export class Repository {
           config = Object.assign(config, { additionalConfig: opts?.additionalConfig });
         }
 
-        return fse.writeFile(join(opts.commondir, 'config'), JSON.stringify(config));
+        return fse.writeJson(join(opts.commondir, 'config'), config, { spaces: '\t' });
       })
       .then(() => {
         repo.repoOdb = odb;
