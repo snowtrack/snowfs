@@ -340,7 +340,7 @@ program
 
 program
   .command('index [command]')
-  .action(async (command: any, opts: any) => {
+  .action(async (command: any, opts: {debug?: boolean}) => {
     try {
       const repo = await Repository.open(normalize(process.cwd()));
       if (command === 'create') {
@@ -647,7 +647,7 @@ program
   .command('driveinfo')
   .option('--output [format=json-pretty]', "currently supported output formats 'json', 'json-pretty'")
   .description('List all connected drives in your computer, in all major operating systems')
-  .action(async (opts: any) => {
+  .action(async (opts: {output?: 'json' | 'json-pretty'}) => {
     const drives = await drivelist.list();
     console.log(JSON.stringify(drives, null, opts.output === 'json' ? '' : '    '));
   });
