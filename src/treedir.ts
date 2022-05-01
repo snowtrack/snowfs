@@ -10,7 +10,7 @@ import {
   getPartHash, HashBlock, MB20, SnowtrackData, StatsSubset,
 } from './common';
 
-import sortPaths = require('sort-paths');
+const sortPaths = require('sort-paths');
 
 export const enum FILEMODE {
   UNREADABLE = 0,
