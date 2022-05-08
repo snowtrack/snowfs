@@ -54,38 +54,38 @@
     "node": ">=14.17.6"
   },
   "dependencies": {
-    "@supercharge/promise-pool": "^2.1.0",
-    "chalk": "^4.1.2",
-    "commander": "^9.1.0",
-    "drivelist": "^9.2.4",
-    "es-aggregate-error": "^1.0.7",
-    "fs-extra": "^10.1.0",
-    "hasha": "^5.2.2",
-    "lodash": "^4.17.21",
-    "micromatch": "^4.0.5",
-    "sort-paths": "^1.1.1",
-    "trash": "^7.2.0"
+    "@supercharge/promise-pool": "2.1.0",
+    "chalk": "4.1.2",
+    "commander": "9.1.0",
+    "drivelist": "9.2.4",
+    "es-aggregate-error": "1.0.7",
+    "fs-extra": "10.1.0",
+    "hasha": "5.2.2",
+    "lodash": "4.17.21",
+    "micromatch": "4.0.5",
+    "sort-paths": "1.1.1",
+    "trash": "7.2.0"
   },
   "optionalDependencies": {
-    "winattr": "^3.0.0"
+    "winattr": "3.0.0"
   },
   "devDependencies": {
-    "@swc/core": "^1.2.177",
-    "@types/fs-extra": "^9.0.13",
-    "@types/lodash": "^4.14.182",
-    "@types/unzipper": "^0.10.5",
-    "@typescript-eslint/eslint-plugin": "^5.22.0",
-    "@typescript-eslint/parser": "^5.22.0",
-    "ava": "^3.15.0",
-    "coveralls": "^3.1.1",
-    "cross-env": "^7.0.3",
-    "eslint": "^8.15.0",
-    "kleur": "^4.1.4",
-    "nyc": "^15.1.0",
-    "pkg": "^5.6.0",
-    "rimraf": "^3.0.2",
-    "ts-node": "^10.7.0",
-    "typescript": "^4.3.4",
-    "unzipper": "^0.10.11"
+    "@swc/core": "1.2.177",
+    "@types/fs-extra": "9.0.13",
+    "@types/lodash": "4.14.182",
+    "@types/unzipper": "0.10.5",
+    "@typescript-eslint/eslint-plugin": "5.22.0",
+    "@typescript-eslint/parser": "5.22.0",
+    "ava": "3.15.0",
+    "coveralls": "3.1.1",
+    "cross-env": "7.0.3",
+    "eslint": "8.15.0",
+    "kleur": "4.1.4",
+    "nyc": "15.1.0",
+    "pkg": "5.6.0",
+    "rimraf": "3.0.2",
+    "ts-node": "10.7.0",
+    "typescript": "4.3.4",
+    "unzipper": "0.10.11"
   }
 }
