@@ -52,7 +52,7 @@ jobs:
 
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm install
 
       - name: 🏇 Run Benchmark
         run: npm run benchmark
@@ -97,7 +97,7 @@ jobs:
     
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm install
 
       - name: 🏇 Run Benchmark
         run: npm run benchmark
@@ -144,7 +144,7 @@ jobs:
 
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm install
 
       - name: 🧪 Run Linter
         run: npm run lint
@@ -219,7 +219,7 @@ jobs:
 
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm install
 
 
       - name: 🧪 Run Tests
@@ -295,7 +295,7 @@ jobs:
 
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm install
 
       - name: 🧪 Run Tests
         run: npm run test
