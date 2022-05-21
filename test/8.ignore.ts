@@ -370,6 +370,27 @@ test('Ignore Manager [foo/bar[1-4]]', (t) => {
   testIgnore(t, pattern, ignored, unignored);
 });
 
+test.only('Ignore Manager test default ignore', (t) => {
+  const ignored = [
+    'test.blend1',
+    'foo/test.blend1',
+    'foo/test.blend2',
+    'foo/bar/test.blend1',
+    'foo/bar/test.blend2',
+    'foo/bar/bas/test.blend1',
+    'foo/bar/bas/test.blend2',
+  ];
+
+  const unignored = [
+    'test.blend',
+    'foo/test.blend',
+    'foo/bar/test.blend',
+    'foo/bar/bas/test.blend',
+  ];
+
+  testIgnore(t, [], ignored, unignored);
+});
+
 test('Ignore Test in getStatus: Ignore single file in root', async (t) => {
   const repoPath = getRandomPath();
   let repo: Repository;
