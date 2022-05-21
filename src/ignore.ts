@@ -28,7 +28,7 @@ const DEFAULT_IGNORE_PATTERNS = [
 export class IgnoreManager {
   patterns: string[] = [];
 
-  async init(filepath: string | null, nodefaultignore: boolean = false): Promise<void> {
+  async init(filepath: string | null, nodefaultignore = false): Promise<void> {
     const patterns: string[] = [];
 
     if (filepath) {
@@ -45,7 +45,7 @@ export class IgnoreManager {
     this.loadPatterns(patterns, nodefaultignore);
   }
 
-  loadPatterns(patterns: string[], nodefaultignore: boolean = false): void {
+  loadPatterns(patterns: string[], nodefaultignore = false): void {
     if (!nodefaultignore) {
       this.patterns = this.patterns.concat(DEFAULT_IGNORE_PATTERNS);
     }
