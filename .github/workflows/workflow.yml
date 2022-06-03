@@ -3,7 +3,7 @@ name: Build and Test
 on:
   push:
     branches:
-      - '*' # matches every branch
+      - 'main' # Only run if push is on main
   pull_request:
     branches:
       - '*' # matches every branch
