@@ -207,7 +207,7 @@ SemVer.
 
 ## Licensing
 
-`SnowFS` is licensed under the **MIT** license, please review the [LICENSE file](LICENSE).
+`SnowFS` is licensed under the **GPL v3** license, please review the [LICENSE file](LICENSE).
 Excluded from the license are images, artworks, and logos. Please file a request by mail, if you have any questions.
 
 
