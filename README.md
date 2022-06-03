@@ -5,7 +5,7 @@
 [![release](https://img.shields.io/badge/Download%20CLI%20Beta-0.9.2-orange)](https://github.com/Snowtrack/SnowFS/releases/tag/v0.9.2)
 [![Coverage Status](https://coveralls.io/repos/github/Snowtrack/SnowFS/badge.svg)](https://coveralls.io/github/Snowtrack/SnowFS)
 [![Build and Test](https://github.com/Snowtrack/SnowFS/workflows/Build%20and%20Test/badge.svg)](https://github.com/snowtrack/SnowFS/actions)
-[![MIT Licence](https://badges.frapsoft.com/os/mit/mit.png?v=102)](https://opensource.org/licenses/mit-license.php)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![DeepSource](https://deepsource.io/gh/Snowtrack/SnowFS.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/Snowtrack/SnowFS/?ref=repository-badge)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/73acdcb360414eb299f5cf0221cab4d0)](https://www.codacy.com/gh/Snowtrack/SnowFS/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Snowtrack/SnowFS&amp;utm_campaign=Badge_Grade)
 
