@@ -70,7 +70,6 @@ But due to their focus on the software development lifecycle they are not suitab
   - Complicated *rewriting history* procedure
   - Issues with binaries >4GB on Windows as reported [here](https://github.com/git-lfs/git-lfs/issues/2434), [here](https://confluence.atlassian.com/bitbucketserverkb/files-larger-than-4-gb-are-not-correctly-handled-on-windows-935385144.html), and [here](https://stackoverflow.com/questions/49018053/how-large-does-a-large-file-have-to-be-to-benefit-from-git-lfs)
   - Slow in binary modification detection
-  - Git uses a restrictive license
 
 ### libgit2
 
