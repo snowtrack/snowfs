@@ -14,8 +14,10 @@ import {
 } from './src/repository';
 import { TreeDir, TreeEntry, TreeFile } from './src/treedir';
 import { IoContext } from './src/io_context';
+import { Diff } from './src/diff';
 
 const program = require('commander');
+program.name('snow');
 const chalk = require('chalk');
 const drivelist = require('drivelist');
 const AggregateError = require('es-aggregate-error');
@@ -511,13 +513,14 @@ program
   .option('--no-color')
   .option('-v, --verbose', 'verbose')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
+  .option('--changed-files')
   .option('--debug', 'add more debug information on errors')
   .description('print the log to the console')
   .action(async (opts: any) => {
     if (opts.noColor) {
       chalk.level = 0;
     }
-
+    
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -526,16 +529,29 @@ program
       const headHash: string = repo.getHead().hash;
       const headName: string = repo.getHead().getName();
 
-      if (opts.output === 'json' || opts.output === 'json-pretty') {
+      if (opts.output === 'json' || opts.output === 'json-pretty' || opts.changedFiles) {
         const o = { commits, refs, head: repo.getHead().isDetached() ? headHash : headName };
+        
+        if (opts.changedFiles) {
+          var statuses = {};
+          var commit_prev = commits[0];
+          for (const commit of commits.slice(1)) {
+            const diff = new Diff(commit_prev, commit, { includeDirs: true });
 
+            statuses[commit_prev.hash] = {"modified":Array.from(diff.modified()), "deleted":Array.from(diff.deleted()), "added":Array.from(diff.added())};
+            commit_prev = commit;
+          }
+        }
+
+        var cur_commit: Commit = {};
         process.stdout.write(JSON.stringify(o, (key, value) => {
           if (value instanceof Commit) {
+            cur_commit = value;
             return {
               hash: value.hash,
               message: value.message,
               date: value.date.getTime() / 1000.0,
-              root: opts.verbose ? value.root : undefined,
+              root: opts.verbose || opts.changedFiles ? value.root : undefined,
               tags: value.tags,
               userData: value.userData ? JSON.parse(JSON.stringify(value.userData)) : {},
             };
@@ -543,6 +559,7 @@ program
           if (value instanceof TreeDir) {
             return { path: value.path, hash: value.hash, children: value.children };
           }
+         
           if (value instanceof TreeFile) {
             return {
               path: value.path,
@@ -550,8 +567,12 @@ program
               ctime: value.stats.ctime,
               mtime: value.stats.mtime,
               size: value.stats.size,
+              status: opts.changedFiles ? (statuses[cur_commit.hash]["modified"].includes(value) ? "modified" :
+                                          (statuses[cur_commit.hash]["added"].includes(value) ? "added" : "unmodified"))
+                                          : undefined,
             };
           }
+
           if (value instanceof Reference) {
             return {
               name: value.getName(),
@@ -617,7 +638,7 @@ program
           }
           process.stdout.write(`\n  ${commit.message}\n\n\n`);
 
-          if (opts.verbose) {
+          if (opts.verbose || opts.changedFiles) {
             const files = commit.root.getAllTreeFiles({ entireHierarchy: true, includeDirs: true });
             files.forEach((value: TreeEntry) => {
               if (value.isDirectory()) {

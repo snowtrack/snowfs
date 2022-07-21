@@ -242,6 +242,8 @@ test('snow checkout', async (t) => {
   t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
 });
 
+
+
 test('snow branch foo-branch', async (t) => {
   t.timeout(180000);
 
@@ -312,6 +314,35 @@ test('snow branch foo-branch', async (t) => {
   }
 });
 
+test('snow log --changed-files', async (t) => {
+  t.timeout(180000);
+  const snow: string = getSnowexec();
+  const snowWorkdir = generateUniqueTmpDirName();
+
+  await exec(t, snow, ['init', basename(snowWorkdir)], { cwd: dirname(snowWorkdir) });
+
+  t.log('Write foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'foo');
+  await exec(t, snow, ['add', 'foo.txt'], { cwd: snowWorkdir });
+
+  await exec(t, snow, ['commit', '-m', 'Write foo.txt'], { cwd: snowWorkdir });
+
+  t.log('Modify foo.txt');
+  fse.writeFileSync(join(snowWorkdir, 'foo.txt'), 'bar');
+  await exec(t, snow, ['add', 'foo.txt'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'Modify foo.txt'], { cwd: snowWorkdir });
+  
+  t.log('Delete foo.txt');
+  fse.removeSync(join(snowWorkdir, 'foo.txt'));
+  await exec(t, snow, ['add', 'foo.txt'], { cwd: snowWorkdir });
+  await exec(t, snow, ['commit', '-m', 'Delete foo.txt'], { cwd: snowWorkdir });
+  const out = await exec(t, snow, ['log', '--changed-files'], { cwd: snowWorkdir }, EXEC_OPTIONS.RETURN_STDOUT);
+
+  const c: any = JSON.parse(String(out));
+  t.true(c.commits[2].root.children[0].status == "added" &&
+         c.commits[1].root.children[0].status == "modified");
+});
+
 test('snow add .', async (t) => {
   t.timeout(180000);
 
@@ -361,6 +392,7 @@ test('snow add *', async (t) => {
 /**
  * This test ensures that foo.txt is not added to the staging area because cwd is the subdirectory
  */
+
 test('snow add foo.txt', async (t) => {
   const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();
