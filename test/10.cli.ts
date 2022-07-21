@@ -242,8 +242,6 @@ test('snow checkout', async (t) => {
   t.false(fse.pathExistsSync(join(snowWorkdir, 'abc1.txt')));
 });
 
-
-
 test('snow branch foo-branch', async (t) => {
   t.timeout(180000);
 
@@ -392,7 +390,6 @@ test('snow add *', async (t) => {
 /**
  * This test ensures that foo.txt is not added to the staging area because cwd is the subdirectory
  */
-
 test('snow add foo.txt', async (t) => {
   const snow: string = getSnowexec();
   const snowWorkdir = generateUniqueTmpDirName();

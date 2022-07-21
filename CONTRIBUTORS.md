@@ -7,3 +7,4 @@
 - Sean Mitchell https://github.com/dskvr 
 - Nicola Dardanis <https://github.com/nicdard>
 - KOGA Mitsuhiro <https://github.com/shiena>
+- belkarx <belkarx0@outlook.com>

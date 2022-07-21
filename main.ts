@@ -520,7 +520,6 @@ program
     if (opts.noColor) {
       chalk.level = 0;
     }
-    
     try {
       const repo = await Repository.open(normalize(process.cwd()));
 
@@ -572,7 +571,6 @@ program
                                           : undefined,
             };
           }
-
           if (value instanceof Reference) {
             return {
               name: value.getName(),
