@@ -46,6 +46,7 @@ SnowFS is a high-performance command-line application and node library for *Wind
 ## Made with SnowFS
 
 - [Snowtrack](https://www.snowtrack.io)
+- [Snow for Blender](https://snowtrack.io/snow-for-blender.html)
 - [Snow for Cinema 4D](https://snowtrack.io/snow-for-cinema-4d.html)
 - [Snow for Unity](https://github.com/daniellanner/snow-for-unity-facade)
 
