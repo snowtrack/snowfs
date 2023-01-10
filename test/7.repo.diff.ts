@@ -50,7 +50,7 @@ test('Diff.basic', async (t) => {
   // Commit 3: create a file fooB.txt
   const commit3: Commit = await writeFileAndCommit(repo, 'fooB.txt', 'fooB-content');
 
-  // Commit 4: create a file fooB.txt
+  // Commit 4: delete a file fooB.txt
   const commit4: Commit = await deleteFileAndCommit(repo, 'fooB.txt', 'delete fooB.txt');
 
   const test0 = () => {
