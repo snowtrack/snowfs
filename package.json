@@ -76,7 +76,7 @@
     "@types/unzipper": "^0.10.5",
     "@typescript-eslint/eslint-plugin": "^5.16.0",
     "@typescript-eslint/parser": "^5.16.0",
-    "ava": "^3.15.0",
+    "ava": "^5.2.0",
     "coveralls": "^3.1.1",
     "cross-env": "^7.0.3",
     "eslint": "^8.11.0",
