@@ -150,12 +150,14 @@ program
 
 program
   .command('rm [path]')
+  .option('--snow-dir')
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
   .action(async (path: string, opts?: any) => {
     try {
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
 
       const filepathAbs: string = isAbsolute(path) ? path : join(repo.workdir(), path);
 
@@ -184,16 +186,18 @@ program
 
 program
   .command('add <path>')
+  .option('--snow-dir')
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
   .action(async (pathPattern: string, opts?: any) => {
     try {
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
 
       const statusFiles: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED);
 
-      const relCwd = relative(repo.workdir(), normalize(process.cwd()));
+      const relCwd = relative(repo.workdir(), normalize(path));
 
       const index: Index = getIndex(repo, opts.index);
       for (const file of statusFiles) {
@@ -227,6 +231,7 @@ program
 
 program
   .command('branch [branch-name] [start-point]')
+  .option('--snow-dir')
   .option('--debug', 'add more debug information on errors')
   .option('--delete', 'delete a branch')
   .option('--no-color')
@@ -240,7 +245,8 @@ program
 
     try {
       opts = await parseOptions(opts);
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
 
       if (opts.delete) {
         if (startPoint) {
@@ -282,6 +288,7 @@ program
   .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
+  .option('--snow-dir')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('checkout a commit')
@@ -292,7 +299,8 @@ program
 
     try {
       opts = await parseOptions(opts);
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
       const targetCommit = repo.findCommitByHash(target);
       if (!targetCommit) {
         if (repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, target)) {
@@ -346,9 +354,11 @@ program
 
 program
   .command('index [command]')
+  .option('--snow-dir')
   .action(async (command: any, opts: any) => {
     try {
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
       if (command === 'create') {
         const index = repo.createIndex();
         // the user explicitely asked for an index
@@ -374,6 +384,7 @@ program
 program
   .command('status')
   .option('--no-color')
+  .option('--snow-dir')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
@@ -384,7 +395,8 @@ program
     }
 
     try {
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
 
       const statuses: StatusEntry[] = await repo.getStatus(FILTER.INCLUDE_MODIFIED | FILTER.INCLUDE_DELETED | FILTER.INCLUDE_UNTRACKED | FILTER.INCLUDE_DIRECTORIES);
       const newe: StatusEntry[] = [];
@@ -461,6 +473,7 @@ program
 program
   .command('commit')
   .option('-m, --message [message]', 'input file')
+  .option('--snow-dir')
   .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
   .option('--debug', 'add more debug information on errors')
   .option('--user-data', 'open standard input to apply user data for commit')
@@ -471,8 +484,9 @@ program
   .action(async (opts: any) => {
     try {
       opts = await parseOptions(opts);
+      const path = opts.snowDir ?? process.cwd();
 
-      const repo = await Repository.open(normalize(process.cwd()));
+      const repo = await Repository.open(normalize(path));
       const index: Index = getIndex(repo, opts.index);
       let data = {};
 
@@ -509,6 +523,7 @@ program
 program
   .command('log')
   .option('--no-color')
+  .option('--snow-dir')
   .option('-v, --verbose', 'verbose')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
   .option('--debug', 'add more debug information on errors')
@@ -519,7 +534,8 @@ program
     }
 
     try {
-      const repo = await Repository.open(normalize(process.cwd()));
+      const path = opts.snowDir ?? process.cwd();
+      const repo = await Repository.open(normalize(path));
 
       const commits: Commit[] = repo.getAllCommits(COMMIT_ORDER.NEWEST_FIRST);
       const refs: Reference[] = repo.getAllReferences();
@@ -657,6 +673,7 @@ program
 
 program
   .command('switch [branch-name]')
+  .option('--snow-dir')
   .option('--discard-changes', 'force switch and discard changes in workdir')
   .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('-d, --detach', 'detach the branch')
@@ -671,8 +688,9 @@ program
     }
 
     try {
+      const path = opts.snowDir ?? process.cwd();
       opts = await parseOptions(opts);
-      const repo = await Repository.open(normalize(process.cwd()));
+      const repo = await Repository.open(normalize(path));
 
       if (branchName) {
         const targetCommit = repo.findCommitByReferenceName(REFERENCE_TYPE.BRANCH, branchName);
