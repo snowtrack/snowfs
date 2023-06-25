@@ -150,7 +150,7 @@ program
 
 program
   .command('rm [path]')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('Remove files from the working tree and from the index')
@@ -186,7 +186,7 @@ program
 
 program
   .command('add <path>')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
   .description('add file contents to the index')
@@ -231,7 +231,7 @@ program
 
 program
   .command('branch [branch-name] [start-point]')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--debug', 'add more debug information on errors')
   .option('--delete', 'delete a branch')
   .option('--no-color')
@@ -288,7 +288,7 @@ program
   .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('--debug', 'add more debug information on errors')
   .option('--no-color')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--user-data', 'open standard input to apply user data for commit')
   .option('--input <type>', "type can be 'stdin' or {filepath}")
   .description('checkout a commit')
@@ -354,7 +354,7 @@ program
 
 program
   .command('index [command]')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .action(async (command: any, opts: any) => {
     try {
       const path = opts.snowDir ?? process.cwd();
@@ -384,7 +384,7 @@ program
 program
   .command('status')
   .option('--no-color')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
   .option('--index [id]', 'use a custom index id')
   .option('--debug', 'add more debug information on errors')
@@ -473,7 +473,7 @@ program
 program
   .command('commit')
   .option('-m, --message [message]', 'input file')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--allow-empty', 'allow an empty commit without any changes, not set by default')
   .option('--debug', 'add more debug information on errors')
   .option('--user-data', 'open standard input to apply user data for commit')
@@ -523,7 +523,7 @@ program
 program
   .command('log')
   .option('--no-color')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('-v, --verbose', 'verbose')
   .option('--output [format]', "currently supported output formats 'json', 'json-pretty'")
   .option('--debug', 'add more debug information on errors')
@@ -673,7 +673,7 @@ program
 
 program
   .command('switch [branch-name]')
-  .option('--snow-dir')
+  .option('--snow-dir <dir>', 'directory of the snow repository')
   .option('--discard-changes', 'force switch and discard changes in workdir')
   .option('-k, --keep-changes', "don't reset files in the workdir")
   .option('-d, --detach', 'detach the branch')
