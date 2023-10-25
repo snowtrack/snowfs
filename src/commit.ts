@@ -6,7 +6,7 @@ import { jsonCompliant } from './common';
 /**
  * A class that represents the commits of a repository.
  * It contains a variety of information like the creation date,
- * a human readable message string, that describes the changes, etc.
+ * a human-readable message string, that describes the changes, etc.
  *
  * Each commit is distinguishable by its commit hash that can be obtained
  * by [[Commit.hash]]
@@ -15,15 +15,13 @@ export class Commit {
   /** Unique commit hash */
   hash: string;
 
-  tags: string[];
-
   /** Custom commit user data, that was added to [[Repository.createCommit]]. */
-  userData: any;
+  userData: Record<string, any> | undefined = {};
 
   /** The repository this commit belongs to. */
   repo: Repository;
 
-  /** Human readable message string. */
+  /** Human-readable message string. */
   message: string;
 
   /** Creation date of the commit. */
@@ -35,10 +33,11 @@ export class Commit {
   /** Parent commit before this commit. */
   parent: string[] | null;
 
+  tags: Set<string> = new Set<string>();
+
   constructor(repo: Repository, message: string, creationDate: Date, root: TreeDir, parent: string[] | null) {
-    this.hash = crypto.createHash('sha256').update(process.hrtime().toString()).digest('hex');
-    this.tags = [];
-    this.userData = {};
+    const uniqueInputValue = `${repo.id}${creationDate.toISOString()}${message}`;
+    this.hash = crypto.createHash('sha256').update(uniqueInputValue).digest('hex');
     this.repo = repo;
     this.message = jsonCompliant(message);
     this.date = creationDate;
@@ -50,24 +49,10 @@ export class Commit {
    * Return a cloned commit object.
    */
   clone(): Commit {
-    const commit = new Commit(
-      this.repo,
-      this.message,
-      this.date,
-      this.root,
-      this.parent ? [...this.parent] : [],
-    );
+    const commit = new Commit(this.repo, this.message, new Date(this.date), this.root, this.parent ? [...this.parent] : null);
     commit.hash = this.hash;
-
-    if (this.tags.length > 0) {
-      commit.tags = [...this.tags];
-    }
-
-    commit.userData = {};
-    if (this.userData != null) {
-      commit.userData = { ...this.userData };
-    }
-
+    commit.tags = new Set(this.tags);
+    commit.userData = { ...this.userData };
     return commit;
   }
 
@@ -85,13 +70,8 @@ export class Commit {
     if (tag.length === 0) {
       return;
     }
-
-    if (this.tags.includes(tag)) {
-      return;
-    }
-
     tag = jsonCompliant(tag);
-    this.tags.push(tag);
+    this.tags.add(tag);
   }
 
   /**
